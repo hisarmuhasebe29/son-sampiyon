@@ -2,7 +2,7 @@
 /* =========================================================
    SON ŞAMPİYON — ARAÇ   ·   core.js  (çizim, ses, giriş)
    ========================================================= */
-const VERSION = 'v.02';
+const VERSION = 'v.03';
 const W = 960, H = 540, GROUND = 470;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scale = 1, dpr = 1, paused = false;

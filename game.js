@@ -104,12 +104,13 @@ function Intro(){
 }
 function Cover(){
   const K = { t:0 };
-  const bMain = { x:340, y:236, w:280, h:58, size:24 }, bCh = { x:340, y:306, w:280, h:48 }, bDiff = { x:340, y:366, w:280, h:44, size:19 };
+  const bMain = { x:340, y:236, w:280, h:58, size:24 }, bCh = { x:340, y:306, w:280, h:48 }, bDiff = { x:340, y:366, w:280, h:44, size:19 }, bUpd = { x:800, y:498, w:150, h:32, size:14 };
   K.update = dt => { K.t += dt;
     if (!tap) return;
     if (inB(bMain, tap) || tap.key){ SFX.whistle(); fs(); const s = SAVE.cur; if (s && (s.ch > 1 || s.i > 0)) startChapter(s.ch, s.i); else startChapter(1); }
     else if (inB(bCh, tap)){ SFX.ok(); cur = ChapterSelect(); }
     else if (inB(bDiff, tap)){ SAVE.diff = (SAVE.diff + 1) % 3; persist(); SFX.blip(); }
+    else if (inB(bUpd, tap)){ SFX.blip(); UPDATE_MSG = 'Kontrol ediliyor…'; checkVersion(true); }
   };
   K.draw = c => {
     bgStad(c, K.t, { cheer:true, score:'— : —', minute:'FİNAL' });
@@ -128,7 +129,8 @@ function Cover(){
     button(c, bMain, cont ? '▶  DEVAM ET (Bölüm ' + s.ch + ')' : '▶  YENİ OYUN', true, K.t);
     button(c, bCh, '📖  BÖLÜMLER');
     button(c, bDiff, 'Zorluk: ' + DIFF().name + '  ⟳');
-    txt(c, VERSION, 480, 528, 13, 'rgba(255,255,255,.5)', 'center', 'normal');
+    button(c, bUpd, '⟳ Güncelle · ' + VERSION);
+    if (UPDATE_MSG) txt(c, UPDATE_MSG, 480, 440, 18, '#7dff9a', 'center', 'bold', 4);
   };
   return K;
 }
@@ -854,4 +856,36 @@ function loop(now){
 }
 cur = Splash();
 requestAnimationFrame(loop);
-if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+/* =========================================================
+   OTOMATİK GÜNCELLEME — link ve ana ekran uygulaması birlikte
+   ========================================================= */
+let UPDATE_MSG = '';
+async function hardUpdate(){
+  UPDATE_MSG = 'Güncelleniyor…';
+  try { if (window.caches){ const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); } } catch(e){}
+  try { if (navigator.serviceWorker){ const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r => r.unregister())); } } catch(e){}
+  location.replace(location.pathname + '?u=' + Date.now());
+}
+async function checkVersion(manual){
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), { cache:'no-store' });
+    if (!r.ok) throw 0;
+    const j = await r.json();
+    if (j.v && j.v !== VERSION){
+      let tried = null; try { tried = sessionStorage.getItem('ss_upd'); } catch(e){}
+      if (tried !== j.v){ try { sessionStorage.setItem('ss_upd', j.v); } catch(e){} UPDATE_MSG = 'Yeni sürüm (' + j.v + ') yükleniyor…'; setTimeout(hardUpdate, 600); }
+    } else if (manual){ UPDATE_MSG = 'Güncel sürümdesiniz (' + VERSION + ') ✓'; setTimeout(() => UPDATE_MSG = '', 2500); }
+  } catch(e){ if (manual){ UPDATE_MSG = 'İnternet yok, sonra tekrar deneyin'; setTimeout(() => UPDATE_MSG = '', 2500); } }
+}
+if ('serviceWorker' in navigator){
+  const hadCtrl = !!navigator.serviceWorker.controller; let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadCtrl || reloaded) return; reloaded = true; location.reload(); });
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js', { updateViaCache:'none' }).then(reg => {
+      reg.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible'){ reg.update().catch(() => {}); checkVersion(); } });
+    }).catch(() => {});
+  });
+}
+addEventListener('load', () => checkVersion());
+if (location.search.indexOf('u=') >= 0){ try { history.replaceState(null, '', location.pathname); } catch(e){} }
