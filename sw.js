@@ -1,6 +1,6 @@
-// Son Şampiyon — v.01  (her yeni sürümde CACHE adını değiştirin)
-const CACHE = 'son-sampiyon-v01';
-const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+// Son Şampiyon — ARAÇ — v.02  (her yeni sürümde CACHE adını değiştirin)
+const CACHE = 'son-sampiyon-v02';
+const FILES = ['./', './index.html', './core.js', './story.js', './game.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))));
