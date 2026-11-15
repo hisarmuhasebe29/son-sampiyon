@@ -18,13 +18,18 @@
   #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
   canvas{display:block;background:#000}
   #ui{position:fixed;inset:0;pointer-events:none;display:none}
-  .btn{position:absolute;pointer-events:auto;width:17vmin;height:17vmin;border-radius:50%;
+  #joy{position:absolute;left:3vmin;bottom:3vmin;width:36vmin;height:36vmin;border-radius:50%;pointer-events:auto;touch-action:none;
+    background:radial-gradient(circle,rgba(255,255,255,.10) 0%,rgba(255,255,255,.04) 60%,rgba(255,255,255,.12) 100%);border:2px solid rgba(255,255,255,.35);box-sizing:border-box}
+  #joy.on{border-color:#f2c230}
+  #joy .ar{position:absolute;color:rgba(255,255,255,.55);font:bold 4.5vmin system-ui,sans-serif}
+  #knob{position:absolute;left:30%;top:30%;width:40%;height:40%;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff7d0,#f2c230 60%,#a87400);
+    box-shadow:0 0 2vmin rgba(0,0,0,.5);transition:transform .05s}
+  .btn{position:absolute;pointer-events:auto;width:16vmin;height:16vmin;border-radius:50%;display:none;
     background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.35);color:#fff;
-    font:bold 7vmin system-ui,sans-serif;display:flex;align-items:center;justify-content:center;
-    box-sizing:border-box;touch-action:none}
-  .btn.on{background:rgba(242,194,48,.5);border-color:#f2c230}
-  .btn.big{width:19vmin;height:19vmin;font-size:8vmin}
-  .btn.small{width:14vmin;height:14vmin;font-size:6vmin}
+    font:bold 7vmin system-ui,sans-serif;align-items:center;justify-content:center;box-sizing:border-box;touch-action:none}
+  .btn.on{background:rgba(242,194,48,.5);border-color:#f2c230;transform:scale(.94)}
+  .btn.ready{border-color:#fff176;box-shadow:0 0 3vmin #f2c230;animation:pulse .6s infinite alternate}
+  @keyframes pulse{from{background:rgba(242,194,48,.25)}to{background:rgba(242,194,48,.7)}}
   #rotate{position:fixed;inset:0;background:#0b1020;color:#f2c230;display:none;flex-direction:column;
     align-items:center;justify-content:center;font:bold 6vmin system-ui,sans-serif;text-align:center;z-index:9}
   #rotate span{font-size:18vmin;margin-bottom:4vmin}
@@ -33,17 +38,24 @@
 <body>
 <div id="wrap"><canvas id="c"></canvas></div>
 <div id="ui">
-  <div class="btn" data-k="left"  style="left:3vmin;bottom:5vmin">◀</div>
-  <div class="btn" data-k="right" style="left:23vmin;bottom:5vmin">▶</div>
-  <div class="btn" data-k="block" style="right:43vmin;bottom:4vmin">🛡️</div>
-  <div class="btn big" data-k="punch" style="right:22vmin;bottom:3vmin">👊</div>
-  <div class="btn" data-k="special" style="right:3vmin;bottom:15vmin">⚽</div>
-  <div class="btn" data-k="jump"  style="right:23vmin;bottom:24vmin">⤒</div>
-  <div class="btn small" data-k="swap" style="right:44vmin;bottom:24vmin">⇄</div>
+  <div id="joy"><span class="ar" style="left:42%;top:2%">▲</span><span class="ar" style="left:42%;bottom:2%">▼</span><span class="ar" style="left:4%;top:40%">◀</span><span class="ar" style="right:4%;top:40%">▶</span><div id="knob"></div></div>
+  <div class="btn" data-k="punch">👊</div>
+  <div class="btn" data-k="kick">🦵</div>
+  <div class="btn" data-k="block">🛡️</div>
+  <div class="btn" data-k="slide">💨</div>
+  <div class="btn" data-k="super">⭐</div>
+  <div class="btn" data-k="grab">✋</div>
+  <div class="btn" data-k="swap">⇄</div>
+  <div class="btn" data-k="shoot">⚽</div>
+  <div class="btn" data-k="dash">💨</div>
+  <div class="btn" data-k="tackle">🦶</div>
 </div>
 <div id="rotate"><span>📱↻</span>Telefonu yan çevirin</div>
-<script src="core.js?v=03"></script>
-<script src="story.js?v=03"></script>
-<script src="game.js?v=03"></script>
+<script src="core.js?v=04"></script>
+<script src="art.js?v=04"></script>
+<script src="fight.js?v=04"></script>
+<script src="match.js?v=04"></script>
+<script src="story.js?v=04"></script>
+<script src="game.js?v=04"></script>
 </body>
 </html>
