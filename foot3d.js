@@ -214,11 +214,15 @@ function keeperUpd(K, dt){
     const jumpH = K.ty > 1.3 ? Math.min(1.0, K.ty - 1.1) : .25 * (rollMax / 1.42);
     K.y = K.st === 'down' ? Math.max(0, K.y - dt * 3) : Math.sin(Math.min(1, k) * Math.PI * .85) * jumpH + (rollMax ? Math.max(0, (K.ty - .4) * .35) * Math.sin(k * Math.PI) : 0);
     if (K.kt > K.dd + .25 && K.st === 'dive'){ K.st = 'down'; }
+    if (K.st === 'down' && K.kt > K.dd + (K.hold ? .45 : .9)){ K.st = 'rise'; K.rt = 0; K.r0 = K.roll; K.y0 = K.y; }
   }
+  if (K.st === 'rise'){ K.rt += dt; const k = Math.min(1, K.rt / .38), e = easeOut(k); K.roll = K.r0 * (1 - e); K.y = K.y0 * (1 - e); if (k >= 1){ K.st = 'ready'; K.roll = 0; K.y = 0; } }
 }
 function keeperHands(K){ const r = K.roll, up = 1.95; return { x:K.x - .25 * K.g, y:K.y + Math.cos(r) * up, z:K.z - Math.sin(r) * up * K.g }; }
 function keeperPose(K){
+  if (K.kick > 0){ const k = clamp(1 - K.kick / .4, 0, 1); return { lean:6, bob:4, fl:[.45, .1], bl:[-.3, -.2], fa:[lerp(2.95, 1.2, k), lerp(3.1, 1.3, k)], ba:[.4, .8], lie:false, rot:0 }; }
   if (K.hold) return { lean:4, bob:4, fl:[.15, .05], bl:[-.15, -.1], fa:[1.35, 2.7], ba:[1.25, 2.6], lie:false, rot:0 };
+  if (K.st === 'rise') return { lean:12, bob:14, fl:[.9, .2], bl:[.1, -.9], fa:[.9, 1.6], ba:[.8, 1.5], lie:false, rot:0, spread:.3 };
   if (K.st === 'dive' || K.st === 'down'){ return { lean:K.roll ? 0 : -4, bob:0, fl:[.35, .2], bl:[-.25, -.1], fa:[3.0, 3.1], ba:[2.85, 3.0], lie:false, rot:0, spread:.25 }; }
   const s = Math.sin(K.animT * 5) * .5;
   return { lean:9, bob:11 + s * 2, fl:[.55, .1], bl:[-.25, -.75], fa:[.95, 1.6], ba:[.85, 1.5], lie:false, rot:0, spread:.45 };

@@ -15,15 +15,16 @@ const LEVELS = {
     init(L){ [430, 620, 780].forEach(x => L.ents.push(makeEnemy('dummy', x))); L.obj = '👊 ve 🦵 ile 3 kuklayı devir (0/3)'; L.hint = '👊 tuşuna arka arkaya 3 kez bas: KOMBO! ⬇+🦵 süpürme, 💨 kayarak tekme'; L.hintT = 8; },
     update(L){ if (L.done) return; const left = L.ents.filter(e => !e.dead).length;
       L.obj = '👊 ve 🦵 ile 3 kuklayı devir (' + (3 - left) + '/3)'; if (left === 0){ L.obj = 'Usta işi! 🥋'; L.done = 1; SFX.ok(); } } },
-  tunel: { bg:'tunel', chars:['issem'], width:2700, start:120, exit:true, gate:{ kind:'door', room:'sokak1' }, obj:'Çetecileri geç, tünelden çık!', hint:'Düşman KIRMIZI yanınca vuracak → 🛡️ blokla ya da ⬇ eğil!',
+  tunel: { bg:'tunel', chars:['issem'], width:2700, start:120, exit:true, gate:{ kind:'door', room:'sokak1' }, platforms:[{ x1:1500, x2:1840, y:320, style:'scaffold' }], obj:'Çetecileri geç, tünelden çık!', hint:'Düşman KIRMIZI yanınca vuracak → 🛡️ blokla ya da ⬇ eğil!',
     preset:[['thug', 600, { weapon:null }], ['thug', 720, { weapon:'sopa' }]],
     objects:[['koli', 430], ['koli', 470], ['kutu', 1180], ['sise', 900], ['kutu', 1950], ['koli', 2000], ['varil', 2380]],
     waves:[ { at:1000, list:[['thug', 1], ['thug', -1], ['thug', 1]], hint:'Sopası düşerse ✋ ile al! Kolileri kır, içinden can çıkabilir.' },
             { at:1700, list:[['brute', 1], ['thug', -1]], hint:'İri Koruma! Uzaktan ⚽ şut, sersemleyince kombo!' }, { at:2250, list:[['brute', 1], ['thug', 1], ['thug', -1]] } ] },
   sokak1: { bg:'sokak', weather:'snow', chars:['issem'], width:2300, start:150, exit:true, obj:'Karlı sokak: çeteyi dağıt, yola devam!', hint:'Çöp kutusunu ✋ ile kaldır, düşmana fırlat!',
     preset:[['thug', 620, { face:-1 }], ['thug', 740, { face:-1, weapon:'sopa' }]], objects:[['cop', 380], ['cop', 1250], ['koli', 1300], ['cop', 1900], ['sise', 1050]],
+    platforms:[{ x1:1280, x2:1600, y:300, style:'balcony' }],
     crowd:[['civ1', 260, 'arms', 1], ['civ2', 520, 'shock', -1], ['civ3', 980, 'arms', -1], ['civ4', 1380, 'arms', 1], ['civ5', 1760, 'arms', -1], ['civ2', 2100, 'shock', -1]],
-    waves:[ { at:950, list:[['thug', 1], ['masked', -1], ['thug', 1]], hint:'Koşarken 🦵 = UÇAN TEKME · ⬇ + 👊 = APARKAT!' }, { at:1650, list:[['brute', 1], ['thug', -1], ['thug', 1]], hint:'Sersemleyen düşmanı ✋ ile KALDIR, 👊 ile fırlat!' } ] },
+    waves:[ { at:950, list:[['thug', 1], ['masked', -1], ['thug', 1]], hint:'Koşarken 🦵 = UÇAN TEKME · ⬇ + 👊 = APARKAT!' }, { at:1650, list:[['brute', 1], ['thug', -1], ['thug', 1], ['masked', 1, { y:300 }]], hint:'Balkonda biri var! Yangın merdiveninden 🪜 ⬆ tırman.' } ] },
   /* --- Bölüm 2 --- */
   depoHayatta: { bg:'depo', chars:['issem'], width:W, start:470, startFace:-1, survive:32, pool:['masked', 'masked', 'thug'], obj:'Kaçış yok! Dayan!', hint:'Etrafın sarıldı. Blokla, vur, üst kata zıpla!', doneMsg:'Biri geliyor…',
     preset:[['masked', 200, { face:1 }], ['masked', 290, { face:1, weapon:'sise' }], ['masked', 640, { face:-1 }]],
@@ -36,8 +37,8 @@ const LEVELS = {
   depoCati: { bg:'depo', chars:['issem', 'ufis'], width:W, start:170, obj:'Çatı katı: yolu aç, camdan kaç!', hint:'Merdivenle üst kata ⬆ tırman! İş bitince camı kır.',
     preset:[['masked', 560, { face:-1 }], ['kicker', 700, { face:-1 }], ['masked', 640, { face:-1, weapon:'sopa', y:330 }]],
     platforms:[{ x1:520, x2:780, y:330 }], objects:[['koli', 380], ['kutu', 425], ['sise', 700, 330]], gate:{ kind:'window', x:880, room:'arkaSokak' } },
-  arkaSokak: { bg:'arkaSokak', weather:'rain', chars:['issem', 'ufis'], width:2000, start:160, exit:true, obj:'Arka sokak: yağmurda kaç!', hint:'Sersemleyen düşmanı ✋ ile KALDIR, 👊 ile fırlat!',
-    preset:[['masked', 620, { face:-1 }], ['thug', 760, { face:-1, weapon:'boru' }]], objects:[['cop', 420], ['cop', 470], ['varil', 1100], ['cop', 1500], ['koli', 1560]],
+  arkaSokak: { bg:'arkaSokak', weather:'rain', chars:['issem', 'ufis'], width:2000, start:160, exit:true, platforms:[{ x1:1180, x2:1460, y:300, style:'balcony', ladder:false }], stairs:[[970, 300, 6, 1]], obj:'Arka sokak: yağmurda kaç!', hint:'Sersemleyen düşmanı ✋ ile KALDIR, 👊 ile fırlat!',
+    preset:[['masked', 620, { face:-1 }], ['thug', 760, { face:-1, weapon:'boru' }]], objects:[['cop', 420], ['cop', 470], ['varil', 780], ['cop', 1560], ['koli', 1610]],
     waves:[ { at:900, list:[['masked', 1], ['kicker', -1], ['thug', 1]], hint:'Koşarken 🦵 = UÇAN TEKME · ⬇ + 👊 = APARKAT!' }, { at:1500, list:[['brute', 1], ['masked', -1]] } ] },
   /* --- Bölüm 3 --- */
   fabrikaGiris: { bg:'fabrikaDis', chars:['issem', 'ufis'], width:W, start:300, gate:{ kind:'door', x:640 }, obj:'Nöbetçileri sustur!',
@@ -46,7 +47,7 @@ const LEVELS = {
     waves:[ { at:-1, list:[['kicker', 1], ['guard', -1]], hint:'Kalkanlı koruma! Önden yumruk işlemez: 🦵, 💨 ya da silah!' } ] },
   fabrikaIc: { bg:'fabrika', chars:['issem', 'ufis'], width:2800, start:300, exit:true, gate:{ kind:'door' }, alarm:true, obj:'Alarm! Koridorun sonundaki kapıya ulaş!',
     preset:[['guard', 700, { face:-1 }], ['guard', 820, { face:-1, weapon:'sopa' }]],
-    platforms:[{ x1:1250, x2:1750, y:320 }], objects:[['dolap', 560], ['koli', 980], ['kutu', 1150], ['varil', 1500, 320], ['dolap', 2050], ['kutu', 2400], ['sise', 2460]],
+    platforms:[{ x1:1250, x2:1750, y:320 }], stairs:[[1978, 320, 6, -1]], objects:[['dolap', 560], ['koli', 980], ['kutu', 1150], ['varil', 1500, 320], ['dolap', 2050], ['kutu', 2400], ['sise', 2460]],
     waves:[ { at:950, list:[['shield', 1], ['guard', -1], ['guard', 1, { y:320 }]] },
             { at:1650, list:[['brute', 1], ['kicker', -1], ['guard', 1]] }, { at:2300, list:[['shield', 1], ['brute', -1], ['kicker', 1], ['guard', 1]] } ] },
   /* --- Bölüm 4 --- */
@@ -62,7 +63,7 @@ const LEVELS = {
     waves:[ { at:1000, list:[['kicker', 1], ['kicker', -1], ['guard', 1, { y:320 }]] }, { at:1700, list:[['brute', 1], ['shield', -1], ['guard', 1]] } ] },
   karargahKacis: { bg:'karargah', chars:['issem', 'ufis'], width:3000, start:300, exit:true, gate:{ kind:'window' }, alarm:true, limit:95, loseMsg:'Yakalandınız!', obj:'Alarm! Binadan kaç!',
     hint:'Süre bitmeden çıkışa ulaşın! Hızlı ve kombolu dövüşün.', preset:[['guard', 780, { face:-1 }]],
-    platforms:[{ x1:1400, x2:1900, y:320 }], objects:[['koli', 520], ['dolap', 1200], ['kutu', 1700, 320], ['varil', 2300], ['koli', 2600]],
+    platforms:[{ x1:1400, x2:1900, y:320 }], stairs:[[1172, 320, 6, 1]], objects:[['koli', 520], ['dolap', 1050], ['kutu', 1700, 320], ['varil', 2300], ['koli', 2600]],
     waves:[ { at:900, list:[['kicker', 1], ['shield', -1]] }, { at:1500, list:[['guard', 1], ['guard', -1, { y:320 }], ['kicker', 1]] },
             { at:2100, list:[['brute', 1], ['guard', -1]] }, { at:2550, list:[['shield', 1], ['kicker', 1], ['kicker', -1]] } ] },
   karargahOfis: { bg:'guvenlik', chars:['issem', 'ufis'], width:W, start:170, obj:'Güvenlik odası: korumaları sustur!', screen:'masked',
@@ -73,9 +74,9 @@ const LEVELS = {
     preset:[['narak', 640, { face:-1 }]], platforms:[{ x1:40, x2:260, y:330, ladder:false }, { x1:720, x2:930, y:330, ladder:false }], objects:[['koli', 480]],
     barks:[ { at:3, who:'Issem', t:'Ufis, dikkat et!' }, { at:16, who:'Narak', t:'Yıllar seni yavaşlatmış, ihtiyar!', e:'smirk' }, { at:32, who:'Leo', t:'Hareketlerini izle, açık veriyor!' } ] },
   /* --- Bölüm 8 --- */
-  stadArka: { bg:'stadArka', chars:['ufis'], width:2700, start:380, exit:true, gate:{ kind:'hatch' }, obj:'Stadyumun altına in!',
+  stadArka: { bg:'stadArka', chars:['ufis'], width:2700, start:380, exit:true, gate:{ kind:'hatch' }, platforms:[{ x1:1350, x2:1700, y:320, style:'scaffold' }], obj:'Stadyumun altına in!',
     preset:[['guard', 700, { face:-1 }]], objects:[['dolap', 560], ['koli', 1150], ['kutu', 1200], ['varil', 1900], ['dolap', 2350]],
-    waves:[ { at:900, list:[['shield', 1], ['kicker', -1]] }, { at:1600, list:[['guard', 1], ['guard', -1], ['shield', 1]] },
+    waves:[ { at:900, list:[['shield', 1], ['kicker', -1]] }, { at:1600, list:[['guard', 1], ['guard', -1, { y:320 }], ['shield', 1]] },
             { at:2200, list:[['brute', 1], ['kicker', 1], ['guard', -1]] } ] },
   gizliOda: { bg:'gizli', chars:['ufis'], width:W, start:560, survive:30, alarm:true, pool:['guard', 'masked', 'kicker', 'shield'], obj:'Ustanın kapısını koru!', hint:'Alarm çaldı! Kapı açılana kadar dayan.', doneMsg:'Kilit çözülüyor…',
     preset:[['guard', 200, { face:1 }]], objects:[['kutu', 420], ['koli', 470]] },
@@ -87,6 +88,9 @@ const LEVELS = {
     preset:[['lider', 620, { face:-1 }]], hint:'⇄ ile ikisini de kullanın! Süper bar dolunca ⭐!',
     barks:[ { at:5, who:'Lider', t:'İkiniz de benim oyunumdaki piyonlarsınız!', e:'smirk' }, { at:22, who:'Issem', t:'Arkadaşlarım için, Ufis!' }, { at:40, who:'Ufis', t:'Ustam için!' } ] },
 };
+/* merdiven basamakları: stairs:[[x, üstY, basamak, yön]] → basamak platformlarına dönüşür (yürüyerek çıkılır) */
+for (const k in LEVELS){ const L = LEVELS[k]; for (const st of L.stairs || []){ const [x, top, n, dir] = st, h = (GROUND - top) / n, w = 38;
+  L.platforms = L.platforms || []; for (let i = 0; i < n; i++){ const x1 = dir > 0 ? x + i * w : x - (i + 1) * w; L.platforms.push({ x1, x2:x1 + w + (i === n - 1 ? 0 : 0), y:Math.round(GROUND - (i + 1) * h), ladder:false, step:true }); } } }
 /* boss ve ön yerleşimli düşmanlar baştan "aktif dalga" sayılır; at:-1 dalgası da hemen gelir */
 for (const k in LEVELS){ const L = LEVELS[k]; if (L.waves && L.waves[0] && L.waves[0].at < 0){ L.waves[0].at = 0; } }
 

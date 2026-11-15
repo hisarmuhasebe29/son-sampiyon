@@ -30,7 +30,9 @@
     background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.35);color:#fff;
     font:bold 7vmin system-ui,sans-serif;align-items:center;justify-content:center;box-sizing:border-box;touch-action:none}
   .btn{flex-direction:column}
-  .btn b{font-weight:normal;line-height:1}
+  .btn b{font-weight:normal;line-height:1;display:flex}
+  .btn .ic{width:55%;height:55%}
+  .btn b .ic{width:1.25em;height:1.25em}
   .btn i{font-style:normal;font:900 2.3vmin system-ui,sans-serif;letter-spacing:.02em;color:#fff;margin-top:.6vmin;text-shadow:0 1px 2px #000}
   .btn.on{background:rgba(242,194,48,.5);border-color:#f2c230;transform:scale(.94)}
   .btn.ready{border-color:#fff176;box-shadow:0 0 3vmin #f2c230;animation:pulse .6s infinite alternate}
@@ -58,15 +60,15 @@
   <div class="btn fb" data-k="thru">⤴️</div>
   <div class="btn fb" data-k="lob">🌙</div>
 </div>
-<div id="rotate"><span>📱↻</span>Telefonu yan çevirin</div>
+<div id="rotate"><span><svg viewBox="-1 -1 26 26" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M17 12h.01M8 3a9 9 0 0 1 10 1M18 1v3h-3"/></svg></span>Telefonu yan çevirin</div>
 <script>
   window.__boot = function(){ if (window.__booted) return; window.__booted = true;
     const files = ['core', 'art', 'render3d', 'fight', 'match', 'foot3d', 'match3d', 'creator', 'story', 'game'];
-    (function load(i){ if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '.js?v=06'; s.onload = () => load(i + 1); document.body.appendChild(s); })(0); };
+    (function load(i){ if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '.js?v=07'; s.onload = () => load(i + 1); document.body.appendChild(s); })(0); };
   setTimeout(window.__boot, 8000);                     /* 3B kütüphanesi hiç yüklenemezse oyun 2B açılır */
 </script>
 <script type="module">
-  import('./three.module.min.js?v=06').then(T => { window.THREE = T; }).catch(() => {}).finally(() => window.__boot());
+  import('./three.module.min.js?v=07').then(T => { window.THREE = T; }).catch(() => {}).finally(() => window.__boot());
 </script>
 <script nomodule>window.__boot();</script>
 </body>

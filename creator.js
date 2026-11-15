@@ -29,7 +29,7 @@ const OPT = {
   hair:['#111111', '#3a2414', '#6b4a2b', '#a0662a', '#d9b25a', '#c0392b', '#d9d9d9', '#2e6bd6'],
   bs:[['', 'Yok'], ['stubble', 'Kirli'], ['goatee', 'Keçi'], ['full', 'Tam'], ['long', 'Uzun']],
   band:[null, '#f2c230', '#ffffff', '#c0392b', '#2ecc71', '#111111'],
-  kit:['#14306b', '#c0392b', '#ffffff', '#111111', '#27ae60', '#8e44ad', '#f39c12', '#16a085', '#f2c230', '#2e86de'],
+  kit:['#14306b', '#ff6a00', '#c0392b', '#ffffff', '#111111', '#27ae60', '#8e44ad', '#16a085', '#f2c230', '#2e86de', '#ec407a'],
   pos:['Forvet', 'Orta Saha', 'Defans', 'Kaleci'],
   nat:['Türkiye', 'Almanya', 'Brezilya', 'Arjantin', 'Fransa', 'İspanya', 'İngiltere', 'İtalya', 'Fas', 'Japonya', 'Nijerya', 'Hollanda', 'Portekiz', 'Azerbaycan'],
   foot:['Sağ', 'Sol'],

@@ -132,6 +132,8 @@ function surfaces(L){ const s = L.def.platforms ? L.def.platforms.slice() : [];
 function physics(L, f, dt, surf){
   const prevY = f.y;
   if (f.dropT > 0) f.dropT -= dt;
+  if (f.onGround && f.dropT <= 0){                       // basamaklar: yürüyerek çık / in
+    for (const s of surf){ if (s.step && s !== f.plat && f.x >= s.x1 - 2 && f.x <= s.x2 + 2 && Math.abs(f.y - s.y) <= 36 && (s.y < f.y - 1 || (f.plat && f.plat.step && (f.x < f.plat.x1 || f.x > f.plat.x2)))){ f.y = s.y; f.plat = s; break; } } }
   if (f.onGround && f.plat && (f.x < f.plat.x1 - 4 || f.x > f.plat.x2 + 4 || (f.plat.obj && (f.plat.obj.broken || f.plat.obj.held)))){ f.onGround = false; f.plat = null; }
   if (!f.onGround) f.vy += 2300 * dt;
   f.y += f.vy * dt;
@@ -546,6 +548,19 @@ function drawGateUI(c, L){
 
 /* ---------- çizim ---------- */
 function drawPlatform(c, p){
+  if (p.step){ const g = c.createLinearGradient(0, p.y, 0, GROUND); g.addColorStop(0, '#7b828e'); g.addColorStop(1, '#4b505a'); c.fillStyle = g; c.fillRect(p.x1, p.y, p.x2 - p.x1, GROUND - p.y);
+    c.fillStyle = '#a7aeb9'; c.fillRect(p.x1, p.y, p.x2 - p.x1, 5); c.fillStyle = '#f2c230'; c.fillRect(p.x1, p.y + 5, p.x2 - p.x1, 3); c.strokeStyle = INK; c.lineWidth = 2; c.strokeRect(p.x1, p.y, p.x2 - p.x1, GROUND - p.y); return; }
+  if (p.style === 'balcony'){ const w = p.x2 - p.x1; c.fillStyle = '#23262e'; c.fillRect(p.x1, p.y, w, 10);
+    c.strokeStyle = '#2b2f37'; c.lineWidth = 3; c.beginPath(); c.moveTo(p.x1, p.y - 46); c.lineTo(p.x2, p.y - 46); c.moveTo(p.x1, p.y - 24); c.lineTo(p.x2, p.y - 24); c.stroke();
+    for (let x = p.x1; x <= p.x2; x += 18){ c.beginPath(); c.moveTo(x, p.y); c.lineTo(x, p.y - 46); c.stroke(); }
+    c.strokeStyle = '#1a1c22'; c.lineWidth = 5; c.beginPath(); c.moveTo(p.x1 + 10, p.y + 10); c.lineTo(p.x1 + 60, p.y - 120); c.moveTo(p.x2 - 10, p.y + 10); c.lineTo(p.x2 - 60, p.y - 120); c.stroke();
+    if (p.ladder !== false){ const lx = p.ladderX || p.x1 - 26; c.strokeStyle = '#2b2f37'; c.lineWidth = 4; c.beginPath(); c.moveTo(lx, p.y); c.lineTo(lx, GROUND); c.moveTo(lx + 22, p.y); c.lineTo(lx + 22, GROUND); c.stroke(); c.lineWidth = 3; for (let y = p.y + 14; y < GROUND; y += 18){ c.beginPath(); c.moveTo(lx, y); c.lineTo(lx + 22, y); c.stroke(); } }
+    return; }
+  if (p.style === 'scaffold'){ const w = p.x2 - p.x1; c.strokeStyle = '#8a929c'; c.lineWidth = 5; for (let x = p.x1 + 6; x <= p.x2; x += 110){ c.beginPath(); c.moveTo(x, p.y); c.lineTo(x, GROUND); c.stroke(); }
+    c.lineWidth = 3; for (let x = p.x1 + 6; x + 110 <= p.x2 + 6; x += 110){ c.beginPath(); c.moveTo(x, p.y); c.lineTo(x + 110, GROUND); c.moveTo(x + 110, p.y); c.lineTo(x, GROUND); c.stroke(); }
+    c.fillStyle = '#b07a3a'; c.fillRect(p.x1, p.y, w, 12); c.strokeStyle = '#6b4a22'; c.lineWidth = 2; for (let x = p.x1; x < p.x2; x += 40) c.strokeRect(x, p.y, 40, 12);
+    if (p.ladder !== false){ const lx = p.ladderX || p.x1 - 26; c.strokeStyle = '#a0662a'; c.lineWidth = 4; c.beginPath(); c.moveTo(lx, p.y); c.lineTo(lx, GROUND); c.moveTo(lx + 22, p.y); c.lineTo(lx + 22, GROUND); c.stroke(); c.lineWidth = 3; for (let y = p.y + 14; y < GROUND; y += 20){ c.beginPath(); c.moveTo(lx, y); c.lineTo(lx + 22, y); c.stroke(); } }
+    return; }
   const w = p.x2 - p.x1;
   c.fillStyle = '#2b2f37'; for (let x = p.x1 + 20; x < p.x2; x += 140) c.fillRect(x, p.y + 12, 12, GROUND - p.y - 12);
   c.fillStyle = '#5a606a'; c.fillRect(p.x1, p.y, w, 14); c.fillStyle = '#7a828c'; c.fillRect(p.x1, p.y, w, 4);

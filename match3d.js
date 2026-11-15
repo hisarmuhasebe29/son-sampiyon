@@ -20,7 +20,15 @@ function Match3D(def){
     hint:'Joystick: koş · ➡️ PAS · ⤴️ ARA PAS · 🌙 ORTA · ⚽ basılı tut: ŞUT · 💨 basılı: sprint, dokun: çalım. Topu kaybedince tuşlar savunmaya döner!' };
   const B = M.B = { x:0, y:BR, z:0, vx:0, vy:0, vz:0, owner:null, last:0, rot:0, yaw:0, flight:null, held:false };
   const teams = M.teams = [[], []];
-  const looks = [[LOOK.keeper, LOOK.mate, LOOK.mate2], [LOOK.keeper2, LOOK.rival, LOOK.rival2]];
+  // takım arkadaşları oyuncunun seçtiği formayı giyer; rakip forma çakışırsa rakip beyaz giyer
+  const kit = { shirt:prof.shirt, stripe:prof.stripe, shorts:prof.shorts, socks:prof.socks };
+  const kk = JSON.stringify(kit); if (!Match3D.kc || Match3D.kc.k !== kk) Match3D.kc = { k:kk, a:Object.assign({}, LOOK.mate, kit, { __sig:null }), b:Object.assign({}, LOOK.mate2, kit, { __sig:null }) };
+  const mateA = Match3D.kc.a, mateB = Match3D.kc.b;
+  const reddish = h => { const n = parseInt(h.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; return r > 150 && g < 110 && b < 110; };
+  const clash = reddish(prof.shirt);
+  if (!Match3D.away) Match3D.away = [Object.assign({}, LOOK.rival, { shirt:'#f4f4f4', stripe:'#c0392b', shorts:'#c0392b', socks:'#f4f4f4', __sig:null }), Object.assign({}, LOOK.rival2, { shirt:'#f4f4f4', stripe:'#c0392b', shorts:'#c0392b', socks:'#f4f4f4', __sig:null })];
+  const rivA = clash ? Match3D.away[0] : LOOK.rival, rivB = clash ? Match3D.away[1] : LOOK.rival2;
+  const looks = [[LOOK.keeper, mateA, mateB], [LOOK.keeper2, rivA, rivB]];
   for (let t = 0; t < 2; t++) FORM.forEach(([role, fx, fz], i) => {
     const look = t === 0 && i === ME ? LOOK.issem : role === 'GK' ? looks[t][0] : looks[t][1 + (i % 2)];
     const p = { t, i, role, fx, fz, look, x:0, z:0, y:0, vx:0, vz:0, yaw:t ? Math.PI : 0, animT:Math.random() * 3, sp:0, down:0, slideT:0, kick:0, burst:0, burstCd:0,
@@ -35,7 +43,7 @@ function Match3D(def){
   function say2(t){ M.msg = t; M.msgT = 1.6; }
   function placeKickoff(team){
     for (const tt of teams) for (const p of tt){ const d = dirOf(p.t); if (p.role === 'GK'){ Object.assign(p, newKeeper(p.g)); continue; }
-      p.x = d * Math.min(-1.5, p.fx * 46 * .55 - 2); p.z = p.fz * .9; p.vx = p.vz = 0; p.down = 0; p.slideT = 0; p.wind = 0; p.yaw = p.t ? Math.PI : 0; }
+      p.x = d * Math.min(p.t === team ? -1.5 : -9.6, p.fx * 46 * .55 - 2); p.z = p.fz * .9; p.vx = p.vz = 0; p.down = 0; p.slideT = 0; p.wind = 0; p.yaw = p.t ? Math.PI : 0; }
     const k = teams[team][ME]; k.x = -dirOf(team) * .6; k.z = 0; B.x = 0; B.z = 0; B.y = BR; B.vx = B.vy = B.vz = 0; B.flight = null; B.held = false; give(k);
     M.state = 'kick'; M.stT = 1.4; M.shot = null; M.charging = false; passRecv = null;
   }
@@ -98,14 +106,14 @@ function Match3D(def){
       else { M.score[1]++; SFX.ooh(); wtext(M, 'RAKİP GOL ATTI!', -GL + 3, 3.2, B.z * .4, '#ff6b6b', 50); say('Rakip gol attı!', 'Spiker'); crowdLevel(.06); }
       return; }
     M.state = 'play'; M.inNet = 0; SFX.ooh(); let msg = 'AUT!';
-    if (ev === 'catch'){ B.vx = B.vy = B.vz = 0; K.hold = true; give(K); K.holdT = 1.3; SFX.punch(); msg = 'KALECİ YAKALADI!'; }
+    if (ev === 'catch'){ B.vx = B.vy = B.vz = 0; K.hold = true; give(K); K.holdT = .35; SFX.punch(); msg = 'KALECİ YAKALADI!'; }
     else if (ev === 'parry'){ B.vx = -Sh.side * 3.5; B.vy = 3.4; B.vz = (Math.sign(B.z - K.z) || 1) * 5.5; SFX.punch(); msg = 'KALECİ ÇELDİ!'; }
     else if (ev === 'post' || ev === 'bar'){ B.vx = -Sh.side * 5.5; B.vy = ev === 'bar' ? 3 : 1.4; B.vz = -Math.sign(B.z) * 2.4; SFX.post(); msg = ev === 'bar' ? 'ÜST DİREK!' : 'DİREK!'; M.shake = 4; }
     else { msg = ev === 'over' ? 'ÜSTTEN AUT!' : 'AUT!'; goalKick(ours ? 1 : 0); }
     wtext(M, msg, Sh.side * (GL - 2), 3.2, B.z * .5, '#ffffff', 44);
     if (!ours && (ev === 'catch' || ev === 'parry')) wtext(M, 'KURTARIŞ!', -GL + 4, 2.6, 0, '#7dff9a', 34);
   }
-  function goalKick(team){ const K = teams[team][0]; K.z = 0; K.x = K.g * (GL - 2); B.x = K.x - K.g * .5; B.z = 0; B.vx = B.vy = B.vz = 0; give(K); K.holdT = 1.0; say2('AUT ATIŞI'); SFX.whistle(); }
+  function goalKick(team){ const K = teams[team][0]; K.z = 0; K.x = K.g * (GL - 2); B.x = K.x - K.g * .5; B.z = 0; B.vx = B.vy = B.vz = 0; give(K); K.holdT = .5; say2('AUT ATIŞI'); SFX.whistle(); }
   /* ---------- taç / korner ---------- */
   function outOfPlay(){
     if (Math.abs(B.z) > 34.2){ const team = 1 - B.last; const z = Math.sign(B.z) * 33.4, x = clamp(B.x, -GL + 2, GL - 2);
@@ -249,14 +257,17 @@ function Match3D(def){
         give(p); if (p.t === 0) SFX.ballKick(); return; } }
   }
   function gkAI(K, dt){
-    if (B.owner === K){ K.hold = true; if (!(K.holdT > 0)){ K.hold = false; const t = K.t, mates = teams[t].filter(q => q.role !== 'GK');
-        const q = mates.filter(q => q.role !== 'FW').sort((a, b) => Math.abs(a.z) - Math.abs(b.z))[Math.floor(Math.random() * 4)] || mates[0];
-        B.x = K.x + dirOf(t) * .8; B.y = BR; kickBall(K, q.x + dirOf(t) * 2, q.z, 'lob', q); } return; }
+    if (B.owner === K){ K.hold = true; if (!(K.holdT > 0) && K.st === 'ready'){ K.hold = false; const t = K.t, opp = teams[1 - t];
+        // hızlı oyun: en açıktaki arkadaşa elle at / kısa pas
+        let q = null, bs = -1e9; for (const m of teams[t]){ if (m.role === 'GK' || m.down > 0) continue; const d = Math.hypot(m.x - K.x, m.z - K.z); if (d > 38) continue;
+          let open = 0; for (const o of opp){ const od = Math.hypot(o.x - m.x, o.z - m.z); if (od < 6) open -= (6 - od) * 2; } const sc = open - d * .08 + (m.role === 'MF' ? 1.5 : 0); if (sc > bs){ bs = sc; q = m; } }
+        q = q || teams[t][2]; B.x = K.x + dirOf(t) * .8; B.y = 1.2; const d = Math.hypot(q.x - K.x, q.z - K.z);
+        kickBall(K, q.x + q.vx * .3, q.z + q.vz * .3, d > 22 ? 'lob' : 'ground', q); K.kick = .4; say2(d > 22 ? 'KALECİ UZUN ATTI' : 'KALECİ HIZLI ATTI'); } return; }
     if (K.st !== 'ready' || M.state !== 'play') return;
     const bd = Math.hypot(K.g * GL - B.x, B.z);
     K.z = lerp(K.z, clamp(B.z * .28, -2.4, 2.4), Math.min(1, dt * 3)); K.x = lerp(K.x, K.g * (GL - .55 - (bd < 16 ? (16 - bd) * .14 : 0)), Math.min(1, dt * 2));
-    if (!B.owner && bd < 7 && Math.hypot(K.x - B.x, K.z - B.z) < 2.2 && B.y < 2){ give(K); K.holdT = 1.0; SFX.punch(); say2('KALECİ ALDI'); }
-    const o = B.owner; if (o && o.t !== K.t && Math.hypot(K.x - o.x, K.z - o.z) < 1.5){ give(K); K.holdT = 1.0; SFX.punch(); say2('KALECİ KAPTI!'); }
+    if (!B.owner && bd < 7 && Math.hypot(K.x - B.x, K.z - B.z) < 2.2 && B.y < 2){ give(K); K.holdT = .35; SFX.punch(); say2('KALECİ ALDI'); }
+    const o = B.owner; if (o && o.t !== K.t && Math.hypot(K.x - o.x, K.z - o.z) < 1.5){ give(K); K.holdT = .35; SFX.punch(); say2('KALECİ KAPTI!'); }
   }
   function carrierAI(p, dt){
     if (p.holdT > 0){ p.vx = p.vz = 0; p.sp = 0; p.yaw = yawTo(-1, -p.z * .02); if (p.holdT < .1){ p.holdT = 0; doPass(p, Math.random() < .4 ? 'lob' : 'ground'); } return; }
@@ -316,7 +327,7 @@ function Match3D(def){
     TACTICS.forEach(([k, ic, name], i) => { const x = 376 + i * 74, on = M.tactic === k; c.fillStyle = on ? 'rgba(242,194,48,.92)' : 'rgba(8,12,30,.72)'; rr(c, x, 8, 68, 42, 21); c.fill();
       c.strokeStyle = on ? '#fff3b0' : ['#5aa0ff', '#ff6b6b', '#2ecc71', '#c39bff'][i]; c.lineWidth = 2; c.stroke();
       txt(c, ic, x + 34, 27, 15, '#ffffff', 'center'); txt(c, name.toUpperCase(), x + 34, 44, 9, on ? '#14306b' : '#ffffff', 'center', '900', 0, 62); });
-    radar(c, [...teams[1].map(p => ({ x:p.x, z:p.z, col:p.role === 'GK' ? '#f39c12' : '#e74c3c', r:2.4 })), ...teams[0].map(p => ({ x:p.x, z:p.z, col:p.role === 'GK' ? '#2ecc71' : '#5aa0ff', r:2.4 })),
+    radar(c, [...teams[1].map(p => ({ x:p.x, z:p.z, col:p.role === 'GK' ? '#f39c12' : '#e74c3c', r:2.4 })), ...teams[0].map(p => ({ x:p.x, z:p.z, col:p.role === 'GK' ? '#2ecc71' : prof.shirt === '#111111' ? '#9aa0a8' : prof.shirt, r:2.4 })),
       { x:ctrl.x, z:ctrl.z, col:'#f2c230', me:1, r:3.6 }, { x:B.x, z:B.z, col:'#ffffff', r:2 }]);
     if (M.hintT > 0){ c.globalAlpha = Math.min(1, M.hintT); pill(c, M.hint, 480, 136, 14, 'rgba(20,48,107,.92)', '#ffffff', { maxW:900 }); c.globalAlpha = 1; }
     if (M.msgT > 0){ c.globalAlpha = Math.min(1, M.msgT * 2); txt(c, M.msg, 480, 172, 26, '#ffffff', 'center', 'italic 900', 6); c.globalAlpha = 1; }

@@ -55,14 +55,13 @@ function Intro(){
   const I = { t:0, sparks:[], rings:[] };
   if (!LOGO){ const o = document.createElement('canvas'); o.width = 760; o.height = 240; const c = o.getContext('2d'); c.font = 'italic 900 170px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; LOGO = { o, c }; }
   swoosh(.8, .45, 0, 200, 6000); swoosh(.6, .35, .3, 300, 5000);
-  boom(.78, 1.1);                                            // büyük patlama
   [0, 1, 2, 3].forEach(i => { tone(160 + i * 30, .3, 'square', .08, -60, .86 + i * .16); noise(.1, .35, .86 + i * .16, 0, 1600); });
   [110, 165, 220, 277, 330].forEach((f, i) => tone(f, 2.8, i % 2 ? 'sawtooth' : 'triangle', .05, 0, 1.6));
   swoosh(1.0, .25, 1.65, 500, 8000);
   const letters = ['A', 'R', 'A', 'Ç'];
   I.update = dt => {
     I.t += dt;
-    if (I.t > .78 && !I.boom){ I.boom = true; shake = 18; vib([100, 40, 160]); for (let i = 0; i < 110; i++) I.sparks.push({ x:480, y:250, vx:rand(-900, 900), vy:rand(-650, 350), l:rand(.4, 1.4), c:pick(['#ffd34d', '#ff8c1a', '#ffffff']) }); I.rings.push(0); }
+    if (I.t > .78 && !I.boom){ I.boom = true; boom(0, 1.25); shake = 18; vib([100, 40, 160]); for (let i = 0; i < 110; i++) I.sparks.push({ x:480, y:250, vx:rand(-900, 900), vy:rand(-650, 350), l:rand(.4, 1.4), c:pick(['#ffd34d', '#ff8c1a', '#ffffff']) }); I.rings.push(0); }
     for (const s of I.sparks){ s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 500 * dt; s.l -= dt; } I.sparks = I.sparks.filter(s => s.l > 0);
     I.rings = I.rings.map(r => r + dt).filter(r => r < .8);
     shake *= Math.pow(.01, dt);

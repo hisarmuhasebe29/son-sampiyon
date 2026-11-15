@@ -1,7 +1,7 @@
-// Son Şampiyon — ARAÇ — v.06
+// Son Şampiyon — ARAÇ — v.07
 // Her yeni sürümde: CACHE adı + version.json + core.js içindeki VERSION + index.html ?v= birlikte değişir.
-const CACHE = 'son-sampiyon-v06';
-const V = '?v=06';
+const CACHE = 'son-sampiyon-v07';
+const V = '?v=07';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './three.module.min.js' + V,
   ...['core', 'art', 'render3d', 'fight', 'match', 'foot3d', 'match3d', 'creator', 'story', 'game'].map(f => './' + f + '.js' + V),
   './menu.mp3', './dovus.mp3', './futbol.mp3', './final.mp3'];

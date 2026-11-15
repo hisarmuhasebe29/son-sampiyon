@@ -3,7 +3,7 @@
    SON ŞAMPİYON — ARAÇ   ·   core.js
    ekran · yardımcılar · kayıt · ses · müzik · dublaj · kontroller
    ========================================================= */
-const VERSION = 'v.06';
+const VERSION = 'v.07';
 const W = 960, H = 540, GROUND = 470;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scale = 1, dpr = 1, paused = false;
@@ -49,13 +49,85 @@ function nmz(s){
 }
 const FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 const fnt = (size, weight = 'bold') => weight + ' ' + size + 'px ' + FONT;
+/* =========================================================
+   SEMBOLLER — emoji yerine sade çizgi ikonlar (yazılarda ve tuşlarda)
+   ========================================================= */
+const ICON_SVG = {
+  fist:'<path d="M7 11V7.5a1.5 1.5 0 0 1 3 0V11M10 10V6.5a1.5 1.5 0 0 1 3 0V10M13 10V7a1.5 1.5 0 0 1 3 0v3M16 10.5V9a1.5 1.5 0 0 1 3 0v4.5c0 4-2.5 6.5-6.5 6.5S7 18 7 15v-4l-1.5-1a1.5 1.5 0 0 1 2-2.2L9 9.5"/>',
+  kick:'<circle cx="8" cy="4" r="2"/><path d="M8 6.5v5.5l-3 8M8 12l9-3.5M8 8.5l-4 2.5M8 8.5l4 .5"/><path d="M17 8.5l3-.5"/>',
+  boot:'<path d="M4 14l2-9h5l1 5 7 2c1 .3 2 1.2 2 2.5V17H4z"/><path d="M4 17h17M8 13h3"/>',
+  shield:'<path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/>',
+  wind:'<path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/>',
+  ball:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5l4 2.8-1.5 4.6h-5L8 10.3z"/><path d="M12 7.5V3.2M16 10.3l4.2-1.4M14.5 14.9l2.6 3.6M9.5 14.9L6.9 18.5M8 10.3L3.8 8.9"/>',
+  hand:'<path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4a1.5 1.5 0 0 1 3 0v7M14 10V5.5a1.5 1.5 0 0 1 3 0V12M17 11a1.5 1.5 0 0 1 3 0v3c0 4-3 7-7 7h-1c-3 0-5-2-6.5-4L3 13.5a1.6 1.6 0 0 1 2.5-2L8 14"/>',
+  star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  swap:'<path d="M4 8h15l-3.5-3.5M20 16H5l3.5 3.5"/>',
+  arrow:'<path d="M3 12h16M13.5 6l6 6-6 6"/>',
+  thru:'<path d="M4 19c1-8 5-12 13-12"/><path d="M13 3l4.5 4-4 4.5"/><path d="M4 13v.01M7 9v.01"/>',
+  lob:'<path d="M3 19C6 6 18 6 21 19"/><path d="M17.5 17l3.5 2 1-4"/><circle cx="3.5" cy="19" r="1.4"/>',
+  up:'<path d="M12 20V5M6 11l6-6 6 6"/>', down:'<path d="M12 4v15M6 13l6 6 6-6"/>',
+  fire:'<path d="M12 21c-4 0-7-2.5-7-6.5 0-3.5 3-5.5 4-9 1.5 2 2 3 2.5 5 1-1 1.8-2.4 2-4 3 2.5 5.5 5.5 5.5 8.5 0 3.5-3 6-7 6z"/>',
+  bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  loop:'<path d="M20 11a8 8 0 0 0-14.5-4.5L4 8M4 3v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16M20 21v-5h-5"/>',
+  heart:'<path d="M12 20s-7-4.5-8.5-9A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8.5 4C19 15.5 12 20 12 20z"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
+  dice:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 15h.01M15 9h.01M9 15h.01M12 12h.01"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12h.01"/>',
+  door:'<path d="M6 21V3h12v18M3 21h18M15 12h.01"/>',
+  window:'<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M12 3v18M4 12h16"/>',
+  ladder:'<path d="M7 2v20M17 2v20M7 6h10M7 11h10M7 16h10"/>',
+  warn:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/>',
+  timer:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>',
+  siren:'<path d="M6 18v-6a6 6 0 0 1 12 0v6M4 18h16v3H4zM12 2v2M4 6l1.5 1.5M20 6l-1.5 1.5"/>',
+  speaker:'<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/>',
+  mute:'<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/>',
+  phone:'<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  book:'<path d="M3 5c3-1 6-1 9 1 3-2 6-2 9-1v14c-3-1-6-1-9 1-3-2-6-2-9-1zM12 6v14"/>',
+  music:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  voice:'<circle cx="9" cy="8" r="4"/><path d="M2 21c1-4 3.5-6 7-6s6 2 7 6M17 5a4 4 0 0 1 0 6M20 3a7 7 0 0 1 0 10"/>',
+  novoice:'<circle cx="9" cy="8" r="4"/><path d="M2 21c1-4 3.5-6 7-6s6 2 7 6M16 4l6 8M22 4l-6 8"/>',
+  lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  skip:'<path d="M5 5l9 7-9 7zM18 5v14"/>',
+  camera:'<rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3"/>',
+  slide:'<path d="M3 14l2-6h4l1 3 6 1.5c1 .3 2 1 2 2.5V17H3z"/><path d="M2 20h19M20 9h2M18 6h3"/>',
+  gi:'<path d="M8 3l4 5 4-5 4 3-2 5h-3v10H9V11H6L4 6z"/><path d="M8 13h8"/>',
+  laptop:'<rect x="5" y="5" width="14" height="10" rx="1"/><path d="M2 19h20"/>',
+  pin:'<path d="M12 22s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  refresh:'<path d="M20 12a8 8 0 1 1-2.5-5.8L20 8M20 3v5h-5"/>',
+};
+const EMOJI2ICON = { '👊':'fist', '🦵':'kick', '🦶':'boot', '🛡':'shield', '💨':'wind', '⚽':'ball', '✋':'hand', '⭐':'star', '★':'star', '⇄':'swap', '➡':'arrow',
+  '⤴':'thru', '🌙':'lob', '⬆':'up', '⬇':'down', '🔥':'fire', '⚡':'bolt', '🔁':'loop', '🔄':'loop', '❤':'heart', '👤':'user', '🎲':'dice', '🎯':'target',
+  '🚪':'door', '🪟':'window', '🪜':'ladder', '⚠':'warn', '⏱':'timer', '🚨':'siren', '🔊':'speaker', '📱':'phone', '📖':'book', '🎵':'music', '🔇':'mute',
+  '🗣':'voice', '🤐':'novoice', '🔒':'lock', '⏭':'skip', '📹':'camera', '🛝':'slide', '🥋':'gi', '💻':'laptop', '📍':'pin', '✉':'mail', '⟳':'refresh', '↺':'refresh' };
+const ICON_RE = new RegExp('(' + Object.keys(EMOJI2ICON).join('|') + ')\\ufe0f?', 'gu');
+const ICON_IMG = {};
+function iconImg(name, col, sw = 2.2){
+  const k = name + col + sw; let im = ICON_IMG[k];
+  if (!im){ im = new Image(); im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 26 26" fill="none" stroke="' + col + '" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round">' + ICON_SVG[name] + '</svg>'); ICON_IMG[k] = im; }
+  return im;
+}
+function iconHTML(s){ return String(s).replace(ICON_RE, (m, e) => '<svg viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="ic">' + ICON_SVG[EMOJI2ICON[e]] + '</svg>'); }
+const hasIcon = s => typeof s === 'string' && (ICON_RE.lastIndex = 0, ICON_RE.test(s));
+function richParts(s){ const out = []; let last = 0; ICON_RE.lastIndex = 0; let m; while ((m = ICON_RE.exec(s))){ if (m.index > last) out.push(s.slice(last, m.index)); out.push({ icon:EMOJI2ICON[m[1]] }); last = m.index + m[0].length; } if (last < s.length) out.push(s.slice(last)); return out; }
+function measureRich(c, s, size){ if (!hasIcon(s)) return c.measureText(s).width; let w = 0; for (const p of richParts(s)) w += typeof p === 'string' ? c.measureText(p).width : size * 1.18; return w; }
+function drawRich(c, s, x, y, size, col, align, stroke, middle){
+  const w = measureRich(c, s, size); let cx = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x; c.textAlign = 'left';
+  for (const p of richParts(s)){
+    if (typeof p === 'string'){ if (stroke){ c.lineWidth = stroke; c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineJoin = 'round'; c.strokeText(p, cx, y); } c.fillStyle = col; c.fillText(p, cx, y); cx += c.measureText(p).width; }
+    else { const sz = size * 1.02, top = middle ? y - sz / 2 : y - sz * .84;
+      if (stroke){ const ob = iconImg(p.icon, '#000000', 5.5); if (ob.complete) c.drawImage(ob, cx + size * .08, top, sz, sz); }
+      const im = iconImg(p.icon, typeof col === 'string' ? col : '#ffffff'); if (im.complete) c.drawImage(im, cx + size * .08, top, sz, sz); cx += size * 1.18; } }
+}
 /* metni verilen genişliğe sığdıracak yazı boyunu bulur */
 function fitSize(c, s, maxW, size, weight = 'bold'){ let z = size; c.font = fnt(z, weight);
-  while (z > 9 && c.measureText(s).width * 1.06 > maxW){ z -= 1; c.font = fnt(z, weight); } return z; }
+  while (z > 9 && measureRich(c, s, z) * 1.06 > maxW){ z -= 1; c.font = fnt(z, weight); } return z; }
 function txt(c, s, x, y, size, col, align = 'left', weight = 'bold', stroke, maxW){
   s = nmz(s);
   if (maxW) size = fitSize(c, s, maxW, size, weight);
-  c.font = fnt(size, weight); c.textAlign = align;
+  c.font = fnt(size, weight);
+  if (hasIcon(s)){ drawRich(c, s, x, y, size, col, align, stroke); return; }
+  c.textAlign = align;
   if (stroke){ c.lineWidth = stroke; c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineJoin = 'round'; c.strokeText(s, x, y); }
   c.fillStyle = col; c.fillText(s, x, y); c.textAlign = 'left';
 }
@@ -65,12 +137,12 @@ function pill(c, s, cx, cy, size, bg, fg, opt = {}){
   const maxW = opt.maxW || W - 40, weight = opt.weight || 'bold';
   size = fitSize(c, s, maxW - 40, size, weight);
   c.font = fnt(size, weight);
-  const tw = c.measureText(s).width * 1.08 + (s.match(/[←-⯿\u{1F000}-\u{1FFFF}]/gu) || []).length * size * .35;
+  const tw = measureRich(c, s, size) * 1.08;
   const pw = tw + size * 1.8, ph = size * 2;
   let x = opt.align === 'left' ? cx : opt.align === 'right' ? cx - pw : cx - pw / 2;
   c.fillStyle = bg; rr(c, x, cy - ph / 2, pw, ph, opt.r || ph / 3); c.fill();
   if (opt.border){ c.strokeStyle = opt.border; c.lineWidth = 2; c.stroke(); }
-  c.font = fnt(size, weight); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = fg; c.fillText(s, x + pw / 2, cy + 1);
+  c.font = fnt(size, weight); c.textBaseline = 'middle'; if (hasIcon(s)) drawRich(c, s, x + pw / 2, cy + 1, size, fg, 'center', 0, true); else { c.textAlign = 'center'; c.fillStyle = fg; c.fillText(s, x + pw / 2, cy + 1); }
   c.textAlign = 'left'; c.textBaseline = 'alphabetic';
   return { x, y: cy - ph / 2, w: pw, h: ph };
 }
@@ -96,11 +168,17 @@ const DIFF = () => DIFFS[SAVE.diff] || DIFFS[1];
    SES
    ========================================================= */
 let AC = null, MASTER = null, SFXG = null, MUSG = null;
+const SILENT = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+let UNLOCKED = false;
 function audioInit(){
+  if (!UNLOCKED){ UNLOCKED = true; try { const a = new Audio(SILENT); a.volume = .01; a.play().catch(() => {}); } catch(e){} }
+  try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch(e){}
   if (!AC){ try { AC = new (window.AudioContext || window.webkitAudioContext)();
-    MASTER = AC.createGain(); MASTER.gain.value = .95; MASTER.connect(AC.destination);
+    const comp = AC.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 6; comp.connect(AC.destination);
+    MASTER = AC.createGain(); MASTER.gain.value = 1.0; MASTER.connect(comp);
     SFXG = AC.createGain(); SFXG.gain.value = 1; SFXG.connect(MASTER);
-    MUSG = AC.createGain(); MUSG.gain.value = .5; MUSG.connect(MASTER); } catch(e){} }
+    MUSG = AC.createGain(); MUSG.gain.value = .5; MUSG.connect(MASTER);
+    const b = AC.createBuffer(1, 1, 22050), s = AC.createBufferSource(); s.buffer = b; s.connect(AC.destination); s.start(0); } catch(e){} }
   if (AC && AC.state === 'suspended' && !document.hidden) AC.resume();
   if (typeof MUSIC !== 'undefined' && MUSIC.el && MUSIC.el.paused && SAVE.music && !document.hidden){ const el = MUSIC.el; el.play().then(() => fadeEl(el, musicVol(), 600)).catch(() => {}); }
 }
@@ -130,15 +208,24 @@ function swoosh(d = .6, vol = .3, delay = 0, f0 = 300, f1 = 5000){
   s.connect(f); f.connect(g); g.connect(SFXG); s.start(t); s.stop(t + d + .05);
 }
 /* büyük patlama: ARAÇ logosu ve bossların gelişi */
+/* patlama: telefon hoparlöründe de duyulsun diye alçak gümbürtüye ek olarak çatırtı + orta frekans + bozulma (harmonik) */
+let DIST = null;
+function distCurve(k){ const n = 1024, cv = new Float32Array(n); for (let i = 0; i < n; i++){ const x = i * 2 / n - 1; cv[i] = (1 + k) * x / (1 + k * Math.abs(x)); } return cv; }
 function boom(delay = 0, vol = 1){
   if (!AC) return; const t = AC.currentTime + delay;
-  const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(28, t + 1.2);
-  env(g, t, .9 * vol, .005, 1.5); o.connect(g); g.connect(SFXG); o.start(t); o.stop(t + 1.6);
+  if (!DIST){ DIST = AC.createWaveShaper(); DIST.curve = distCurve(18); DIST.oversample = '2x'; const dg = AC.createGain(); dg.gain.value = .5; DIST.connect(dg); dg.connect(SFXG); }
+  // 1) gümbürtü (bozulmalı → küçük hoparlörde harmonik olarak duyulur)
+  const o = AC.createOscillator(), g = AC.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(190, t); o.frequency.exponentialRampToValueAtTime(38, t + 1.1);
+  env(g, t, 1.0 * vol, .004, 1.3); o.connect(g); g.connect(DIST); g.connect(SFXG); o.start(t); o.stop(t + 1.5);
+  // 2) ilk çatırtı (yüksek frekans, çok kısa)
+  const s0 = AC.createBufferSource(); s0.buffer = nbuf(); const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 900;
+  const g0 = AC.createGain(); env(g0, t, 1.0 * vol, .001, .22); s0.connect(hp); hp.connect(g0); g0.connect(SFXG); s0.start(t, Math.random()); s0.stop(t + .3);
+  // 3) uzun gürleme (alçak geçiren süpürme 5000 → 120 Hz)
   const s = AC.createBufferSource(); s.buffer = nbuf(); const f = AC.createBiquadFilter(); f.type = 'lowpass';
-  f.frequency.setValueAtTime(2400, t); f.frequency.exponentialRampToValueAtTime(90, t + 1.6);
-  const g2 = AC.createGain(); env(g2, t, .85 * vol, .003, 1.8); s.connect(f); f.connect(g2); g2.connect(SFXG); s.start(t); s.stop(t + 2);
-  noise(.25, .5 * vol, delay, 2500);                           // çatırtı
-  for (let i = 0; i < 6; i++) noise(.05, .18 * vol, delay + .15 + Math.random() * .7, 3000);
+  f.frequency.setValueAtTime(5000, t); f.frequency.exponentialRampToValueAtTime(120, t + 1.9);
+  const g2 = AC.createGain(); env(g2, t, 1.1 * vol, .002, 2.0); s.connect(f); f.connect(g2); g2.connect(SFXG); g2.connect(DIST); s.start(t, Math.random()); s.stop(t + 2.2);
+  // 4) moloz / parça sesleri
+  for (let i = 0; i < 7; i++) noise(.04, .25 * vol, delay + .18 + i * rand(.05, .12), 1800, 7000);
 }
 const SFX = {
   punch(){ const v = Math.random(); noise(.07, .45, 0, 0, 2500); tone(120 + v * 60, .1, 'sine', .45, -60); },
@@ -411,10 +498,10 @@ function showControls(mode, opt = {}){
     b.classList.remove('on', 'ready');
     if (!d || (k === 'swap' && !opt.swap) || (k === 'grab' && opt.noGrab)){ b.style.display = 'none'; return; }
     b.style.cssText = 'display:flex;' + SLOTS[d[0]];
-    b._h = null; b.textContent = (opt.labels && opt.labels[k]) || d[1];
+    b._h = null; b.innerHTML = iconHTML((opt.labels && opt.labels[k]) || d[1]);
   });
   joyEl.style.display = opt.noJoy ? 'none' : 'block';
 }
 function setBtnReady(k, on){ const b = document.querySelector('.btn[data-k="' + k + '"]'); if (b) b.classList.toggle('ready', !!on); }
-function setBtnHTML(k, s){ const b = document.querySelector('.btn[data-k="' + k + '"]'); if (b && b._h !== s){ b._h = s; b.innerHTML = s; } }
-function setBtnLabel(k, s){ const b = document.querySelector('.btn[data-k="' + k + '"]'); if (b && b.textContent !== s) b.textContent = s; }
+function setBtnHTML(k, s){ const b = document.querySelector('.btn[data-k="' + k + '"]'); if (b && b._h !== s){ b._h = s; b.innerHTML = iconHTML(s); } }
+function setBtnLabel(k, s){ const b = document.querySelector('.btn[data-k="' + k + '"]'); if (b && b._l !== s){ b._l = s; b.innerHTML = iconHTML(s); } }
