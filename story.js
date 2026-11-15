@@ -80,15 +80,15 @@ for (const k in LEVELS){ const L = LEVELS[k]; if (L.waves && L.waves[0] && L.wav
 /* ---------------- yardımcı sahne parçaları ---------------- */
 const MATES = (n = 6) => [A('m1', 'mate', 130, 1), A('m2', 'mate2', 250, 1), A('m3', 'mate', 370, 1), A('m4', 'mate2', 600, -1), A('m5', 'mate', 720, -1), A('m6', 'mate2', 840, -1)].slice(0, n);
 const STAD_INTRO = (title, sub) => [
-  { cut:{ bg:'stadDis', zoom:1, lines:[ CARD(title, sub), N('Uon Pmac Stadı ışıl ışıl. Binlerce taraftar kapılarda, tezahüratlar şehrin her yerinden duyuluyor.', { zoom:1.3, sfx:'roar' }) ] } },
-  { cut:{ bg:'tunelCikis', zoom:1, actors:[ A('issem', 'issem', 420, 1, { s:1.15, y:520 }), A('t1', 'mate', 300, 1, { s:1.15, y:520 }), A('t2', 'mate2', 560, 1, { s:1.15, y:520 }) ],
+  { cut:{ bg:'stadDis', zoom:1, music:'football', lines:[ CARD(title, sub), N('Uon Pmac Stadı ışıl ışıl. Binlerce taraftar kapılarda, tezahüratlar şehrin her yerinden duyuluyor.', { zoom:1.3, sfx:'roar' }) ] } },
+  { cut:{ bg:'tunelCikis', zoom:1, music:'football', actors:[ A('issem', 'issem', 420, 1, { s:1.15, y:520 }), A('t1', 'mate', 300, 1, { s:1.15, y:520 }), A('t2', 'mate2', 560, 1, { s:1.15, y:520 }) ],
     lines:[ N('Oyuncular tünelden sahaya çıkıyor…', { zoom:1.35, fx:'cheer', set:{ issem:{ tx:700, speed:120 }, t1:{ tx:580, speed:120 }, t2:{ tx:840, speed:120 } } }) ] } } ];
 
 /* ---------------- BÖLÜMLER ---------------- */
 const CHAPTERS = [
 /* ================= BÖLÜM 1 ================= */
 { title:'Şampiyonun Hayatı', teaser:['2. Bölüm – Gizemli Saldırı', 'Issem, kaybolan takım arkadaşlarının izini sürmeye başlıyor.'], flow:[
-  { cut:{ bg:'tesisDis', zoom:1, lines:[ CARD('Bölüm 1', 'Şampiyonun Hayatı'), CARD('Sahne 1', 'Büyük Yıldız'), N('Yıl 2014. Anolecrab Antrenman Tesisi.', { zoom:1.35 }) ] } },
+  { cut:{ bg:'tesisDis', zoom:1, music:'football', lines:[ CARD('Bölüm 1', 'Şampiyonun Hayatı'), CARD('Sahne 1', 'Büyük Yıldız'), N('Yıl 2014. Anolecrab Antrenman Tesisi.', { zoom:1.35 }) ] } },
   { cut:{ bg:'saha', actors:[ A('coach', 'coach', 300, 1, { pose:'arms' }), A('issem', 'issem', 560, -1) ], lines:[
     N('Anolecrab, sezonun en önemli maçlarından birine hazırlanmaktadır. Takımın yıldızı Issem, antrenman sahasında çalışmalarını sürdürür.'),
     S('Teknik Direktör', 'Önce şut, sonra frikik. Göster bakalım!', { e:'happy' }) ] } },
@@ -281,7 +281,7 @@ const CHAPTERS = [
     CARD('Sahne 3', 'Takım Kuruluyor'), N('Üçlü, örgüte karşı mücadele etmek için bir plan hazırlar.', { roster:true }),
     S('Issem', 'Artık tek başımıza değiliz.', { e:'happy' }), S('Ufis', 'Ama dikkatli olmalıyız. Düşmanımız bizi izliyor.'),
     S('Leo', 'Turnuvadan önce seni sahada bir deneyeyim, Issem. Penaltı, sonra çalım parkuru!', { e:'happy' }) ] } },
-  { cut:{ bg:'tesisDis', zoom:1, lines:[ N("Leo, Issem'i eski kulübünün antrenman tesisine götürür.", { zoom:1.35 }) ] } },
+  { cut:{ bg:'tesisDis', zoom:1, music:'football', lines:[ N("Leo, Issem'i eski kulübünün antrenman tesisine götürür.", { zoom:1.35 }) ] } },
   { set:{ mode:'penalty', shots:5, need:3, bg:'saha', title:'Penaltı serisi', hint:'Köşeleri seç! Çok yüksek güç direğin üstünden gider.' } },
   { match:{ need:2, training:true, defs:[900, 1450, 1950], teams:['ANL', 'LEO'], obj:"Leo'nun parkuru: savunmayı geç, 2 gol at",
     hint:'Kırmızı yanan rakip kayacak: ⬆ zıpla ya da 💨 çalım! Top kaparsa 🦶 ile kayarak al.' } },
@@ -468,11 +468,11 @@ const CHAPTERS = [
     S('Issem', 'Pes etmek yok! Daha bitmedi!', { e:'angry' }), N('İkinci yarı başlar.', { sfx:'whistle', min:"46'" }) ] } },
   { match:{ need:2, time:95, startMin:46, score:[0, 1], teams:['ANL', 'KŞM'], obj:'FİNAL: 2 gol at, maçı çevir!', defs:[760, 1060, 1360, 1660, 1960, 2160],
     hint:'0-1 gerideyiz! Süre bitmeden 2 gol lazım. Çalımla geç, şutu güç + yön okuyla çek!' } },
-  { cut:{ bg:'stad', minute:"90'", teams:['ANL', 'KŞM'], score:'2 - 1', cheer:true, actors:[ ...MATES(), A('issem', 'issem', 480, 1, { pose:'cheer', e:'happy' }) ], lines:[
+  { cut:{ bg:'stad', music:'final', minute:"90'", teams:['ANL', 'KŞM'], score:'2 - 1', cheer:true, actors:[ ...MATES(), A('issem', 'issem', 480, 1, { pose:'cheer', e:'happy' }) ], lines:[
     CARD('Sahne 3', 'Son Dakikalar'), { big:'GOOOOOOOOOOL!', sfx:'goal' }, N('Anolecrab 2-1 öne geçer!', { fx:'cheer' }),
     N('Hakem son düdüğü çalar.', { sfx:'longWhistle' }), { big:'ANOLECRAB ŞAMPİYON!', size:58, fx:'confetti', sfx:'win' },
     N('Issem ve takım arkadaşları büyük sevinç yaşar.', { set:{ issem:{ trophy:true, pose:'trophy' }, m1:{ pose:'cheer' }, m2:{ pose:'cheer' }, m3:{ pose:'cheer' }, m4:{ pose:'cheer' }, m5:{ pose:'cheer' }, m6:{ pose:'cheer' } } }) ] } },
-  { cut:{ bg:'stad', cheer:true, minute:'BİTTİ', teams:['ANL', 'KŞM'], score:'2 - 1', actors:[ A('issem', 'issem', 560, -1, { trophy:true, pose:'trophy', e:'happy' }), A('ufis', 'ufis', 380, 1), A('usta', 'usta', 250, 1), A('t1', 'mate', 700, -1), A('t2', 'mate2', 800, -1) ], lines:[
+  { cut:{ bg:'stad', music:'final', cheer:true, minute:'BİTTİ', teams:['ANL', 'KŞM'], score:'2 - 1', actors:[ A('issem', 'issem', 560, -1, { trophy:true, pose:'trophy', e:'happy' }), A('ufis', 'ufis', 380, 1), A('usta', 'usta', 250, 1), A('t1', 'mate', 700, -1), A('t2', 'mate2', 800, -1) ], lines:[
     CARD('Sahne 4', 'Son Buluşma'), N('Maçtan sonra Issem, Ufis ve ustasıyla buluşur.', { set:{ issem:{ pose:null, trophy:false } } }),
     S('Issem', 'Her şey için teşekkür ederim. Sen olmasaydın bunların hiçbirini başaramazdık.', { e:'happy' }),
     S('Ufis', 'Sen de benim için çok şey yaptın. Sonunda ustamı buldum.', { e:'happy' }), S('Usta', 'Artık herkes kendi yoluna devam edebilir.', { e:'happy' }),

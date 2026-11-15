@@ -163,7 +163,7 @@ function ChapterSelect(){
 }
 function ChapterEnd(n, st, reasons, ranks){
   const E = { t:0 }; const bNext = { x:270, y:452, w:200, h:52 }, bMenu = { x:490, y:452, w:200, h:52, size:20 };
-  SFX.win(); playMusic('menu'); say('Bölüm ' + n + ' tamamlandı. ' + st + ' yıldız.', 'Spiker');
+  SFX.win(); playMusic(n >= 10 ? 'final' : 'menu'); say('Bölüm ' + n + ' tamamlandı. ' + st + ' yıldız.', 'Spiker');
   E.update = dt => { E.t += dt; if (!tap || E.t < 1.2) return;
     if (inB(bMenu, tap)) toCover();
     else if (inB(bNext, tap) || tap.key){ if (n >= 10) cur = Credits(); else startChapter(n + 1); } };
@@ -187,7 +187,7 @@ function ChapterEnd(n, st, reasons, ranks){
   return E;
 }
 function Credits(){
-  const R = { t:0 }; SFX.win(); playMusic('menu');
+  const R = { t:0 }; SFX.win(); playMusic('final');
   const lines = [['SON ŞAMPİYON', 54, '#f2c230'], ['İlk Film Tamamlandı!', 28, '#ffffff'], ['', 20], ['Yapım', 18, '#9aa4c4'], ['ARAÇ OYUN STÜDYOSU', 30, '#f2c230'], ['', 20],
     ['Hikâye ve Senaryo', 18, '#9aa4c4'], ['ARAÇ', 26, '#ffffff'], ['', 20], ['Karakterler', 18, '#9aa4c4'], ['Issem · Ufis · Leo · Usta', 24, '#ffffff'], ['Narak · Yardımcı · Lider', 24, '#ffffff'], ['', 30],
     ['DEVAM EDECEK...', 40, '#ff5a5a'], ['İkinci filmde Issem ve Ufis, şimdiye kadar', 20, '#c8d3ff'], ['karşılaştıkları en büyük tehditle yüzleşecek!', 20, '#c8d3ff']];

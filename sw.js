@@ -1,7 +1,7 @@
-// Son Şampiyon — ARAÇ — v.04
+// Son Şampiyon — ARAÇ — v.05
 // Her yeni sürümde: CACHE adı + version.json + core.js içindeki VERSION birlikte değişir.
-const CACHE = 'son-sampiyon-v04';
-const FILES = ['./', './index.html', './core.js?v=04', './art.js?v=04', './fight.js?v=04', './match.js?v=04', './story.js?v=04', './game.js?v=04', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const CACHE = 'son-sampiyon-v05';
+const FILES = ['./', './index.html', './core.js?v=05', './art.js?v=05', './fight.js?v=05', './match.js?v=05', './story.js?v=05', './game.js?v=05', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(FILES.map(f => fetch(f, { cache:'reload' }).then(r => r.ok && c.put(f, r)).catch(() => {})))));
   self.skipWaiting();

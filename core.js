@@ -3,7 +3,7 @@
    SON ŞAMPİYON — ARAÇ   ·   core.js
    ekran · yardımcılar · kayıt · ses · müzik · dublaj · kontroller
    ========================================================= */
-const VERSION = 'v.04';
+const VERSION = 'v.05';
 const W = 960, H = 540, GROUND = 470;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scale = 1, dpr = 1, paused = false;
@@ -203,19 +203,27 @@ function crowdLevel(v){ if (CROWD_NODE && AC) CROWD_NODE.g.gain.setTargetAtTime(
    MÜZİK — önce MP3 (menu.mp3 / dovus.mp3 / futbol.mp3), yoksa oyunun kendi bestesi
    ========================================================= */
 const MUSIC = { kind:null, el:null, synth:null, duck:1, timer:null };
-const MFILES = { menu:'menu.mp3', fight:'dovus.mp3', football:'futbol.mp3', story:'menu.mp3' };
-function musicVol(){ return (MUSIC.kind === 'story' ? .22 : .5) * MUSIC.duck; }
+/* ekrana göre müzik: kapak/hikâye = menu, dövüş = dovus, futbol = futbol, final ve jenerik = final */
+const MFILES = { menu:'menu.mp3', story:'menu.mp3', fight:'dovus.mp3', football:'futbol.mp3', final:'final.mp3' };
+const MVOL = { menu:.55, story:.2, fight:.42, football:.38, final:.6 };
+function musicVol(){ return (MVOL[MUSIC.kind] || .5) * MUSIC.duck; }
+function fadeEl(el, to, ms, done){ const from = el.volume, t0 = performance.now();
+  const step = () => { const k = Math.min(1, (performance.now() - t0) / ms); try { el.volume = Math.max(0, Math.min(1, from + (to - from) * k)); } catch(e){} if (k < 1) requestAnimationFrame(step); else if (done) done(); };
+  requestAnimationFrame(step); }
 function playMusic(kind){
   if (!SAVE.music){ stopMusic(); return; }
   if (MUSIC.kind === kind) return;
-  stopMusic(); MUSIC.kind = kind;
-  const el = new Audio(MFILES[kind]); el.loop = true; el.volume = musicVol(); MUSIC.el = el;
+  const prevKind = MUSIC.kind;
+  if (MUSIC.el && prevKind && MFILES[prevKind] === MFILES[kind]){ MUSIC.kind = kind; fadeEl(MUSIC.el, musicVol(), 600); return; }   // aynı parça: sadece ses seviyesi
+  if (MUSIC.el){ const old = MUSIC.el; fadeEl(old, 0, 700, () => { try { old.pause(); } catch(e){} }); MUSIC.el = null; }
+  stopSynth(); MUSIC.kind = kind;
+  const el = new Audio(MFILES[kind]); el.loop = true; el.volume = 0; MUSIC.el = el;
   const fallback = () => { if (MUSIC.kind === kind && MUSIC.el === el){ MUSIC.el = null; startSynth(kind); } };
   el.addEventListener('error', fallback);
-  const p = el.play(); if (p && p.catch) p.catch(fallback);
+  const p = el.play(); if (p && p.then) p.then(() => fadeEl(el, musicVol(), 900)).catch(fallback); else fadeEl(el, musicVol(), 900);
 }
-function stopMusic(){ MUSIC.kind = null; if (MUSIC.el){ try { MUSIC.el.pause(); } catch(e){} MUSIC.el = null; } stopSynth(); }
-function setDuck(d){ MUSIC.duck = d; if (MUSIC.el) MUSIC.el.volume = musicVol(); if (MUSG && AC) MUSG.gain.setTargetAtTime(.5 * d * (MUSIC.kind === 'story' ? .45 : 1), AC.currentTime, .15); }
+function stopMusic(){ MUSIC.kind = null; if (MUSIC.el){ const old = MUSIC.el; fadeEl(old, 0, 400, () => { try { old.pause(); } catch(e){} }); MUSIC.el = null; } stopSynth(); }
+function setDuck(d){ MUSIC.duck = d; if (MUSIC.el) try { MUSIC.el.volume = musicVol(); } catch(e){} if (MUSG && AC) MUSG.gain.setTargetAtTime(.5 * d * (MUSIC.kind === 'story' ? .45 : 1), AC.currentTime, .15); }
 /* --- yedek besteler (telifsiz, oyuna özel) --- */
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 const SONGS = {
@@ -226,7 +234,7 @@ const SONGS = {
   football: { bpm:118, chords:[[50, 'M'], [57, 'M'], [59, 'm'], [55, 'M']], drum:'stadium',
     lead:[74,0,74,76,78,0,76,74, 73,0,73,74,76,0,74,73, 71,0,71,73,74,76,78,0, 79,78,76,74,76,0,0,0] },
 };
-SONGS.story = SONGS.menu;
+SONGS.story = SONGS.menu; SONGS.final = SONGS.football;
 function startSynth(kind){
   if (!AC || !SAVE.music) return; stopSynth();
   const S = SONGS[kind] || SONGS.menu, step = 60 / S.bpm / 2; let i = 0, next = AC.currentTime + .1;
