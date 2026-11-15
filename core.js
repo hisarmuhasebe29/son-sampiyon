@@ -3,7 +3,7 @@
    SON ŞAMPİYON — ARAÇ   ·   core.js
    ekran · yardımcılar · kayıt · ses · müzik · dublaj · kontroller
    ========================================================= */
-const VERSION = 'v.05';
+const VERSION = 'v.06';
 const W = 960, H = 540, GROUND = 470;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scale = 1, dpr = 1, paused = false;
@@ -30,16 +30,30 @@ function rr(c, x, y, w, h, r){ r = Math.max(0, Math.min(r, w / 2, h / 2)); c.beg
 function shade(hex, f){ if (!hex || hex[0] !== '#' || hex.length !== 7) return hex;
   const n = parseInt(hex.slice(1), 16);
   return 'rgb(' + Math.min(255, Math.round(((n >> 16) & 255) * f)) + ',' + Math.min(255, Math.round(((n >> 8) & 255) * f)) + ',' + Math.min(255, Math.round((n & 255) * f)) + ')'; }
-function wrap(c, text, maxW){ const words = String(text).split(' '), lines = []; let cur = '';
+function wrap(c, text, maxW){ const words = String(nmz(text)).split(' '), lines = []; let cur = '';
   for (const w of words){ const t = cur ? cur + ' ' + w : w;
     if (c.measureText(t).width > maxW && cur){ lines.push(cur); cur = w; } else cur = t; }
   if (cur) lines.push(cur); return lines; }
+/* oyuncunun adı hikâyede Issem'in yerini alır (ekler ünlü uyumuna göre) */
+function trSuffix(name, suf){
+  const v = (name.toLocaleLowerCase('tr-TR').match(/[aeıioöuü]/g) || ['e']).pop(), endsV = /[aeıioöuü]$/i.test(name);
+  const four = { a:'ı', 'ı':'ı', e:'i', i:'i', o:'u', u:'u', 'ö':'ü', 'ü':'ü' }[v] || 'i', two = 'aıou'.includes(v) ? 'a' : 'e';
+  if (suf === 'e') return (endsV ? 'y' : '') + two;
+  if (suf === 'i') return (endsV ? 'y' : '') + four;
+  if (suf === 'in') return (endsV ? 'n' : '') + four + 'n';
+  return suf;
+}
+function nmz(s){
+  if (typeof s !== 'string' || (s.indexOf('ssem') < 0 && s.indexOf('SSEM') < 0) || typeof PNAME === 'undefined' || PNAME === 'Issem') return s;
+  return s.replace(/Issem'(in|i|e)(?![a-zçğıöşü])/g, (m, suf) => PNAME + "'" + trSuffix(PNAME, suf)).replace(/Issem/g, PNAME).replace(/ISSEM/g, PNAME.toLocaleUpperCase('tr-TR'));
+}
 const FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 const fnt = (size, weight = 'bold') => weight + ' ' + size + 'px ' + FONT;
 /* metni verilen genişliğe sığdıracak yazı boyunu bulur */
 function fitSize(c, s, maxW, size, weight = 'bold'){ let z = size; c.font = fnt(z, weight);
   while (z > 9 && c.measureText(s).width * 1.06 > maxW){ z -= 1; c.font = fnt(z, weight); } return z; }
 function txt(c, s, x, y, size, col, align = 'left', weight = 'bold', stroke, maxW){
+  s = nmz(s);
   if (maxW) size = fitSize(c, s, maxW, size, weight);
   c.font = fnt(size, weight); c.textAlign = align;
   if (stroke){ c.lineWidth = stroke; c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineJoin = 'round'; c.strokeText(s, x, y); }
@@ -47,6 +61,7 @@ function txt(c, s, x, y, size, col, align = 'left', weight = 'bold', stroke, max
 }
 /* yazıyı her zaman tamamen içine alan kutu (emoji payı dahil) */
 function pill(c, s, cx, cy, size, bg, fg, opt = {}){
+  s = nmz(s);
   const maxW = opt.maxW || W - 40, weight = opt.weight || 'bold';
   size = fitSize(c, s, maxW - 40, size, weight);
   c.font = fnt(size, weight);
@@ -60,6 +75,7 @@ function pill(c, s, cx, cy, size, bg, fg, opt = {}){
   return { x, y: cy - ph / 2, w: pw, h: ph };
 }
 const inB = (b, p) => p && p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h;
+function scrY(c, y){ const m = c.getTransform(); return (m.d * y + m.f) / (scale * dpr); }
 
 /* ---------- kayıt ---------- */
 const SAVE_KEY = 'sonSampiyon_v2';
@@ -85,7 +101,8 @@ function audioInit(){
     MASTER = AC.createGain(); MASTER.gain.value = .95; MASTER.connect(AC.destination);
     SFXG = AC.createGain(); SFXG.gain.value = 1; SFXG.connect(MASTER);
     MUSG = AC.createGain(); MUSG.gain.value = .5; MUSG.connect(MASTER); } catch(e){} }
-  if (AC && AC.state === 'suspended') AC.resume();
+  if (AC && AC.state === 'suspended' && !document.hidden) AC.resume();
+  if (typeof MUSIC !== 'undefined' && MUSIC.el && MUSIC.el.paused && SAVE.music && !document.hidden){ const el = MUSIC.el; el.play().then(() => fadeEl(el, musicVol(), 600)).catch(() => {}); }
 }
 function env(g, t, vol, a, d){ g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + a); g.gain.exponentialRampToValueAtTime(.0001, t + a + d); }
 function tone(f, d, type = 'square', vol = .15, slide = 0, delay = 0, out){
@@ -207,22 +224,37 @@ const MUSIC = { kind:null, el:null, synth:null, duck:1, timer:null };
 const MFILES = { menu:'menu.mp3', story:'menu.mp3', fight:'dovus.mp3', football:'futbol.mp3', final:'final.mp3' };
 const MVOL = { menu:.55, story:.2, fight:.42, football:.38, final:.6 };
 function musicVol(){ return (MVOL[MUSIC.kind] || .5) * MUSIC.duck; }
-function fadeEl(el, to, ms, done){ const from = el.volume, t0 = performance.now();
-  const step = () => { const k = Math.min(1, (performance.now() - t0) / ms); try { el.volume = Math.max(0, Math.min(1, from + (to - from) * k)); } catch(e){} if (k < 1) requestAnimationFrame(step); else if (done) done(); };
-  requestAnimationFrame(step); }
+const AUDS = new Set();                      // oluşturulan tüm müzik öğeleri (arka planda hepsi durdurulur)
+let HIDDEN = !!document.hidden;
+function fadeEl(el, to, ms, done){
+  clearInterval(el._fi); const from = el.volume, t0 = Date.now();
+  const fin = () => { clearInterval(el._fi); el._fi = null; if (done) done(); };
+  if (HIDDEN || ms <= 0){ try { el.volume = Math.max(0, Math.min(1, to)); } catch(e){} fin(); return; }
+  el._fi = setInterval(() => { const k = Math.min(1, (Date.now() - t0) / ms); try { el.volume = Math.max(0, Math.min(1, from + (to - from) * k)); } catch(e){} if (k >= 1) fin(); }, 30);
+}
+function killEl(el){ try { clearInterval(el._fi); el.pause(); el.removeAttribute('src'); el.load(); } catch(e){} AUDS.delete(el); }
 function playMusic(kind){
   if (!SAVE.music){ stopMusic(); return; }
   if (MUSIC.kind === kind) return;
   const prevKind = MUSIC.kind;
   if (MUSIC.el && prevKind && MFILES[prevKind] === MFILES[kind]){ MUSIC.kind = kind; fadeEl(MUSIC.el, musicVol(), 600); return; }   // aynı parça: sadece ses seviyesi
-  if (MUSIC.el){ const old = MUSIC.el; fadeEl(old, 0, 700, () => { try { old.pause(); } catch(e){} }); MUSIC.el = null; }
+  if (MUSIC.el){ const old = MUSIC.el; fadeEl(old, 0, 700, () => killEl(old)); MUSIC.el = null; }
   stopSynth(); MUSIC.kind = kind;
-  const el = new Audio(MFILES[kind]); el.loop = true; el.volume = 0; MUSIC.el = el;
+  const el = new Audio(MFILES[kind]); el.loop = true; el.volume = 0; MUSIC.el = el; AUDS.add(el);
+  if (HIDDEN) return;                                          // arka plandaysa çalma; öne gelince başlar
   const fallback = () => { if (MUSIC.kind === kind && MUSIC.el === el){ MUSIC.el = null; startSynth(kind); } };
   el.addEventListener('error', fallback);
-  const p = el.play(); if (p && p.then) p.then(() => fadeEl(el, musicVol(), 900)).catch(fallback); else fadeEl(el, musicVol(), 900);
+  const p = el.play(); if (p && p.then) p.then(() => { if (HIDDEN || MUSIC.el !== el){ try { el.pause(); } catch(e){} return; } fadeEl(el, musicVol(), 900); }).catch(e => { if (e && e.name === 'NotAllowedError') return; fallback(); }); else fadeEl(el, musicVol(), 900);
 }
-function stopMusic(){ MUSIC.kind = null; if (MUSIC.el){ const old = MUSIC.el; fadeEl(old, 0, 400, () => { try { old.pause(); } catch(e){} }); MUSIC.el = null; } stopSynth(); }
+function stopMusic(){ MUSIC.kind = null; if (MUSIC.el){ const old = MUSIC.el; fadeEl(old, 0, 400, () => killEl(old)); MUSIC.el = null; } stopSynth(); }
+/* uygulama arka plana alınınca / kapatılınca TÜM sesler durur; öne gelince kaldığı yerden devam */
+function bgPause(){ HIDDEN = true; try { hush(); } catch(e){} for (const a of AUDS) try { a.pause(); } catch(e){}
+  if (AC && AC.state === 'running') AC.suspend().catch(() => {}); }
+function bgResume(){ if (document.hidden) return; HIDDEN = false; if (AC && AC.state === 'suspended') AC.resume().catch(() => {});
+  if (MUSIC.el && SAVE.music){ const el = MUSIC.el; el.play().then(() => fadeEl(el, musicVol(), 400)).catch(() => {}); } }
+document.addEventListener('visibilitychange', () => { if (document.hidden) bgPause(); else bgResume(); });
+addEventListener('pagehide', bgPause); addEventListener('pageshow', bgResume);
+document.addEventListener('freeze', bgPause); document.addEventListener('resume', bgResume);
 function setDuck(d){ MUSIC.duck = d; if (MUSIC.el) try { MUSIC.el.volume = musicVol(); } catch(e){} if (MUSG && AC) MUSG.gain.setTargetAtTime(.5 * d * (MUSIC.kind === 'story' ? .45 : 1), AC.currentTime, .15); }
 /* --- yedek besteler (telifsiz, oyuna özel) --- */
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -294,7 +326,7 @@ const clean = s => String(s).replace(/[←-⯿\u{1F000}-\u{1FFFF}️]/gu, '').re
 function say(text, who, onend){
   if (!SAVE.voice || !window.speechSynthesis){ return false; }
   try {
-    speechSynthesis.cancel(); const t = clean(text); if (!t) return false;
+    speechSynthesis.cancel(); const t = clean(nmz(text)); if (!t) return false;
     const u = new SpeechSynthesisUtterance(t); u.lang = 'tr-TR';
     const v = VOX[who] || VOX.narr; u.pitch = v.p; u.rate = v.r; u.volume = 1;
     if (TR_VOICES.length) u.voice = TR_VOICES[who && who !== 'narr' && TR_VOICES.length > 1 && v.p > 1.1 ? 1 : 0];
@@ -309,7 +341,7 @@ function unlockSpeech(){ try { if (window.speechSynthesis){ const u = new Speech
 /* =========================================================
    KONTROLLER — solda joystick, sağda duruma göre tuşlar
    ========================================================= */
-const keys = { left:0, right:0, up:0, down:0, jump:0, punch:0, kick:0, block:0, slide:0, grab:0, super:0, swap:0, shoot:0, dash:0, tackle:0 };
+const keys = { left:0, right:0, up:0, down:0, jump:0, punch:0, kick:0, block:0, slide:0, grab:0, super:0, swap:0, shoot:0, dash:0, tackle:0, pass:0, thru:0, lob:0 };
 const JOY = { x:0, y:0, active:false };
 const pressedAt = {};
 let gameTime = 0, tap = null, anyPress = false;
@@ -342,7 +374,7 @@ joyEl.addEventListener('pointerup', joyEnd); joyEl.addEventListener('pointercanc
 
 cv.addEventListener('pointerdown', e => { audioInit(); const r = cv.getBoundingClientRect(); tap = { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale }; });
 addEventListener('contextmenu', e => e.preventDefault());
-const KMAP = { ArrowLeft:'left', ArrowRight:'right', ArrowDown:'down', KeyZ:'punch', KeyX:'kick', KeyC:'block', KeyV:'slide', KeyA:'grab', KeyD:'super', KeyS:'swap', KeyQ:'shoot', KeyW:'dash', KeyE:'tackle' };
+const KMAP = { ArrowLeft:'left', ArrowRight:'right', ArrowDown:'down', KeyZ:'punch', KeyX:'kick', KeyC:'block', KeyV:'slide', KeyA:'grab', KeyD:'super', KeyS:'swap', KeyQ:'shoot', KeyW:'dash', KeyE:'tackle', KeyR:'pass', KeyF:'thru', KeyG:'lob' };
 addEventListener('keydown', e => {
   audioInit();
   if (e.repeat) { if (KMAP[e.code] || e.code === 'ArrowUp' || e.code === 'Space') e.preventDefault(); return; }
@@ -357,11 +389,16 @@ addEventListener('keyup', e => { if (KMAP[e.code]) press(KMAP[e.code], 0); if (e
 
 /* sağ tuşların yerleri (yuva) */
 const SLOTS = { A:'right:19vmin;bottom:3vmin;width:21vmin;height:21vmin;font-size:9vmin', B:'right:2vmin;bottom:17vmin', C:'right:41vmin;bottom:2vmin',
-  D:'right:21vmin;bottom:26vmin', E:'right:2vmin;bottom:36vmin', F:'right:40vmin;bottom:20vmin', G:'right:58vmin;bottom:3vmin;width:13vmin;height:13vmin;font-size:6vmin' };
+  D:'right:21vmin;bottom:26vmin', E:'right:2vmin;bottom:36vmin', F:'right:40vmin;bottom:20vmin', G:'right:58vmin;bottom:3vmin;width:13vmin;height:13vmin;font-size:6vmin',
+  /* futbol: PES mobil tarzı elmas dizilim */
+  H:'right:34vmin;bottom:14vmin;width:19vmin;height:19vmin;font-size:7vmin;border-color:#5aa0ff', I:'right:15vmin;bottom:1vmin;width:17vmin;height:17vmin;font-size:6vmin;border-color:#2ecc71',
+  J:'right:15vmin;bottom:33vmin;width:17vmin;height:17vmin;font-size:6vmin;border-color:#f1c40f', K:'right:0vmin;bottom:16vmin;width:16vmin;height:16vmin;font-size:6vmin;border-color:#ff6b6b',
+  L:'right:36vmin;bottom:35vmin;width:13vmin;height:13vmin;font-size:5vmin;border-color:#9ad7ff' };
 const MODES = {
   fight: { punch:['A', '👊'], kick:['B', '🦵'], block:['C', '🛡️'], slide:['D', '💨'], super:['E', '⭐'], grab:['F', '✋'], swap:['G', '⇄'] },
   match: { shoot:['A', '⚽'], dash:['B', '💨'], tackle:['C', '🦶'] },
   shot:  { shoot:['A', '⚽'] },
+  foot:  { shoot:['H', '⚽'], pass:['I', '➡️'], thru:['J', '⤴️'], lob:['K', '🌙'], dash:['L', '💨'] },
 };
 const UI = document.getElementById('ui');
 function showControls(mode, opt = {}){
@@ -374,9 +411,10 @@ function showControls(mode, opt = {}){
     b.classList.remove('on', 'ready');
     if (!d || (k === 'swap' && !opt.swap) || (k === 'grab' && opt.noGrab)){ b.style.display = 'none'; return; }
     b.style.cssText = 'display:flex;' + SLOTS[d[0]];
-    b.textContent = (opt.labels && opt.labels[k]) || d[1];
+    b._h = null; b.textContent = (opt.labels && opt.labels[k]) || d[1];
   });
   joyEl.style.display = opt.noJoy ? 'none' : 'block';
 }
 function setBtnReady(k, on){ const b = document.querySelector('.btn[data-k="' + k + '"]'); if (b) b.classList.toggle('ready', !!on); }
+function setBtnHTML(k, s){ const b = document.querySelector('.btn[data-k="' + k + '"]'); if (b && b._h !== s){ b._h = s; b.innerHTML = s; } }
 function setBtnLabel(k, s){ const b = document.querySelector('.btn[data-k="' + k + '"]'); if (b && b.textContent !== s) b.textContent = s; }

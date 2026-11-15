@@ -15,8 +15,10 @@
 <style>
   html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;
     -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
-  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
-  canvas{display:block;background:#000}
+  #wrap{position:fixed;inset:0}
+  #wrap canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block}
+  #g3,#bgc{background:transparent;display:none}
+  #c{background:transparent}
   #ui{position:fixed;inset:0;pointer-events:none;display:none}
   #joy{position:absolute;left:3vmin;bottom:3vmin;width:36vmin;height:36vmin;border-radius:50%;pointer-events:auto;touch-action:none;
     background:radial-gradient(circle,rgba(255,255,255,.10) 0%,rgba(255,255,255,.04) 60%,rgba(255,255,255,.12) 100%);border:2px solid rgba(255,255,255,.35);box-sizing:border-box}
@@ -27,6 +29,9 @@
   .btn{position:absolute;pointer-events:auto;width:16vmin;height:16vmin;border-radius:50%;display:none;
     background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.35);color:#fff;
     font:bold 7vmin system-ui,sans-serif;align-items:center;justify-content:center;box-sizing:border-box;touch-action:none}
+  .btn{flex-direction:column}
+  .btn b{font-weight:normal;line-height:1}
+  .btn i{font-style:normal;font:900 2.3vmin system-ui,sans-serif;letter-spacing:.02em;color:#fff;margin-top:.6vmin;text-shadow:0 1px 2px #000}
   .btn.on{background:rgba(242,194,48,.5);border-color:#f2c230;transform:scale(.94)}
   .btn.ready{border-color:#fff176;box-shadow:0 0 3vmin #f2c230;animation:pulse .6s infinite alternate}
   @keyframes pulse{from{background:rgba(242,194,48,.25)}to{background:rgba(242,194,48,.7)}}
@@ -36,7 +41,7 @@
 </style>
 </head>
 <body>
-<div id="wrap"><canvas id="c"></canvas></div>
+<div id="wrap"><canvas id="bgc"></canvas><canvas id="g3"></canvas><canvas id="c"></canvas></div>
 <div id="ui">
   <div id="joy"><span class="ar" style="left:42%;top:2%">▲</span><span class="ar" style="left:42%;bottom:2%">▼</span><span class="ar" style="left:4%;top:40%">◀</span><span class="ar" style="right:4%;top:40%">▶</span><div id="knob"></div></div>
   <div class="btn" data-k="punch">👊</div>
@@ -49,13 +54,20 @@
   <div class="btn" data-k="shoot">⚽</div>
   <div class="btn" data-k="dash">💨</div>
   <div class="btn" data-k="tackle">🦶</div>
+  <div class="btn fb" data-k="pass">➡️</div>
+  <div class="btn fb" data-k="thru">⤴️</div>
+  <div class="btn fb" data-k="lob">🌙</div>
 </div>
 <div id="rotate"><span>📱↻</span>Telefonu yan çevirin</div>
-<script src="core.js?v=05"></script>
-<script src="art.js?v=05"></script>
-<script src="fight.js?v=05"></script>
-<script src="match.js?v=05"></script>
-<script src="story.js?v=05"></script>
-<script src="game.js?v=05"></script>
+<script>
+  window.__boot = function(){ if (window.__booted) return; window.__booted = true;
+    const files = ['core', 'art', 'render3d', 'fight', 'match', 'foot3d', 'match3d', 'creator', 'story', 'game'];
+    (function load(i){ if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '.js?v=06'; s.onload = () => load(i + 1); document.body.appendChild(s); })(0); };
+  setTimeout(window.__boot, 8000);                     /* 3B kütüphanesi hiç yüklenemezse oyun 2B açılır */
+</script>
+<script type="module">
+  import('./three.module.min.js?v=06').then(T => { window.THREE = T; }).catch(() => {}).finally(() => window.__boot());
+</script>
+<script nomodule>window.__boot();</script>
 </body>
 </html>

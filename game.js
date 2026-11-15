@@ -16,8 +16,8 @@ function runNode(){
   const n = C.flow[curI]; FX.ts = 1; FX.zoom = 1; FX.flash = 0; hush();
   if (n.cut){ cur = Cut(n.cut); showControls(null); }
   else if (n.lvl){ cur = Level(LEVELS[n.lvl]); }
-  else if (n.match){ cur = Match(n.match); }
-  else if (n.set){ cur = SetPiece(n.set); }
+  else if (n.match){ cur = R3.init() ? Match3D(n.match) : Match(n.match); }
+  else if (n.set){ cur = R3.init() ? SetPiece3D(n.set) : SetPiece(n.set); }
 }
 function next(){ curI++; runNode(); }
 function endChapter(){
@@ -107,10 +107,11 @@ function Intro(){
 function Cover(){
   const K = { t:0, msg:'' }; playMusic('menu');
   const bMain = { x:340, y:212, w:280, h:58, size:24 }, bCh = { x:340, y:280, w:280, h:46, size:20 }, bDiff = { x:340, y:334, w:280, h:42, size:18 },
-    bMus = { x:340, y:384, w:136, h:40, size:15 }, bVox = { x:484, y:384, w:136, h:40, size:15 }, bUpd = { x:796, y:496, w:154, h:32, size:13 };
+    bMus = { x:340, y:384, w:136, h:40, size:15 }, bVox = { x:484, y:384, w:136, h:40, size:15 }, bUpd = { x:796, y:496, w:154, h:32, size:13 }, bPl = { x:796, y:452, w:154, h:38, size:15 };
   K.update = dt => { K.t += dt;
     if (!tap) return;
-    if (inB(bMain, tap) || tap.key){ SFX.whistle(); fs(); const s = SAVE.cur; if (s && (s.ch > 1 || s.i > 0)) startChapter(s.ch, s.i); else startChapter(1); }
+    if (inB(bMain, tap) || tap.key){ SFX.whistle(); fs(); const s = SAVE.cur; if (!SAVE.player){ cur = Creator(() => startChapter(1)); return; } if (s && (s.ch > 1 || s.i > 0)) startChapter(s.ch, s.i); else startChapter(1); }
+    else if (inB(bPl, tap)){ SFX.click(); cur = Creator(); }
     else if (inB(bCh, tap)){ SFX.click(); cur = ChapterSelect(); }
     else if (inB(bDiff, tap)){ SAVE.diff = (SAVE.diff + 1) % 3; persist(); SFX.click(); }
     else if (inB(bMus, tap)){ SAVE.music = SAVE.music ? 0 : 1; persist(); SFX.click(); if (SAVE.music){ MUSIC.kind = null; playMusic('menu'); } else stopMusic(); }
@@ -118,11 +119,12 @@ function Cover(){
     else if (inB(bUpd, tap)){ SFX.click(); UPDATE_MSG = 'Kontrol ediliyor…'; checkVersion(true); }
   };
   K.draw = c => {
-    bgStad(c, K.t, { cheer:true, noBoard:true });
-    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(5,8,25,.5)'); g.addColorStop(1, 'rgba(5,8,25,.88)'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-    for (let i = 0; i < 6; i++){ const a = K.t * .3 + i; c.fillStyle = 'rgba(242,194,48,.06)'; c.beginPath(); c.moveTo(480, 520); c.lineTo(480 + Math.cos(a) * 900, 520 + Math.sin(a) * 900 - 600); c.lineTo(480 + Math.cos(a + .12) * 900, 520 + Math.sin(a + .12) * 900 - 600); c.fill(); }
-    c.strokeStyle = 'rgba(242,194,48,' + (.35 + .25 * Math.sin(K.t * 6)) + ')'; c.lineWidth = 3; c.beginPath();
-    for (let x = 250; x <= 710; x += 20) c.lineTo(x, 350 + Math.sin(x * .07 + K.t * 12) * 10); c.stroke();
+    const D3 = R3.side(515), b = D3 ? R3.bgFrom(c) : c;
+    bgStad(b, K.t, { cheer:true, noBoard:true });
+    const g = b.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(5,8,25,.5)'); g.addColorStop(1, 'rgba(5,8,25,.88)'); b.fillStyle = g; b.fillRect(0, 0, W, H);
+    for (let i = 0; i < 6; i++){ const a = K.t * .3 + i; b.fillStyle = 'rgba(242,194,48,.06)'; b.beginPath(); b.moveTo(480, 520); b.lineTo(480 + Math.cos(a) * 900, 520 + Math.sin(a) * 900 - 600); b.lineTo(480 + Math.cos(a + .12) * 900, 520 + Math.sin(a + .12) * 900 - 600); b.fill(); }
+    b.strokeStyle = 'rgba(242,194,48,' + (.35 + .25 * Math.sin(K.t * 6)) + ')'; b.lineWidth = 3; b.beginPath();
+    for (let x = 250; x <= 710; x += 20) b.lineTo(x, 350 + Math.sin(x * .07 + K.t * 12) * 10); b.stroke();
     drawHuman(c, 170, 515, LOOK.issem, getPose({ animT:K.t, pose:'guard' }), 1, 2.25, 1, null, 'angry');
     drawHuman(c, 790, 515, LOOK.ufis, getPose({ animT:K.t + 1, pose:'guard' }), -1, 2.25, 1, null, 'angry');
     drawBall(c, 250, 500, K.t * 3, 1.6);
@@ -137,6 +139,7 @@ function Cover(){
     button(c, bMus, (SAVE.music ? '🎵 Müzik: Açık' : '🔇 Müzik: Kapalı'));
     button(c, bVox, (SAVE.voice ? '🗣 Dublaj: Açık' : '🤐 Dublaj: Kapalı'));
     button(c, bUpd, '⟳ Güncelle · ' + VERSION);
+    button(c, bPl, '👤 Oyuncum');
     if (UPDATE_MSG) pill(c, UPDATE_MSG, 480, 448, 16, 'rgba(0,0,0,.7)', '#7dff9a');
   };
   return K;
@@ -213,7 +216,7 @@ function Cut(def){
   playMusic(def.music || 'story');
   if (def.bg === 'stad' || def.bg === 'stadDis' || def.bg === 'tunelCikis') crowdAmb(true, def.bg === 'stadDis' ? .16 : .1); else crowdAmb(false);
   const actor = id => C.actors.find(a => a.id === id);
-  const textOf = ln => ln.item ? (ln.n || '') : (ln.t || ln.n || ln.msg || '');
+  const textOf = ln => nmz(ln.item ? (ln.n || '') : (ln.t || ln.n || ln.msg || ''));
   function applyProps(a, p){
     if (!a || !p) return;
     for (const k in p){
@@ -303,15 +306,17 @@ function Cut(def){
     if (C.zoom.z !== 1){ c.translate(480, 300); c.scale(C.zoom.z, C.zoom.z); c.translate(-480, -300); }
     c.translate(sx, sy);
     C.st.camX = C.cam.x;
-    drawBg(c, def.bg, C.st, C.t);
+    const D3 = R3.side(GROUND, { dark:def.bg === 'gizli' || C.st.alarm });
+    drawBg(D3 ? R3.bgFrom(c) : c, def.bg, C.st, C.t);
     c.translate(-Math.round(C.cam.x), def.noLift ? 0 : -74);            // karakterler yazı kutusunun üstünde kalsın
+    if (D3){ R3.ground(scrY(c, GROUND)); if (C.st.sepia) R3.filter('sepia(.85) saturate(.8)'); }
     const list = C.actors.filter(a => !a.hidden).sort((a, b) => (a.y || GROUND) - (b.y || GROUND));
     for (const a of list){ const ex = a.e || 'neutral';
-      if (a.pose === 'lie' || a.fallV){ c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(a.x - (a.face || 1) * 50, (a.y || GROUND) + 2, 60 * (a.s || 1), 6, 0, 0, 7); c.fill(); }
+      if (D3){} else if (a.pose === 'lie' || a.fallV){ c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(a.x - (a.face || 1) * 50, (a.y || GROUND) + 2, 60 * (a.s || 1), 6, 0, 0, 7); c.fill(); }
       else { c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(a.x, (a.y || GROUND) + 3, 24 * (a.s || 1), 5, 0, 0, 7); c.fill(); }
-      drawHuman(c, a.x, a.y || GROUND, LOOK[a.look], getPose(a), a.face, a.s || 1, a.alpha || 1, null, ex, !!a.talking, a.hold || null);
+      drawHuman(c, a.x, a.y || GROUND, LOOK[a.look], getPose(a), a.face, a.s || 1, a.alpha || 1, null, ex, !!a.talking, a.trophy && D3 ? 'trophy' : a.hold || null);
       if (a.pose === 'lie' && a.stars){ const hp2 = headPos(Object.assign({ down:1 }, a), a.s || 1); dizzyStars(c, hp2[0], hp2[1] - 6, gameTime, 3, 16); }
-      if (a.trophy){ const hx = a.x + a.face * 3, hy = (a.y || GROUND) - 172 * (a.s || 1); c.fillStyle = '#f2c230'; c.beginPath(); c.moveTo(hx - 16, hy); c.lineTo(hx + 16, hy); c.lineTo(hx + 7, hy + 26); c.lineTo(hx - 7, hy + 26); c.fill(); c.fillRect(hx - 3, hy + 26, 6, 8); c.fillRect(hx - 10, hy + 32, 20, 5); } }
+      if (a.trophy && !D3){ const hx = a.x + a.face * 3, hy = (a.y || GROUND) - 172 * (a.s || 1); c.fillStyle = '#f2c230'; c.beginPath(); c.moveTo(hx - 16, hy); c.lineTo(hx + 16, hy); c.lineTo(hx + 7, hy + 26); c.lineTo(hx - 7, hy + 26); c.fill(); c.fillRect(hx - 3, hy + 26, 6, 8); c.fillRect(hx - 10, hy + 32, 20, 5); } }
     if (def.ball) drawBall(c, def.ball[0], def.ball[1], C.t * 2, .8);
     c.restore();
     vignette(c, .3);
@@ -422,7 +427,7 @@ if ('serviceWorker' in navigator){
 }
 addEventListener('load', () => checkVersion());
 if (location.search.indexOf('u=') >= 0){ try { history.replaceState(null, '', location.pathname); } catch(e){} }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden'){ hush(); if (MUSIC.el) try { MUSIC.el.pause(); } catch(e){} } else if (MUSIC.el && SAVE.music){ MUSIC.el.play().catch(() => {}); } });
+
 
 /* =========================================================
    ANA DÖNGÜ
@@ -444,9 +449,10 @@ function loop(now){
   tap = null;
   ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
-  cur.draw(ctx);
+  R3.begin(); cur.draw(ctx); R3.end();
   requestAnimationFrame(loop);
 }
 stats = newStats();
 cur = Splash();
 requestAnimationFrame(loop);
+window.__sim = sec => { for (let i = 0; i < sec * 60; i++){ if (window.__bot) window.__bot(); gameTime += 1 / 60; if (hitstop > 0) hitstop -= 1 / 60; else cur.update(1 / 60); tap = null; } };
