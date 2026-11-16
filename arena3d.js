@@ -22,6 +22,7 @@ const ARENA = {
   stad:      { d:420, kind:'pitch', night:1 },
   dojo:      { d:300, kind:'dojo' },
 };
+function arenaKind(def){ return (ARENA[def.bg] || ARENA.depo).kind; }
 function arenaDims(def){ const A = ARENA[def.bg] || ARENA.depo; return { zMin:-A.d, zMax:A.d }; }
 const ATEX = new Map();
 function aTex(key, w, h, draw, rx = 1, ry = 1){
@@ -77,7 +78,7 @@ function boxM(w, h, d, m, x, y, z, cast = true){ const { T } = A3(); const b = n
 function cylM(r, h, m, x, y, z, seg = 16, r2){ const { T } = A3(); const b = new T.Mesh(new T.CylinderGeometry(r, r2 == null ? r : r2, h, seg), m); b.position.set(x, y, z); b.castShadow = true; b.receiveShadow = true; return b; }
 const emis = (col, k = 1.6) => { const { T } = A3(); return new T.MeshStandardMaterial({ color:col, emissive:new T.Color(col), emissiveIntensity:k, roughness:.4 }); };
 /* sokak lambası */
-function streetLamp(g, x, z, face, U){ const pole = stdM({ color:'#2b2f36', metalness:.6, roughness:.4 });
+function streetLamp(g0, x, z, face, U){ const pole = stdM({ color:'#2b2f36', metalness:.6, roughness:.4 }), g = new (A3().T.Group)(); g0.add(g); if (face < 0) U.front.push(g);
   g.add(cylM(.07, 4.6, pole, x, 2.3, z, 10)); const arm = boxM(.9, .07, .07, pole, x, 4.55, z + face * .42); arm.rotation.y = Math.PI / 2; g.add(arm);
   g.add(boxM(.42, .12, .24, pole, x, 4.5, z + face * .85)); g.add(boxM(.36, .04, .2, emis('#ffd9a0', 2.4), x, 4.43, z + face * .85, false)); U.lamps.push([x, 4.3, z + face * .85, '#ffc98a', 7]); }
 /* basit araba (alçak poligon, gövde + kabin + tekerler + farlar) */
@@ -112,7 +113,7 @@ function buildArena(L){
     floor(alley ? ['wet', 512, 512, TX.asphaltWet] : yard ? ['yard', 512, 512, TX.concrete('#55595e')] : ['snowroad', 512, 512, TX.asphaltSnow], alley ? 6 : 9, alley ? .35 : .82, alley ? .25 : 0);
     if (!alley && !yard){ for (const [zz, w] of [[z0 - 1.5, 3], [z1 + 1.5, 3]]) { const s = plane(LX, w, stdM({ map:aTex('swalk', 256, 256, TX.sidewalk, LX / 2.5, w / 2.5), roughness:.9 }), MX, .12, zz, -Math.PI / 2); g.add(s); g.add(boxM(LX, .14, .18, stdM({ color:'#9a9da3' }), MX, .07, zz + (zz < 0 ? 1.5 : -1.5))); } }
     // binalar (iki yanda) — cepheler
-    const bz0 = alley ? z0 - .3 : yard ? z0 - 5 : z0 - 3.2, bz1 = alley ? z1 + .3 : z1 + 3.2, bh = alley ? 11 : 14, cols = ['#8a4b3a', '#9a6a4a', '#6b5a50', '#7a3f35', '#8f7a64'];
+    const bz0 = alley ? z0 - .3 : yard ? z0 - 5 : z0 - 3.2, bz1 = alley ? z1 + 1.15 : z1 + 3.2, bh = alley ? 11 : 14, cols = ['#8a4b3a', '#9a6a4a', '#6b5a50', '#7a3f35', '#8f7a64'];
     for (const [bz, face] of [[bz0, 1], [bz1, -1]]){ if (yard && face < 0) continue; let x = X0 - 4, i = 0;
       while (x < X1 + 4){ const bw = 6 + hash01(i * 3.7 + face) * 5, h = bh + hash01(i * 1.9 + face * 4) * 5; const m = stdM({ map:facadeTex(i + (face > 0 ? 0 : 20), cols[(i + (face > 0 ? 0 : 2)) % cols.length], U.night ? 1 : 0), roughness:.9 }); m.map.repeat.set(bw / 6, h / 12);
         const p = plane(bw, h, m, x + bw / 2, h / 2, bz, 0, face > 0 ? 0 : Math.PI); g.add(p); if (face < 0) U.front.push(dynM(p));
@@ -128,7 +129,7 @@ function buildArena(L){
     }
     if (alley){ const esc = stdM({ color:'#1c1f24', metalness:.6, roughness:.5 });
       for (let x = 1.5; x < len; x += 7){ for (let fl = 0; fl < 3; fl++){ const y = 3 + fl * 2.6; g.add(boxM(3, .08, 1.0, esc, x, y, z0 + .2)); g.add(boxM(3, .7, .04, esc, x, y + .4, z0 + .7)); } }
-      for (let x = 3, i = 0; x < len; x += 9, i++){ g.add(boxM(1.8, 1.25, 1.0, stdM({ color:i % 2 ? '#2f5a3a' : '#3a4a5a', metalness:.4, roughness:.6 }), x, .62, z1 - .55 + .3)); }
+      for (let x = 3, i = 0; x < len; x += 9, i++){ const d = boxM(1.8, 1.25, .95, stdM({ color:i % 2 ? '#2f5a3a' : '#3a4a5a', metalness:.4, roughness:.6 }), x, .62, z1 + .55); g.add(d); U.front.push(dynM(d)); }
       const neon = [['GECE KULÜBÜ', '#ff3fa0'], ['OTEL', '#3fd0ff'], ['BAR', '#ffcf3f']];
       for (let x = 4, i = 0; x < len; x += 10, i++){ const n = neon[i % 3]; const s = plane(2.6, .7, new T.MeshBasicMaterial({ map:signTex(n[0], '#120818', n[1]), toneMapped:false }), x, 4.4, z0 + .08); g.add(s); U.lamps.push([x, 4.0, z0 + .6, n[1], 7]); U.flick.push(dynM(s)); }
       sky = 'night'; fog = ['#141a24', 8, 34]; light = { hemi:['#6a7aa8', '#141418', .55], sun:['#a8b8ff', .55], sunDir:[.2, 1, .4], fill:.2 }; post = { bloom:.65, th:.7, sat:1.12 };
@@ -159,17 +160,18 @@ function buildArena(L){
     }[kind] || {};
     floor(S.fl, S.fr, S.rough, S.metal || 0);
     const wm = stdM({ map:aTex(S.wall[0], S.wall[1], S.wall[2], S.wall[3], LX / S.wr, S.h / S.wr), roughness:.85 });
-    const backZ = kind === 'warehouse' ? z0 - 1.6 : z0 - .02;
-    wallBack(wm, S.h, backZ); wallFront(wm, S.h); endWalls(wm, S.h); ceiling(stdM({ color:S.ceil, roughness:.9 }), S.h);
+    const PAD = { warehouse:[1.6, .8], factory:[1.6, 1.05], security:[.95, .75], salon:[.75, .1], under:[.52, .1], office:[.02, .65], dojo:[.2, .2], gym:[.02, .02], tunnel:[.02, .02], crypt:[.02, .02] }[kind] || [.02, .02];
+    const backZ = z0 - PAD[0], frontZ = z1 + PAD[1];
+    wallBack(wm, S.h, backZ); wallFront(wm, S.h, frontZ); endWalls(wm, S.h); ceiling(stdM({ color:S.ceil, roughness:.9 }), S.h);
     if (kind === 'warehouse'){
       for (let x = 2.2; x < len - 1; x += 6.5) g.add(rackMesh(4.8, U, x + 2, z0 - .85));
-      const col = stdM({ color:'#3a4a5c', metalness:.55, roughness:.4 }); for (let x = 0; x < len + 1; x += 6.5){ g.add(boxM(.3, S.h, .3, col, x, S.h / 2, z0 - .05)); const cf = boxM(.3, S.h, .3, col, x, S.h / 2, z1 + .15); g.add(cf); U.front.push(dynM(cf)); }
+      const col = stdM({ color:'#3a4a5c', metalness:.55, roughness:.4 }); for (let x = 0; x < len + 1; x += 6.5){ g.add(boxM(.3, S.h, .3, col, x, S.h / 2, z0 - .05)); const cf = boxM(.3, S.h, .3, col, x, S.h / 2, z1 + .5); g.add(cf); U.front.push(dynM(cf)); }
       for (let x = 0; x < len + 1; x += 6.5){ const tr = boxM(.18, .5, (z1 - z0) + 3, col, x, S.h - .35, (z0 + z1) / 2); g.add(tr); U.ceil.push(dynM(tr)); }
       for (let x = 1; x < len; x += 4){ const w = plane(2.4, 1.1, emis('#dfefff', 1.3), x, S.h - 1.4, backZ + .03); g.add(w); }
       for (let x = 3.2; x < len; x += 6.5){ const lamp = R3.world().mesh('cone', stdM({ color:'#2a2e34', metalness:.5 }), .38, .3, .38, x, S.h - 1.2, (z0 + z1) / 2); g.add(lamp); U.ceil.push(dynM(lamp)); g.add(boxM(.4, .03, .4, emis('#fff4dc', 2.6), x, S.h - 1.36, (z0 + z1) / 2, false)); U.lamps.push([x, S.h - 1.6, (z0 + z1) / 2, '#fff1d6', 11]); }
       // ışık huzmeleri (camdan giren güneş)
       for (let x = 1; x < len; x += 8){ const b = plane(2.2, S.h * 1.25, new T.MeshBasicMaterial({ color:'#fff4d8', transparent:true, opacity:.07, depthWrite:false, side:T.DoubleSide, toneMapped:false }), x + 1.2, S.h * .5, (z0 + z1) / 2 - .5, -.55, 0); b.rotation.z = .35; g.add(b); }
-      for (let x = 4, i = 0; x < len; x += 11, i++){ g.add(R3.world().mesh('cyl', stdM({ color:'#2d6ab0', metalness:.4 }), .3, .9, .3, x, .45, z1 - .35)); g.add(R3.world().mesh('cyl', stdM({ color:'#b03a2d', metalness:.4 }), .3, .9, .3, x + .7, .45, z1 - .3)); }
+      for (let x = 4, i = 0; x < len; x += 11, i++){ g.add(R3.world().mesh('cyl', stdM({ color:'#2d6ab0', metalness:.4 }), .3, .9, .3, x, .45, z1 + .38)); g.add(R3.world().mesh('cyl', stdM({ color:'#b03a2d', metalness:.4 }), .3, .9, .3, x + .7, .45, z1 + .4)); }
     } else if (kind === 'tunnel'){
       const arch = new T.Mesh(new T.CylinderGeometry((z1 - z0) / 2 + .4, (z1 - z0) / 2 + .4, LX, 24, 1, true, 0, Math.PI), stdM({ map:aTex('tarch', 512, 512, TX.concrete('#5f6368'), LX / 4, 3), side:T.BackSide, roughness:.9 }));
       arch.rotation.z = Math.PI / 2; arch.rotation.y = Math.PI / 2; arch.position.set(MX, S.h - 1.2, (z0 + z1) / 2); g.add(arch); U.ceil.push(dynM(arch));
@@ -177,11 +179,11 @@ function buildArena(L){
       for (let x = 1; x < len; x += 4.5){ const l = boxM(1.4, .06, .14, emis('#e8f6ff', 2.6), x, S.h - .5, (z0 + z1) / 2, false); g.add(l); U.ceil.push(dynM(l)); U.lamps.push([x, S.h - .8, (z0 + z1) / 2, '#d8f0ff', 8]); if (hash01(x) < .25) U.flick.push(dynM(l)); }
       const tags = ['ARAÇ', 'İSSEM', 'UFİS 10', 'ŞAMPİYON']; for (let x = 3, i = 0; x < len; x += 7, i++){ const s = plane(3, 1.2, new T.MeshBasicMaterial({ map:aTex('gr' + i, 512, 192, (c, w, h) => { c.clearRect(0, 0, w, h); c.font = 'italic 900 110px ' + FONT; c.lineWidth = 14; c.strokeStyle = '#111'; c.fillStyle = ['#ff3fa0', '#3fd0ff', '#7dff5a', '#ffcf3f'][i % 4]; c.textAlign = 'center'; c.strokeText(tags[i % 4], w / 2, 140); c.fillText(tags[i % 4], w / 2, 140); }), transparent:true }), x, 1.4, z0 + .03); g.add(s); }
     } else if (kind === 'factory'){
-      for (let x = 2, i = 0; x < len; x += 5.5, i++){ const m = stdM({ color:i % 2 ? '#3a5a7a' : '#7a6a3a', metalness:.6, roughness:.4 }); g.add(boxM(2.2, 2.4, 1.4, m, x, 1.2, z0 - .7 + .7)); g.add(cylM(.18, 3, stdM({ color:'#8a8a8a', metalness:.7 }), x - .6, 3.6, z0 + .2, 10)); g.add(boxM(.6, .4, .05, emis(i % 2 ? '#7dff9a' : '#ff5a5a', 1.6), x + .5, 1.8, z0 + .02 + 1.4, false)); }
-      const belt = boxM(LX, .5, .9, stdM({ color:'#1e2226', roughness:.6 }), MX, .5, z1 - .45); g.add(belt); U.front.push(dynM(belt));
-      for (let x = 2; x < len; x += 7){ const b = R3.world().mesh('sph', emis('#ff2a2a', 2.2), .14, .14, .14, x, S.h - .9, z0 + .25); g.add(b); U.alarm.push(dynM(b)); U.lamps.push([x, S.h - 1.4, (z0 + z1) / 2, '#ffd8b0', 10]); }
+      for (let x = 2, i = 0; x < len; x += 5.5, i++){ const m = stdM({ color:i % 2 ? '#3a5a7a' : '#7a6a3a', metalness:.6, roughness:.4 }); g.add(boxM(2.2, 2.4, 1.4, m, x, 1.2, z0 - .75)); g.add(cylM(.18, 3, stdM({ color:'#8a8a8a', metalness:.7 }), x - .6, 3.6, z0 - .8, 10)); g.add(boxM(.6, .4, .05, emis(i % 2 ? '#7dff9a' : '#ff5a5a', 1.6), x + .5, 1.8, z0 - .04, false)); }
+      const belt = boxM(LX, .5, .9, stdM({ color:'#1e2226', roughness:.6 }), MX, .5, z1 + .5); g.add(belt); U.front.push(dynM(belt));
+      for (let x = 2; x < len; x += 7){ const b = R3.world().mesh('sph', emis('#ff2a2a', 2.2), .14, .14, .14, x, S.h - .9, z0 - .2); g.add(b); U.alarm.push(dynM(b)); U.lamps.push([x, S.h - 1.4, (z0 + z1) / 2, '#ffd8b0', 10]); }
     } else if (kind === 'gym'){
-      const bars = stdM({ color:'#9a6a3a' }); for (let x = 1; x < len; x += 3){ for (let i = 0; i < 6; i++) g.add(boxM(1.2, .05, .05, bars, x, .4 + i * .45, z0 + .1)); g.add(boxM(.07, 2.8, .07, bars, x - .6, 1.4, z0 + .1)); g.add(boxM(.07, 2.8, .07, bars, x + .6, 1.4, z0 + .1)); }
+      const bars = stdM({ color:'#9a6a3a' }); for (let x = 1; x < len; x += 3){ for (let i = 0; i < 6; i++) g.add(boxM(1.2, .05, .05, bars, x, .4 + i * .45, z0 + .03)); g.add(boxM(.07, 2.8, .07, bars, x - .6, 1.4, z0 + .03)); g.add(boxM(.07, 2.8, .07, bars, x + .6, 1.4, z0 + .03)); }
       for (let x = 2; x < len; x += 5){ g.add(plane(2.2, 1.6, emis('#cfe0ef', .7), x, 5, z0 + .03)); U.lamps.push([x, 5.2, (z0 + z1) / 2, '#ffe8c8', 10]); }
       g.add(boxM(1.8, 1.1, .08, stdM({ color:'#f0f0f0' }), len / 2, 3.4, z0 + .1));
     } else if (kind === 'office'){
@@ -189,32 +191,32 @@ function buildArena(L){
       for (let x = 0; x < len; x += 3){ g.add(boxM(.06, S.h, .06, stdM({ color:'#3a3f46', metalness:.6 }), x, S.h / 2, z0 + .03)); }
       for (let x = 1.5, i = 0; x < len; x += 3, i++){ const gp = plane(2.9, S.h, glass, x, S.h / 2, z0 + .05); g.add(gp); const desk = boxM(1.6, .75, .7, stdM({ color:'#c8a878' }), x, .37, z0 - 1); g.add(desk); g.add(boxM(.5, .32, .04, emis('#5ab0ff', 1.1), x, .95, z0 - 1.1, false)); }
       for (let x = 1, i = 0; x < len; x += 2.4, i++){ const pn = boxM(1.2, .04, .6, emis('#ffffff', 1.6), x, S.h - .02, (z0 + z1) / 2, false); g.add(pn); U.ceil.push(dynM(pn)); if (i % 2 === 0) U.lamps.push([x, S.h - .4, (z0 + z1) / 2, '#ffffff', 8]); }
-      for (let x = 2.5; x < len; x += 6){ g.add(cylM(.22, .5, stdM({ color:'#6a4a3a' }), x, .25, z1 - .3)); g.add(R3.world().mesh('sph', stdM({ color:'#3a7a3a' }), .4, .55, .4, x, .9, z1 - .3)); }
+      for (let x = 2.5; x < len; x += 6){ g.add(cylM(.22, .5, stdM({ color:'#6a4a3a' }), x, .25, z1 + .3)); g.add(R3.world().mesh('sph', stdM({ color:'#3a7a3a' }), .4, .55, .4, x, .9, z1 + .3)); }
       if (L.st.alarm) for (let x = 2; x < len; x += 6){ const b = R3.world().mesh('sph', emis('#ff2a2a', 2.2), .12, .12, .12, x, S.h - .2, z0 + .15); g.add(b); U.alarm.push(dynM(b)); }
       const logo = plane(2.6, .9, new T.MeshBasicMaterial({ map:signTex('KARARGÂH', '#1a1a1a', '#ff3b3b'), toneMapped:false }), len * .5, 2.4, z0 + .06); g.add(logo);
     } else if (kind === 'security'){
       const scr = aTex('scr' + (L.st.screen || ''), 512, 288, (c, w, h) => { c.fillStyle = '#0a1420'; c.fillRect(0, 0, w, h); for (let i = 0; i < 6; i++){ const x = (i % 3) * w / 3, y = Math.floor(i / 3) * h / 2; c.fillStyle = '#16283a'; c.fillRect(x + 6, y + 6, w / 3 - 12, h / 2 - 12); c.fillStyle = '#7dff9a'; c.font = '14px monospace'; c.fillText('KAM ' + (i + 1), x + 12, y + 24); }
         if (L.st.screen === 'masked'){ c.fillStyle = '#000'; c.beginPath(); c.arc(w / 2, h / 2 + 10, 60, 0, 7); c.fill(); c.fillStyle = '#ff2a2a'; c.fillRect(w / 2 - 30, h / 2, 18, 8); c.fillRect(w / 2 + 12, h / 2, 18, 8); } });
-      const mon = plane(Math.min(7, len - 2), 2.2, new T.MeshBasicMaterial({ map:scr, toneMapped:false }), len / 2, 2.0, z0 + .05); g.add(mon); U.flick.push(dynM(mon));
-      for (let x = 1.5; x < len; x += 3){ g.add(boxM(1.8, .75, .8, stdM({ color:'#3a3f48', metalness:.4 }), x, .37, z0 + .45 - .45 + .3)); }
-      for (let x = 1; x < len; x += 3.5){ g.add(boxM(.7, 2.2, .6, stdM({ color:'#1a1e24', metalness:.5 }), x, 1.1, z1 - .3)); g.add(boxM(.5, .04, .02, emis('#7dff9a', 1.8), x, 1.6, z1 - .61, false)); }
+      const mon = plane(Math.min(7, len - 2), 2.2, new T.MeshBasicMaterial({ map:scr, toneMapped:false }), len / 2, 2.0, z0 - .9); g.add(mon); U.flick.push(dynM(mon));
+      for (let x = 1.5; x < len; x += 3){ g.add(boxM(1.8, .75, .8, stdM({ color:'#3a3f48', metalness:.4 }), x, .37, z0 - .45)); }
+      for (let x = 1; x < len; x += 3.5){ g.add(boxM(.7, 2.2, .6, stdM({ color:'#1a1e24', metalness:.5 }), x, 1.1, z1 + .35)); g.add(boxM(.5, .04, .02, emis('#7dff9a', 1.8), x, 1.6, z1 + .04, false)); }
       for (let x = 1.5; x < len; x += 3) U.lamps.push([x, S.h - .5, (z0 + z1) / 2, '#9ac0ff', 7]);
     } else if (kind === 'salon'){
       g.add(plane(LX, 2.2, stdM({ color:'#8a1a1a', roughness:.95 }), MX, .012, (z0 + z1) / 2, -Math.PI / 2));
-      const gold = stdM({ color:'#c9a24a', metalness:.85, roughness:.3 }); for (let x = 0; x < len + 1; x += 3.2){ g.add(cylM(.32, S.h, stdM({ color:'#efe6d8', roughness:.4 }), x, S.h / 2, z0 + .3, 18)); g.add(cylM(.42, .3, gold, x, S.h - .15, z0 + .3, 18)); g.add(cylM(.42, .3, gold, x, .15, z0 + .3, 18)); }
+      const gold = stdM({ color:'#c9a24a', metalness:.85, roughness:.3 }); for (let x = 0; x < len + 1; x += 3.2){ g.add(cylM(.32, S.h, stdM({ color:'#efe6d8', roughness:.4 }), x, S.h / 2, z0 - .38, 18)); g.add(cylM(.42, .3, gold, x, S.h - .15, z0 - .38, 18)); g.add(cylM(.42, .3, gold, x, .15, z0 - .38, 18)); }
       for (let x = 1.6; x < len; x += 4.8){ const ch = R3.world().mesh('sph', emis('#fff0c8', 1.8), .5, .35, .5, x, S.h - 1.4, (z0 + z1) / 2); g.add(ch); U.ceil.push(dynM(ch)); U.lamps.push([x, S.h - 1.8, (z0 + z1) / 2, '#ffe6b8', 12]); }
-      for (let x = .8; x < len; x += 3.2){ g.add(plane(1.6, S.h - 1, stdM({ color:'#6a1018', roughness:.95 }), x + 1.6, (S.h - 1) / 2 + .5, z0 + .04)); }
+      for (let x = .8; x < len; x += 3.2){ g.add(plane(1.6, S.h - 1, stdM({ color:'#6a1018', roughness:.95 }), x + 1.6, (S.h - 1) / 2 + .5, z0 - .72)); }
     } else if (kind === 'under'){
-      for (let x = 1; x < len; x += .7){ g.add(boxM(.62, 1.9, .45, stdM({ color:hash01(x) < .5 ? '#2d5aa8' : '#3a6ab8', metalness:.5, roughness:.4 }), x, .95, z0 + .24)); }
+      for (let x = 1; x < len; x += .7){ g.add(boxM(.62, 1.9, .45, stdM({ color:hash01(x) < .5 ? '#2d5aa8' : '#3a6ab8', metalness:.5, roughness:.4 }), x, .95, z0 - .25)); }
       const pipe = stdM({ color:'#8a8a8a', metalness:.6, roughness:.4 }); for (const y of [3.4, 3.7]){ const p = cylM(.12, LX, pipe, MX, y, z0 + .3, 10); p.rotation.z = Math.PI / 2; g.add(p); }
       for (let x = 1; x < len; x += 4){ const l = boxM(1.2, .05, .12, emis('#eef6ff', 2.4), x, S.h - .05, (z0 + z1) / 2, false); g.add(l); U.ceil.push(dynM(l)); U.lamps.push([x, S.h - .5, (z0 + z1) / 2, '#eef6ff', 8]); }
-      const sg = plane(2, .6, new T.MeshBasicMaterial({ map:signTex('SAHA ➜', '#1d5a3a', '#ffffff'), toneMapped:false }), len - 2, 2.6, z0 + .05); g.add(sg);
+      const sg = plane(2, .6, new T.MeshBasicMaterial({ map:signTex('SAHA ➜', '#1d5a3a', '#ffffff'), toneMapped:false }), len - 2, 2.6, z0 - .48); g.add(sg);
     } else if (kind === 'crypt'){
       for (let x = 1.5; x < len; x += 4){ g.add(boxM(.12, .5, .12, stdM({ color:'#3a2a1a' }), x, 2.2, z0 + .1)); const fl = R3.world().mesh('cone', emis('#ff9a3a', 2.6), .1, .28, .1, x, 2.6, z0 + .14); g.add(fl); U.flick.push(dynM(fl)); U.lamps.push([x, 2.6, z0 + .6, '#ff9a4a', 7]); }
       for (let x = 3, i = 0; x < len; x += 6, i++){ g.add(plane(1.2, 2.6, stdM({ color:i % 2 ? '#6a1018' : '#14306b', roughness:.95 }), x, 3, z0 + .04)); }
     } else if (kind === 'dojo'){
-      const beam = stdM({ color:'#4a2c18', roughness:.8 }); for (let x = 0; x < len + 1; x += 2.4){ g.add(boxM(.22, S.h, .22, beam, x, S.h / 2, z0 + .05)); const f = boxM(.22, S.h, .22, beam, x, S.h / 2, z1 - .05); g.add(f); U.front.push(dynM(f)); }
-      for (let x = 1.2, i = 0; x < len; x += 4.8, i++){ g.add(plane(.8, 2, new T.MeshBasicMaterial({ map:aTex('scroll' + i, 128, 320, (c, w, h) => { c.fillStyle = '#efe4c8'; c.fillRect(0, 0, w, h); c.fillStyle = '#2a1a10'; c.font = 'bold 60px serif'; c.textAlign = 'center'; ['力', '心', '道'].forEach((k, j) => c.fillText(['GÜÇ', 'KALP', 'YOL'][i % 3] ? k : k, w / 2, 90 + j * 90)); c.fillStyle = '#4a2c18'; c.fillRect(0, 0, w, 12); c.fillRect(0, h - 12, w, 12); }) }), x + 1.2, 2.6, z0 + .06)); }
+      const beam = stdM({ color:'#4a2c18', roughness:.8 }); for (let x = 0; x < len + 1; x += 2.4){ g.add(boxM(.22, S.h, .22, beam, x, S.h / 2, z0 - .1)); const f = boxM(.22, S.h, .22, beam, x, S.h / 2, z1 + .1); g.add(f); U.front.push(dynM(f)); }
+      for (let x = 1.2, i = 0; x < len; x += 4.8, i++){ g.add(plane(.8, 2, new T.MeshBasicMaterial({ map:aTex('scroll' + i, 128, 320, (c, w, h) => { c.fillStyle = '#efe4c8'; c.fillRect(0, 0, w, h); c.fillStyle = '#2a1a10'; c.font = 'bold 60px serif'; c.textAlign = 'center'; ['力', '心', '道'].forEach((k, j) => c.fillText(['GÜÇ', 'KALP', 'YOL'][i % 3] ? k : k, w / 2, 90 + j * 90)); c.fillStyle = '#4a2c18'; c.fillRect(0, 0, w, 12); c.fillRect(0, h - 12, w, 12); }) }), x + 1.2, 2.6, z0 - .19)); }
       for (let x = 2.4; x < len; x += 4.8){ const lt = plane(1.0, 1.0, emis('#ffe2b0', 1.2), x, S.h - .02, (z0 + z1) / 2, Math.PI / 2); g.add(lt); U.ceil.push(dynM(lt)); U.lamps.push([x, S.h - .5, (z0 + z1) / 2, '#ffe2b0', 9]); }
     }
     light = S.light; fog = S.fog; post = { bloom:.35, th:.88 };

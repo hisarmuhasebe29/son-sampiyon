@@ -15,12 +15,12 @@ const FCAM_BTN = { x:W - 100, y:10, w:42, h:36 };
 
 function fight3dSetup(L){
   const p = L.p;
-  L.c3 = { mode:FCAMS.includes(SAVE.fcam) ? SAVE.fcam : 'arka', yaw:p.yaw || 0, pos:null, look:null, fov:54, rt:performance.now() };
+  L.c3 = { mode:L.camForce || 'tepe', yaw:Math.PI / 2, pos:null, look:null, fov:50, rt:performance.now() };     // açılış daima tepeden; 📹 ile değişir
   // kalabalık (sivil seyirciler) kaldırımlara
   L.crowd3 = (L.def.crowd || []).map((cr, i) => { const back = i % 2 === 0, z = back ? L.zMin - 90 : L.zMax + 90; return { look:LOOK[cr[0]], x:cr[1], z, yaw:back ? -Math.PI / 2 : Math.PI / 2, pose:cr[2] || 'arms', seed:i * 1.7 }; });
 }
 function fight3dTap(L, t){
-  if (inB(FCAM_BTN, t)){ const i = (FCAMS.indexOf(L.c3.mode) + 1) % FCAMS.length; L.c3.mode = FCAMS[i]; SAVE.fcam = L.c3.mode; persist(); SFX.click(); L.camMsg = 'KAMERA: ' + FCAM_NAME[L.c3.mode].toUpperCase(); L.camMsgT = 1.4; return true; }
+  if (inB(FCAM_BTN, t)){ const i = (FCAMS.indexOf(L.c3.mode) + 1) % FCAMS.length; L.c3.mode = FCAMS[i]; if (L.c3.mode === 'arka') L.c3.yaw = L.p.yaw || 0; SFX.click(); L.camMsg = 'KAMERA: ' + FCAM_NAME[L.c3.mode].toUpperCase(); L.camMsgT = 1.4; return true; }
   return false;
 }
 
@@ -55,7 +55,7 @@ function fight3dCam(L, rdt){
     C.tPos = [fx, Math.max(py, 0) + 2.5, Math.max(pz, Z3(L.zMin) + 2) + 6.8]; C.tLook = [fx, Math.max(py, 0) + .95, pz - .4]; C.tFov = 46;
   } else {
     C.yaw += angDiff(Math.PI / 2, C.yaw) * Math.min(1, rdt * 4);
-    C.tPos = [px, Math.max(py, 0) + 8.5, pz + 6.2]; C.tLook = [px, Math.max(py, 0), pz - .3]; C.tFov = 48;
+    C.tPos = [px, Math.max(py, 0) + 6.1, pz + 4.7]; C.tLook = [px, Math.max(py, 0) + .55, pz - .25]; C.tFov = 46;
   }
   const k = C.pos ? Math.min(1, rdt * (C.mode === 'arka' ? 5.5 : 4)) : 1;
   if (!C.pos){ C.pos = C.tPos.slice(); C.look = C.tLook.slice(); C.fov = C.tFov; }
@@ -83,10 +83,14 @@ function poseGuard(t, o = {}){
   return Q;
 }
 function poseRelax(t, seed){ return BODY.idle(t, { seed }).L3; }
+/* hazır duruş: yumruklar göğüs hizasında, dirsekler aşağıda (eller havada dolaşmaz) */
+function poseReady(t, seed){ const Q = poseGuard(t), br = Math.sin(t * 1.8 + (seed || 0));
+  Q.arms[0] = { s:.3 + .02 * br, e:1.5, ab:.17, tw:.08, h:-.1 }; Q.arms[1] = { s:.16 + .02 * br, e:1.68, ab:.19, tw:.1, h:-.1 };
+  Q.pel.y = -.045; Q.pel.yaw = .3; Q.sp.yaw = -.24; Q.sp.pitch = -.08; Q.hd.pitch = .05; return Q; }
 function poseMove(f, sp, guard, back){
   f.gph = (f.gph || 0) + (f.__dt || .016) * Math.PI * 2 * (.85 + .1 * Math.min(8, sp));
   const Q = BODY.gait(f.gph, sp, { back:back ? 1 : 0 }).L3;
-  if (guard){ const g = poseGuard(f.animT || 0); for (let i = 0; i < 2; i++){ Q.arms[i] = Object.assign({}, g.arms[i]); Q.arms[i].s += Q.legs[1 - i].h * .15; } Q.sp.pitch -= .08; Q.hd.pitch += .06; }
+  if (guard){ const g = poseReady(f.animT || 0); for (let i = 0; i < 2; i++){ Q.arms[i] = Object.assign({}, g.arms[i]); Q.arms[i].s += Q.legs[1 - i].h * .12; } Q.sp.pitch -= .04; }
   return Q;
 }
 /* saldırılar: k = 0..1 ilerleme; ext = uzanma eğrisi (hızlı çıkış, yavaş dönüş) */
@@ -146,6 +150,7 @@ function poseAttack(anim, k, f, combo){
 function poseWind(e, w){
   const Q = poseGuard(e.animT || 0), tr = Math.sin((e.animT || 0) * 40) * .03;
   if (e.move === 'slam'){ for (const a of Q.arms){ a.s = 2.9 + tr; a.e = .55; a.ab = .3; a.tw = 0; } Q.sp.pitch = .25; Q.pel.y = -.02; Q.pel.yaw = 0; Q.sp.yaw = 0; Q.hd.pitch = -.15; return Q; }
+  if (e.move === 'leap'){ Q.pel.y = -.2; Q.legs[0].k = -1.2; Q.legs[1].k = -1.1; Q.legs[0].h = .7; Q.sp.pitch = -.35; Q.arms[0].s = -.4; Q.arms[1].s = -.5; Q.hd.pitch = .3; return Q; }
   if (e.move === 'dash' || e.move === 'rush'){ Q.pel.y = -.14; Q.sp.pitch = -.48; Q.legs[0].h = .6; Q.legs[0].k = -1.1; Q.legs[1].h = -.35; Q.legs[1].k = -.7; Q.arms[0].s = .3; Q.arms[0].ab = .6; Q.arms[1].s = -.3; Q.arms[1].e = 1.2; Q.hd.pitch = .35; return Q; }
   if (e.weapon){ const a = Q.arms[0]; a.s = 2.8 + tr; a.e = 1.3; a.ab = .45; a.tw = .2; Q.sp.yaw = -.45; Q.pel.yaw = .5; Q.sp.pitch = .12; return Q; }
   if (e.T && e.T.kick){ Q.legs[0] = { h:1.05, k:-1.85, a:.45, ab:.3, tw:-.2 }; Q.legs[1].k = -.3; Q.sp.pitch = .18; Q.pel.yaw = .1; return Q; }
@@ -211,16 +216,23 @@ function fighterPose3(L, f, isE){
     if (m.anim === 'flykick'){ body.z = .45; }
     if (m.anim === 'spin'){ body.y = k * Math.PI * 4; body.lift = .25 * Math.sin(k * Math.PI); }
     if (m.anim === 'sweep'){ body.y = -sstep3(.15, .75, k) * Math.PI * 1.6; } }
+  else if (isE && v.leaping > 0 && !v.onGround){ Q = poseAttack(f.T && f.T.kick ? 'flykick' : 'air', .4, f, 0); if (f.T && f.T.kick) body.z = .35; fast = true; }
   else if (isE && v.wind > 0){ Q = poseWind(f, v.wind); fast = true; }
   else if (isE && v.strike > 0){ Q = poseStrike(f, 1 - v.strike / .2); fast = true; }
   else if (v.blocking){ Q = poseBlock(t, v.blockT3 > 0 ? v.blockT3 / .2 : 0); fast = true; }
   else if (v.onGround === false && !(v.vy === 0)){ Q = poseAir(v); }
   else if (v.carry || v.carryE){ Q = poseCarry(sp > .4 ? poseMove(f, sp, false) : poseRelax(t, 1)); }
-  else if (v.stun > 0 && isE){ Q = poseGuard(t); }
-  else if (sp > .45){ const fight = L.active || isE; Q = poseMove(f, sp, fight && sp < 3.2); }
-  else if (L.done && !isE){ Q = poseGuard(t); for (const a of Q.arms){ a.s = 2.8 + Math.sin(t * 7) * .15; a.e = .4; a.ab = .35; } Q.pel.yaw = 0; Q.sp.yaw = 0; }
-  else if (isE || L.active || L.def.survive || (v.atkRecent)) Q = poseGuard(t, { bounce:!isE });
-  else Q = poseRelax(t, isE ? f.uid : 0);
+  else if (v.stun > 0 && isE){ Q = poseReady(t, f.uid); }
+  else {
+    /* kavgaya hazır mı? oyuncu: az önce vurduysa · düşman: menzile girip saldırmak üzereyse */
+    let engaged = false;
+    if (isE){ const p = L.p; engaged = !!(p && !p.dead && pdist(f, p) < (f.T ? f.T.range : 60) + 75 && sameLevel(f, p) && (f.cd == null || f.cd < .8)); }
+    else engaged = gameTime - (f.lastAtkEnd || -9) < .9;
+    if (sp > .45) Q = poseMove(f, sp, engaged && sp < 1.6);
+    else if (L.done && !isE){ Q = poseGuard(t); for (const a of Q.arms){ a.s = 2.8 + Math.sin(t * 7) * .15; a.e = .4; a.ab = .35; } Q.pel.yaw = 0; Q.sp.yaw = 0; }
+    else if (engaged) Q = poseReady(t, isE ? f.uid : 0);
+    else Q = poseRelax(t, isE ? f.uid : 0);
+  }
   if (v.hitT3 > 0 && !(v.dead || v.down > 0)) { addHit(Q, f, clamp(v.hitT3 / .32, 0, 1)); fast = true; }
   if (v.stun > 0 && !(v.dead || v.down > 0)) addHit(Q, f, .5);
   return { Q, body, fast };
@@ -238,7 +250,8 @@ function drawFighter3(L, f, id, isE, rdt){
     ring.material.color.set(col); ring.position.set(X3(f.x), Y3(f.y) + .02, Z3(f.z)); const pk = 1 + .18 * Math.sin(gameTime * 26); ring.scale.setScalar((f.look.scale || 1) * pk); ring.material.opacity = .55 + .35 * Math.abs(Math.sin(gameTime * 13)); }
   const sink = f.dead ? sstep3(1.2, 1.8, f.deadT || 0) * .3 : 0;
   const hold = fHold(f, true), sc = f.look.scale || 1;
-  const R = R3.charW(id, f.look, P, X3(f.x), Y3(f.y) + B.lift - sink, Z3(f.z), (f.yaw || 0) + B.y, 1, exprOf(f), false, hold, { tint });
+  const s3 = f.look.scale3 ? f.look.scale3 / (f.look.scale || 1) : 1;      // 3B'de iri adamlar daha geniş, aşırı uzun değil
+  const R = R3.charW(id, f.look, P, X3(f.x), Y3(f.y) + B.lift - sink, Z3(f.z), (f.yaw || 0) + B.y, s3, exprOf(f), false, hold, { tint });
   R.body.rotation.set(B.x, 0, B.z); if (Math.abs(B.z) > .3) R.body.position.y = Math.abs(Math.sin(B.z)) * .12 * sc;
   return R;
 }
@@ -264,6 +277,8 @@ function drawProps3(L){
     if (b.kind === 'ball' || b.kind === 'fire'){ const r = R3.objW('pj' + i + b.kind, b.kind, X, Y + (b.kind === 'ball' ? .1 : 0), Z, b.spin * .2); if (b.kind === 'fire') r.rotation.set(0, Math.atan2(-(b.vz || 0), b.vx), 0); }
     else if (b.kind === 'obj'){ const D = OBJ[b.obj], r = R3.objW('pj' + i + b.obj, b.obj, X, Y - D.h * PX / 2, Z, b.spin * .12, D.w * PX, D.h * PX); r.rotation.y = b.spin * .07; }
     else { const g = pickMesh3('pw' + i + b.w, () => weaponMesh3(b.w)); g.position.set(X, Y, Z); g.rotation.set(b.spin * .2, Math.atan2(-(b.vz || 0), b.vx), b.spin * .35); } });
+  (L.debris || []).forEach((q, i) => { const m = R3.custom('db' + i, () => { const { T } = R3.world(); const b = new T.Mesh(new T.BoxGeometry(1, 1, 1), new T.MeshStandardMaterial({ color:'#a0723f', roughness:.8 })); b.castShadow = true; return b; });
+    m.material.color.set(q.col); m.scale.set(Math.max(.02, q.w * PX), Math.max(.02, q.h * PX), Math.max(.02, q.d * PX)); m.position.set(X3(q.x), Y3(q.y), Z3(q.z)); m.rotation.set(q.rx, q.ry, 0); const k = Math.min(1, q.life / .6); if (k < 1) m.scale.multiplyScalar(k); });
   L.shocks.forEach((s, i) => { const g = R3.custom('sk' + i, () => { const { T } = R3.world(); const m = new T.Mesh(new T.RingGeometry(.86, 1, 48), new T.MeshBasicMaterial({ color:'#ffb24d', transparent:true, opacity:.8, depthWrite:false, side:T.DoubleSide, toneMapped:false })); m.rotation.x = -Math.PI / 2; m.userData.keep = 1; return m; });
     g.position.set(X3(s.x), Y3(s.y) + .03, Z3(s.z)); g.scale.setScalar(Math.max(.05, s.r * PX)); g.material.opacity = Math.min(.85, s.life); });
 }
@@ -349,6 +364,6 @@ function drawLevel3D(c, L){
 const S3K = ['dead', 'down', 'getup', 'climb', 'dive', 'roll', 'grabbed', 'carry', 'slideT', 'dashing', 'dizzy', 'stun', 'blocking', 'wind', 'strike', 'onGround', 'vy', 'vx', 'vz', 'hitT3', 'blockT3'];
 function st3(f){ const r = v => typeof v === 'number' ? Math.round(v * 100) / 100 : v ? 1 : 0;
   return [r(f.dead), r(f.down), r(f.getup), f.climb || f.climbG ? 1 : 0, r(f.dive), r(f.roll), f.grabbedBy ? 1 : 0, f.carry || f.carryE ? 1 : 0, r(f.slideT), r(f.dashing), r(f.dizzy), r(f.stun), r(f.blocking), r(f.wind), r(f.strike), f.onGround === false ? 0 : 1, Math.round(f.vy || 0), Math.round(f.vx || 0), Math.round(f.vz || 0), r(f.hitT3), r(f.blockT3),
-    f.atk && f.atk.m ? [f.atk.m.anim || '', Math.round(f.atk.t / f.atk.m.dur * 100) / 100, f.atk.combo || 0] : 0, f.move || '', f.hitV ? [r(f.hitV.x), r(f.hitV.z)] : 0, f.fallV ? [r(f.fallV.x), r(f.fallV.z)] : 0]; }
+    f.atk && f.atk.m ? [f.atk.m.anim || '', Math.round(f.atk.t / f.atk.m.dur * 100) / 100, f.atk.combo || 0] : 0, f.move || '', f.hitV ? [r(f.hitV.x), r(f.hitV.z)] : 0, f.fallV ? [r(f.fallV.x), r(f.fallV.z)] : 0, r(f.leaping)]; }
 function st3apply(f, a){ if (!a) return; const V = f.__V3 || (f.__V3 = {}); S3K.forEach((k, i) => { V[k] = a[i]; }); V.onGround = !!a[15];
-  V.atk = a[21] ? { m:{ anim:a[21][0], dur:1 }, t:a[21][1], combo:a[21][2] } : null; V.move = a[22]; V.hitV = a[23] ? { x:a[23][0], z:a[23][1] } : null; V.fallV = a[24] ? { x:a[24][0], z:a[24][1] } : null; f.__S3 = a; f.move = a[22]; }
+  V.atk = a[21] ? { m:{ anim:a[21][0], dur:1 }, t:a[21][1], combo:a[21][2] } : null; V.move = a[22]; V.hitV = a[23] ? { x:a[23][0], z:a[23][1] } : null; V.fallV = a[24] ? { x:a[24][0], z:a[24][1] } : null; V.leaping = a[25] || 0; f.__S3 = a; f.move = a[22]; }

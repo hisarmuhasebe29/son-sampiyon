@@ -223,7 +223,7 @@ function levelApply(L, s){
   L.p = L.team[s.pi] || L.team[0]; L.rp = s.ri >= 0 ? L.team[s.ri] : null; L.duo = s.ri >= 0;
   if (L.duo && MP.char){ const me = L.team.find(f => f.kind === MP.char); if (me && me !== L.p){ L.rp = L.p; L.p = me; } }
   const old = new Map(L.ents.map(e => [e.uid, e])); L.ents = [];
-  for (const a of s.en){ let e = old.get(a[0]); if (!e){ e = makeEnemy(a[1], a[2], {}); e.uid = a[0]; e.x = a[2]; e.y = a[3]; }
+  for (const a of s.en){ let e = old.get(a[0]); if (!e){ e = makeEnemy(a[1], a[2], {}); e.uid = a[0]; e.x = a[2]; e.y = a[3]; if (typeof enemyLook === 'function' && e.T && e.T.look) e.look = enemyLook(e.type, e.uid) || e.look; }
     e.tx = a[2]; e.ty = a[3]; e.tz = a[19] || 0; e.tyaw = a[20] || 0; if (e.z == null || Math.abs(e.x - a[2]) > 200){ e.z = e.tz; setYaw(e, e.tyaw); } if (a[21]) st3apply(e, a[21]); e.face = a[4]; e.hp = a[5]; e.maxhp = a[6]; if (a[7]) e.__P = arrPose(a[7]); e.__ex = a[8] || undefined; e.flash = a[9] ? .1 : 0; e.wind = a[10]; e.move = a[11];
     e.weapon = a[12] ? { t:a[12], uses:1 } : null; e.dizzy = a[13] ? 1 : 0; e.down = a[14] ? 1 : 0; e.dead = !!a[15]; e.deadT = a[16]; if (a[17]){ e.wob = a[17][0]; e.fall = a[17][1]; e.fallDir = a[17][2]; } e.dashing = a[18] ? 1 : 0; e.inv = 0; e.hop = 0;
     L.ents.push(e); }

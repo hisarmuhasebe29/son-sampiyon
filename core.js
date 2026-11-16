@@ -3,7 +3,7 @@
    SON ŞAMPİYON — ARAÇ   ·   core.js
    ekran · yardımcılar · kayıt · ses · müzik · dublaj · kontroller
    ========================================================= */
-const VERSION = 'v.11';
+const VERSION = 'v.12';
 const W = 960, H = 540, GROUND = 470;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scale = 1, dpr = 1, paused = false;
@@ -575,7 +575,7 @@ const SLOTS = { A:'right:19vmin;bottom:3vmin;width:21vmin;height:21vmin;font-siz
   H:'right:34vmin;bottom:14vmin;width:19vmin;height:19vmin;font-size:7vmin;border-color:#5aa0ff', I:'right:15vmin;bottom:1vmin;width:17vmin;height:17vmin;font-size:6vmin;border-color:#2ecc71',
   J:'right:15vmin;bottom:33vmin;width:17vmin;height:17vmin;font-size:6vmin;border-color:#f1c40f', K:'right:0vmin;bottom:16vmin;width:16vmin;height:16vmin;font-size:6vmin;border-color:#ff6b6b',
   L:'right:36vmin;bottom:35vmin;width:13vmin;height:13vmin;font-size:5vmin;border-color:#9ad7ff',
-  M:'right:40vmin;bottom:37vmin;width:15vmin;height:15vmin;font-size:6vmin;border-color:#7dff9a' };
+  M:'left:12vmin;bottom:42vmin;width:17vmin;height:17vmin;font-size:7vmin;border-color:#7dff9a' };
 const MODES = {
   fight: { punch:['A', '👊'], kick:['B', '🦵'], block:['C', '🛡️'], slide:['D', '💨'], super:['E', '⭐'], grab:['F', '✋'], swap:['G', '⇄'] },
   fight3:{ punch:['A', '👊'], kick:['B', '🦵'], block:['C', '🛡️'], slide:['D', '💨'], super:['E', '⭐'], grab:['F', '✋'], swap:['G', '⇄'], jump:['M', '⬆'] },
