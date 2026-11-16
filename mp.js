@@ -210,7 +210,7 @@ function levelSnap(L){
     ob:L.objs.map(o => [o.uid == null ? -1 : o.uid, o.t, r0(o.x), r0(o.y), o.broken ? 1 : 0, o.held ? 1 : 0, o.shakeT > 0 ? 1 : 0, o.w, o.h, r0(o.z), r2(o.rot || 0), o.d || o.w]),
     pk:L.pickups.map(k => [k.kind, r0(k.x), r0(k.y), k.w || 0, r0(k.z)]), pr:L.proj.map(b => [b.kind, r0(b.x), r0(b.y), r2(b.spin), b.w || b.obj || 0, Math.sign(b.vx), r0(b.z), r0(b.vx), r0(b.vz)]),
     sk:L.shocks.map(s => [r0(s.x), r0(s.y), r0(s.r), r2(s.life), r0(s.z)]), bu:L.bursts.map(b => [r0(b.x), r0(b.y), r2(b.t), b.big ? 1 : 0, r0(b.z)]),
-    st:[L.frozen ? 1 : 0, L.lost ? 1 : 0, L.done ? 1 : 0, L.rank || '', r2(L.doneT), r2(L.lostT)], g:L.gate ? [L.gate.kind, r0(L.gate.x), L.gate.st, L.gate.hits, r2(L.gate.open)] : 0, fd:[r2(L.fade), r2(L.fadeIn)],
+    st:[L.frozen ? 1 : 0, L.lost ? 1 : 0, L.done ? 1 : 0, L.rank || '', r2(L.doneT), r2(L.lostT)], g:L.gate ? [L.gate.kind, r0(L.gate.x), L.gate.st, L.gate.hits, r2(L.gate.open)] : 0, fd:[r2(L.fade), r2(L.fadeIn)], eo:L.ent3 && L.ent3.length ? L.ent3.map(E => r2(E.open || 0) + (E.warn > 0 ? 10 : 0)) : 0,
     hud:[L.obj || '', L.hint || '', r2(L.hintT), L.combo || 0, r2(L.comboT), L.superBanner ? [L.superBanner.name, r2(L.superBanner.t), L.superBanner.kind] : 0, L.bark ? [L.bark.who, L.bark.t] : 0, r2(L.barkT),
       L.surviveT != null ? r2(L.surviveT) : null, L.limitT != null ? r2(L.limitT) : null, r2(L.bossIntro), L.score || 0, L.pauseM ? 1 : 0, r2(L.finT || 0), L.sty ? r0(L.sty.v) : 0] };
 }
@@ -232,7 +232,7 @@ function levelApply(L, s){
   L.proj = s.pr.map(a => ({ kind:a[0], x:a[1], y:a[2], spin:a[3], w:a[4] || undefined, obj:a[4] || undefined, vx:a[7] != null ? a[7] : a[5], z:a[6] || 0, vz:a[8] || 0 }));
   L.shocks = s.sk.map(a => ({ x:a[0], y:a[1], r:a[2], life:a[3], z:a[4] || 0 })); L.bursts = s.bu.map(a => ({ x:a[0], y:a[1], t:a[2], big:!!a[3], z:a[4] || 0 }));
   [L.frozen, L.lost, L.done, L.rank, L.doneT, L.lostT] = [!!s.st[0], !!s.st[1], s.st[2], s.st[3] || null, s.st[4], s.st[5]];
-  L.gate = s.g ? { kind:s.g[0], x:s.g[1], st:s.g[2], hits:s.g[3], open:s.g[4] } : null; L.fade = s.fd[0]; L.fadeIn = s.fd[1];
+  L.gate = s.g ? { kind:s.g[0], x:s.g[1], st:s.g[2], hits:s.g[3], open:s.g[4] } : null; L.fade = s.fd[0]; L.fadeIn = s.fd[1]; if (s.eo && L.ent3) s.eo.forEach((v, i) => { const E = L.ent3[i]; if (E){ E.warn = v >= 10 ? 1 : 0; E.open = v % 10; } });
   const h = s.hud; L.obj = h[0]; L.hint = h[1]; L.hintT = h[2]; L.combo = h[3]; L.comboT = h[4]; L.superBanner = h[5] ? { name:h[5][0], t:h[5][1], kind:h[5][2] } : null;
   L.bark = h[6] ? { who:h[6][0], t:h[6][1] } : null; L.barkT = h[7]; L.surviveT = h[8]; L.limitT = h[9]; L.bossIntro = h[10]; L.score = h[11]; L.remotePause = !!h[12];
   L.finT = h[13] || 0; L.sty = Object.assign(L.sty || { last:[], pop:0 }, { v:h[14] || 0, hold:1 }); L.fx = L.fx || { rings:[], lines:0, bars:0 }; L.fx.bars = L.finT > 0 ? 1 : Math.max(0, (L.fx.bars || 0) - .1);
@@ -268,8 +268,8 @@ function mpDupDef(def){
 function NodeView(n, info){
   const V = { t:0, inner:null, got:false, info, key:null, lastSend:0 };
   function build(key){
-    MP.rec = false;
-    if (info.kind === 'lvl'){ V.inner = Level(key || n.lvl, null, { view:true, duo:info.duo }); V.inner.update = null; V.key = key || n.lvl; }
+    MP.rec = false; const prevKey = V.key;
+    if (info.kind === 'lvl'){ V.inner = Level(key || n.lvl, null, { view:true, duo:info.duo }); V.inner.update = null; V.key = key || n.lvl; if (prevKey && V.key !== prevKey) V.inner.banT = 3; }
     else if (info.kind === 'match'){ V.inner = Match3D(n.match); }
     else V.inner = SetPiece3D(n.set);
     if (!(info.kind === 'lvl' && info.duo)) showControls(null);

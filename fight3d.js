@@ -29,7 +29,7 @@ function angDiff(a, b){ return Math.atan2(Math.sin(a - b), Math.cos(a - b)); }
 function fight3dCam(L, rdt){
   const C = L.c3, p = L.p, cam = R3.world().cam, near = [];
   const px = X3(p.x), py = Y3(p.y), pz = Z3(p.z);
-  for (const e of L.ents){ if (e.dead || e.dummy || !sameLevel(e, p)) continue; const d = pdist(e, p); if (d < 700) near.push([d, e]); }
+  for (const e of L.ents){ if (e.dead || e.dummy || e.hide3 || (e.__V3 && e.__V3.hide3) || !sameLevel(e, p)) continue; const d = pdist(e, p); if (d < 700) near.push([d, e]); }
   near.sort((a, b) => a[0] - b[0]);
   let fx = px, fz = pz;
   if (C.mode === 'arka'){
@@ -55,7 +55,12 @@ function fight3dCam(L, rdt){
     C.tPos = [fx, Math.max(py, 0) + 2.5, Math.max(pz, Z3(L.zMin) + 2) + 6.8]; C.tLook = [fx, Math.max(py, 0) + .95, pz - .4]; C.tFov = 46;
   } else {
     C.yaw += angDiff(Math.PI / 2, C.yaw) * Math.min(1, rdt * 4);
-    C.tPos = [px, Math.max(py, 0) + 6.1, pz + 4.7]; C.tLook = [px, Math.max(py, 0) + .55, pz - .25]; C.tFov = 46;
+    /* bir düşman arka duvardaki kapıdan / merdivenden geliyorsa kamera hafifçe geriye bakar (giriş görünsün) */
+    let eb = 0; for (const E of L.ent3 || []) if (E.back && (E.warn > 0 || E.open > .05) && Math.abs(X3(E.x) - px) < 6) eb = 1;
+    if (L.entry && !L.entry.done && (L.ent3 || []).some(E => E.entry && E.back)) eb = 1;
+    C.eb = (C.eb || 0) + (eb - (C.eb || 0)) * Math.min(1, rdt * 1.6);
+    const tz = lerp(pz, Math.max(Z3(L.zMin) - .4, pz - 3), C.eb * .6);
+    C.tPos = [px, Math.max(py, 0) + 6.1 + C.eb * .5, tz + 4.7]; C.tLook = [px, Math.max(py, 0) + .55, tz - .25]; C.tFov = 46;
   }
   const k = C.pos ? Math.min(1, rdt * (C.mode === 'arka' ? 5.5 : 4)) : 1;
   if (!C.pos){ C.pos = C.tPos.slice(); C.look = C.tLook.slice(); C.fov = C.tFov; }
@@ -222,15 +227,12 @@ function fighterPose3(L, f, isE){
   else if (v.blocking){ Q = poseBlock(t, v.blockT3 > 0 ? v.blockT3 / .2 : 0); fast = true; }
   else if (v.onGround === false && !(v.vy === 0)){ Q = poseAir(v); }
   else if (v.carry || v.carryE){ Q = poseCarry(sp > .4 ? poseMove(f, sp, false) : poseRelax(t, 1)); }
-  else if (v.stun > 0 && isE){ Q = poseReady(t, f.uid); }
+  else if (v.stun > 0 && isE){ Q = poseRelax(t, f.uid); }
   else {
     /* kavgaya hazır mı? oyuncu: az önce vurduysa · düşman: menzile girip saldırmak üzereyse */
-    let engaged = false;
-    if (isE){ const p = L.p; engaged = !!(p && !p.dead && pdist(f, p) < (f.T ? f.T.range : 60) + 75 && sameLevel(f, p) && (f.cd == null || f.cd < .8)); }
-    else engaged = gameTime - (f.lastAtkEnd || -9) < .9;
-    if (sp > .45) Q = poseMove(f, sp, engaged && sp < 1.6);
+    /* eller yalnız vuruş / blok / saldırı hazırlığında kalkar; yürürken ve beklerken doğal duruş */
+    if (sp > .45) Q = poseMove(f, sp, false);
     else if (L.done && !isE){ Q = poseGuard(t); for (const a of Q.arms){ a.s = 2.8 + Math.sin(t * 7) * .15; a.e = .4; a.ab = .35; } Q.pel.yaw = 0; Q.sp.yaw = 0; }
-    else if (engaged) Q = poseReady(t, isE ? f.uid : 0);
     else Q = poseRelax(t, isE ? f.uid : 0);
   }
   if (v.hitT3 > 0 && !(v.dead || v.down > 0)) { addHit(Q, f, clamp(v.hitT3 / .32, 0, 1)); fast = true; }
@@ -303,7 +305,7 @@ function overlay3(c, L){
   c.globalAlpha = 1;
   // düşman can çubukları, sersem yıldızları, uyarılar
   const pl = L.p;
-  for (const e of L.ents){ if (e.dummy) continue; const sc = e.look.scale || 1, P = prj(e.x, e.y - 196 * sc, e.z); if (P.behind) continue;
+  for (const e of L.ents){ if (e.dummy || e.ent || (e.__S3 ? e.__V3 : e).hide3) continue; const sc = e.look.scale || 1, P = prj(e.x, e.y - 196 * sc, e.z); if (P.behind) continue;
     if (!e.dead && !e.T.boss && e.hp < e.maxhp && e.down <= 0){ c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(P.x - 24, P.y, 48, 6); c.fillStyle = '#ff5252'; c.fillRect(P.x - 24, P.y, 48 * Math.max(0, e.hp) / e.maxhp, 6); }
     if (e.dizzy > 0 && !e.dead){ const H2 = prj(e.x, e.y - 186 * sc, e.z); dizzyStars(c, H2.x, H2.y, t, 4, 18); }
     if (e.wind > 0 && e.move === 'slam') txt(c, '⬆ ZIPLA!', P.x, P.y - 10, 20, '#ffa000', 'center', 'bold', 4);
@@ -332,6 +334,29 @@ function fxScreen3(c, L){
     if (L.finT > 0){ c.globalAlpha = fx.bars; txt(c, 'BİTİRİCİ!', 480, H - h / 2 + 10, 28, '#f2c230', 'center', 'italic 900', 5); c.globalAlpha = 1; } }
 }
 
+/* ---------- bölüm geçişi: oyuncunun üstüne kapanan / açılan iris + altın halka, alan adı şeridi ---------- */
+const AREA3 = { tunel:'Stat Tüneli', sokak1:'Karlı Sokak', depoHayatta:'Eski Depo', depoKacis:'Depo', depoCati:'Depo · Çatı Katı', arkaSokak:'Arka Sokak', fabrikaGiris:'Fabrika Bahçesi', fabrikaIc:'Fabrika',
+  karargahGiris:'Karargâh', karargahOfis:'Güvenlik Odası', karargahKacis:'Karargâh · Kaçış', bossNarak:'Narak\'ın Salonu', stadArka:'Stadın Altı', gizliOda:'Gizli Oda', bossDovuscu:'Stadyum', bossLider:'Stadyum',
+  dojo:'Dojo', gecmis:'Eski Dojo', bossYardimci:'Eski Okul' };
+function iris3(c, L){
+  const k = Math.max(L.fade || 0, L.fadeIn || 0); if (k <= 0) return;
+  const p = L.p, P = p ? prj(p.x, p.y - 95, p.z) : { behind:true }, cx = P.behind ? 480 : clamp(P.x, 90, W - 90), cy = P.behind ? 270 : clamp(P.y, 70, H - 70);
+  const R = Math.hypot(Math.max(cx, W - cx), Math.max(cy, H - cy)) + 30, r = Math.max(0, R * Math.pow(1 - k, 1.35));
+  c.save(); c.fillStyle = '#04060b'; c.beginPath(); c.rect(0, 0, W, H); if (r > .5) c.arc(cx, cy, r, 0, Math.PI * 2, true); c.fill('evenodd');
+  if (r > 3 && k > .03 && k < .98){ c.strokeStyle = 'rgba(242,194,48,' + Math.min(.9, k * 3) + ')'; c.lineWidth = 5; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,' + Math.min(.35, k) + ')'; c.lineWidth = 2; c.beginPath(); c.arc(cx, cy, r + 8, 0, 7); c.stroke(); }
+  c.restore();
+}
+function banner3(c, L, rdt){
+  if (!(L.banT > 0)) return; if ((L.fadeIn || 0) > .45) return;
+  L.banT -= rdt; const name = AREA3[L.key]; if (!name) return;
+  const u = 3 - L.banT, a = clamp(Math.min(u * 4, L.banT * 2.2), 0, 1), x = lerp(-460, 0, 1 - Math.pow(1 - clamp(u * 3, 0, 1), 3));
+  c.save(); c.globalAlpha = a; c.translate(x, 0);
+  const g = c.createLinearGradient(0, 0, 460, 0); g.addColorStop(0, 'rgba(10,16,40,.95)'); g.addColorStop(.75, 'rgba(10,16,40,.75)'); g.addColorStop(1, 'rgba(10,16,40,0)');
+  const by = 158; c.fillStyle = g; c.fillRect(0, by, 460, 62); c.fillStyle = '#f2c230'; c.fillRect(0, by, 6, 62); c.fillRect(0, by + 60, 300 * clamp(u * 2, 0, 1), 2);
+  txt(c, '📍 ' + name.toLocaleUpperCase('tr'), 24, by + 40, 28, '#ffffff', 'left', 'italic 900', 4);
+  c.restore();
+}
 /* ---------- ana çizim ---------- */
 function drawLevel3D(c, L){
   if (!R3.free()){ return drawLevel(c, L); }
@@ -343,6 +368,7 @@ function drawLevel3D(c, L){
   for (const f of L.team){ if (f.hideG) continue; if (f === L.p || (L.duo && f === L.rp) || L.showAll) drawFighter3(L, f, 'f3' + f.kind + L.team.indexOf(f), false, rdt); }   // yedek oyuncu sahnede yok (⇄ ile gelir)
   for (const e of L.ents){
     if (e.dummy){ const r = R3.objW('dm' + e.uid, 'dummy', X3(e.x), 0, Z3(e.z), 0); const wv = e.wobV || { x:1, z:0 }, a = e.dead ? e.fall * (e.fallDir || 1) : e.wob * .06; r.rotation.set(-wv.z * a, 0, -wv.x * a); continue; }
+    if ((e.__S3 ? e.__V3 : e).hide3) continue;
     drawFighter3(L, e, 'e3' + e.uid, true, rdt); }
   const camP = R3.world().cam.position;
   (L.crowd3 || []).forEach((q, i) => { if (Math.hypot(X3(q.x) - camP.x, Z3(q.z) - camP.z) < 2.2) return; const hype = L.combo >= 3 && L.comboT > 0; const P = getPose({ animT:L.time * (hype ? 1.4 : 1) + q.seed, pose:hype ? 'cheer' : q.pose });
@@ -355,8 +381,8 @@ function drawLevel3D(c, L){
   if (p.dizzy > 0){ c.fillStyle = 'rgba(140,60,200,' + (.12 + .06 * Math.sin(gameTime * 8)) + ')'; c.fillRect(0, 0, W, H); }
   if (FX.flash > 0){ c.fillStyle = 'rgba(255,240,200,' + FX.flash + ')'; c.fillRect(0, 0, W, H); }
   fxScreen3(c, L); gateUI3(c, L);
-  if (L.fade > 0 || L.fadeIn > 0){ c.fillStyle = 'rgba(0,0,0,' + Math.max(L.fade || 0, L.fadeIn || 0) + ')'; c.fillRect(0, 0, W, H); }
-  drawFightHud(c, L);
+  iris3(c, L);
+  drawFightHud(c, L); banner3(c, L, rdt);
   if (!L.lost && !L.pauseM){ c.fillStyle = 'rgba(0,0,0,.5)'; rr(c, FCAM_BTN.x, FCAM_BTN.y, FCAM_BTN.w, FCAM_BTN.h, 8); c.fill(); txt(c, '📹', FCAM_BTN.x + 21, FCAM_BTN.y + 25, 18, '#ffffff', 'center'); }
   if (L.camMsgT > 0){ L.camMsgT -= rdt; c.globalAlpha = Math.min(1, L.camMsgT * 2); pill(c, L.camMsg, 480, 160, 16, 'rgba(10,16,40,.9)', '#f2c230'); c.globalAlpha = 1; }
 }
@@ -364,6 +390,6 @@ function drawLevel3D(c, L){
 const S3K = ['dead', 'down', 'getup', 'climb', 'dive', 'roll', 'grabbed', 'carry', 'slideT', 'dashing', 'dizzy', 'stun', 'blocking', 'wind', 'strike', 'onGround', 'vy', 'vx', 'vz', 'hitT3', 'blockT3'];
 function st3(f){ const r = v => typeof v === 'number' ? Math.round(v * 100) / 100 : v ? 1 : 0;
   return [r(f.dead), r(f.down), r(f.getup), f.climb || f.climbG ? 1 : 0, r(f.dive), r(f.roll), f.grabbedBy ? 1 : 0, f.carry || f.carryE ? 1 : 0, r(f.slideT), r(f.dashing), r(f.dizzy), r(f.stun), r(f.blocking), r(f.wind), r(f.strike), f.onGround === false ? 0 : 1, Math.round(f.vy || 0), Math.round(f.vx || 0), Math.round(f.vz || 0), r(f.hitT3), r(f.blockT3),
-    f.atk && f.atk.m ? [f.atk.m.anim || '', Math.round(f.atk.t / f.atk.m.dur * 100) / 100, f.atk.combo || 0] : 0, f.move || '', f.hitV ? [r(f.hitV.x), r(f.hitV.z)] : 0, f.fallV ? [r(f.fallV.x), r(f.fallV.z)] : 0, r(f.leaping)]; }
+    f.atk && f.atk.m ? [f.atk.m.anim || '', Math.round(f.atk.t / f.atk.m.dur * 100) / 100, f.atk.combo || 0] : 0, f.move || '', f.hitV ? [r(f.hitV.x), r(f.hitV.z)] : 0, f.fallV ? [r(f.fallV.x), r(f.fallV.z)] : 0, r(f.leaping), f.hide3 ? 1 : 0]; }
 function st3apply(f, a){ if (!a) return; const V = f.__V3 || (f.__V3 = {}); S3K.forEach((k, i) => { V[k] = a[i]; }); V.onGround = !!a[15];
-  V.atk = a[21] ? { m:{ anim:a[21][0], dur:1 }, t:a[21][1], combo:a[21][2] } : null; V.move = a[22]; V.hitV = a[23] ? { x:a[23][0], z:a[23][1] } : null; V.fallV = a[24] ? { x:a[24][0], z:a[24][1] } : null; V.leaping = a[25] || 0; f.__S3 = a; f.move = a[22]; }
+  V.atk = a[21] ? { m:{ anim:a[21][0], dur:1 }, t:a[21][1], combo:a[21][2] } : null; V.move = a[22]; V.hitV = a[23] ? { x:a[23][0], z:a[23][1] } : null; V.fallV = a[24] ? { x:a[24][0], z:a[24][1] } : null; V.leaping = a[25] || 0; V.hide3 = a[26] || 0; f.__S3 = a; f.move = a[22]; }

@@ -3,7 +3,7 @@
    SON ŞAMPİYON — ARAÇ   ·   core.js
    ekran · yardımcılar · kayıt · ses · müzik · dublaj · kontroller
    ========================================================= */
-const VERSION = 'v.12';
+const VERSION = 'v.13';
 const W = 960, H = 540, GROUND = 470;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scale = 1, dpr = 1, paused = false;
@@ -273,6 +273,7 @@ const SFX = {
   land(){ noise(.06, .2, 0, 0, 600); },
   swap(){ swoosh(.25, .25); tone(500, .12, 'triangle', .1, 400); },
   dash(){ swoosh(.3, .3); },
+  whoosh(){ swoosh(.55, .22); tone(320, .5, 'sine', .06, -220); },      // bölüm geçişi (iris kapanırken)
   slide(){ noise(.35, .25, 0, 200, 1500); },
   slam(){ boom(0, .6); },
   alarm(){ for (let i = 0; i < 4; i++){ tone(880, .18, 'square', .06, 0, i * .4); tone(620, .18, 'square', .06, 0, i * .4 + .2); } },

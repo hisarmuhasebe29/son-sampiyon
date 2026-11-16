@@ -131,8 +131,9 @@ function Cover(){
     const fade = b.createLinearGradient(0, 0, 0, H); fade.addColorStop(0, 'rgba(255,255,255,0)'); fade.addColorStop(.75, 'rgba(255,255,255,0)'); fade.addColorStop(1, 'rgba(230,238,246,.6)'); b.fillStyle = fade; b.fillRect(0, 0, W, H);
     // kahramanlar: Issem önde sevinç çığlığı, Ufis arkada dövüş duruşu
     const Pi = getPose({ animT:K.t, pose:'cheer' }); Pi.fa = [2.0 + Math.sin(K.t * 2) * .05, 2.6]; Pi.ba = [.9, 2.3]; Pi.lean = -6;
-    drawHuman(c, 210, 560, LOOK.issem, Pi, 1, 2.75, 1, null, 'shout');
-    drawHuman(c, 785, 548, LOOK.ufis, getPose({ animT:K.t + 1, pose:'guard' }), -1, 2.45, 1, null, 'angry');
+    const rs = typeof buildRealRig === 'function' && H3on;              // gerçekçi gövde daha uzun: kapakta biraz küçült / indir
+    drawHuman(c, 210, rs ? 610 : 560, LOOK.issem, Pi, 1, rs ? 2.25 : 2.75, 1, null, 'shout');
+    drawHuman(c, 785, rs ? 600 : 548, LOOK.ufis, getPose({ animT:K.t + 1, pose:'guard' }), -1, rs ? 2.05 : 2.45, 1, null, 'angry');
     drawBall(c, 330, 512, K.t * 3, 1.5);
     aracBadge(c, 48, 44, 32);
     c.font = 'italic 900 86px ' + FONT; c.textAlign = 'center'; c.lineJoin = 'round';
@@ -227,7 +228,8 @@ function Cut(def){
     st: { screen:def.screen || null, door:!!def.door, doorK:def.door ? 1 : 0, minute:def.minute || '', score:def.score || null, teams:def.teams || null, sepia:!!def.sepia,
           alarm:!!def.alarm, car:def.car || 0, bigscreen:def.bigscreen || null, crowdOn:def.crowdOn !== false, cheer:!!def.cheer, keypad:'idle', speakT:0, offT:null, worldW:def.worldW || W },
     actors: (def.actors || []).map(a => Object.assign({ animT: Math.random() * 3, vx:0, onGround:true, e0:a.e || 'neutral' }, a)) };
-  if (def.bg === 'stad') for (const a of C.actors){ if (a.s == null) a.s = .8; if (a.y == null) a.y = 485; }
+  C.use3 = typeof cut3Ok === 'function' && cut3Ok(def);              // 3B mekân (yoksa eski 2D arka plan)
+  if (def.bg === 'stad' && !C.use3) for (const a of C.actors){ if (a.s == null) a.s = .8; if (a.y == null) a.y = 485; }
   playMusic(def.music || 'story');
   if (def.bg === 'stad' || def.bg === 'stadDis' || def.bg === 'tunelCikis') crowdAmb(true, def.bg === 'stadDis' ? .16 : .1); else crowdAmb(false);
   const actor = id => C.actors.find(a => a.id === id);
@@ -325,9 +327,10 @@ function Cut(def){
     if (C.zoom.z !== 1){ c.translate(480, 300); c.scale(C.zoom.z, C.zoom.z); c.translate(-480, -300); }
     c.translate(sx, sy);
     C.st.camX = C.cam.x;
-    const D3 = R3.side(GROUND, { dark:def.bg === 'gizli' || C.st.alarm });
-    drawBg(D3 ? R3.bgFrom(c) : c, def.bg, C.st, C.t);
+    const D3 = R3.side(GROUND, { dark:def.bg === 'gizli' || C.st.alarm }), S3 = D3 && C.use3;
+    if (!S3) drawBg(D3 ? R3.bgFrom(c) : c, def.bg, C.st, C.t);
     c.translate(-Math.round(C.cam.x), def.noLift ? 0 : -74);            // karakterler yazı kutusunun üstünde kalsın
+    if (S3){ let ok = false; try { ok = cut3Draw(c, def, C); } catch(e){ console.warn('cut3', e); } if (!ok) C.use3 = false; }
     if (D3){ R3.ground(scrY(c, GROUND)); if (C.st.sepia) R3.filter('sepia(.85) saturate(.8)'); }
     const list = C.actors.filter(a => !a.hidden).sort((a, b) => (a.y || GROUND) - (b.y || GROUND));
     for (const a of list){ const ex = a.e || 'neutral';
@@ -338,8 +341,9 @@ function Cut(def){
       if (a.trophy && !D3){ const hx = a.x + a.face * 3, hy = (a.y || GROUND) - 172 * (a.s || 1); c.fillStyle = '#f2c230'; c.beginPath(); c.moveTo(hx - 16, hy); c.lineTo(hx + 16, hy); c.lineTo(hx + 7, hy + 26); c.lineTo(hx - 7, hy + 26); c.fill(); c.fillRect(hx - 3, hy + 26, 6, 8); c.fillRect(hx - 10, hy + 32, 20, 5); } }
     if (def.ball) drawBall(c, def.ball[0], def.ball[1], C.t * 2, .8);
     c.restore();
+    if (S3 && typeof cut3Overlay === 'function') cut3Overlay(c, def, C.st);
     vignette(c, .3);
-    if (C.st.sepia){ c.globalCompositeOperation = 'color'; c.fillStyle = '#9a7040'; c.fillRect(0, 0, W, H); c.globalCompositeOperation = 'source-over'; }
+    if (C.st.sepia && !S3){ c.globalCompositeOperation = 'color'; c.fillStyle = '#9a7040'; c.fillRect(0, 0, W, H); c.globalCompositeOperation = 'source-over'; }
     for (const q of C.conf){ c.fillStyle = q.c; c.save(); c.translate(q.x, q.y); c.rotate(q.r); c.fillRect(-4, -2, 8, 4); c.restore(); }
     if (C.dark){ c.fillStyle = 'rgba(0,0,0,.94)'; c.fillRect(0, 0, W, H); }
     if (C.flash > 0){ c.fillStyle = 'rgba(255,255,255,' + Math.max(0, C.flash) + ')'; c.fillRect(0, 0, W, H); }

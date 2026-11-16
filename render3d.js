@@ -379,7 +379,7 @@ const R3 = (() => {
   function ground(gy){ if (ready) shadowPlane.position.y = (540 - gy) / 100 + .002; }
   /* yan görünümde karakter (piksel koordinatı) */
   function char(id, look, P, face, x, y, s = 1, ex = 'neutral', talk = false, hold = null, tint = null){
-    const R = rigFor(id, look); applyPose(R, P, face, ex, talk, hold); tintRig(R, tint);
+    const R = rigFor(id, look, typeof buildRealRig === 'function' && !R3.oldRig); applyPose(R, P, face, ex, talk, hold); tintRig(R, tint);     // ara sahneler / menüler de dövüşteki gerçekçi gövdeyi kullanır
     const z = R3.zNext != null ? R3.zNext : Math.min(2, zc++ * .16), k = (D - z) / D; R3.zNext = null; const _k = k, sc = s * (look.scale || 1) * _k;     // çizim sırası = derinlik (perspektif telafili)
     R.root.position.set(4.8 + (x / 100 - 4.8) * k, 2.7 + ((540 - y) / 100 - 2.7) * k, z);
     R.root.rotation.set(0, P.back ? Math.PI / 2 : face >= 0 ? -.45 : Math.PI + .45, 0);
@@ -395,6 +395,10 @@ const R3 = (() => {
   }
   function objS(id, kind, x, y, w, h, rot = 0, shake = 0){ const r = obj(id, kind, w / 100, h / 100); r.position.set(x / 100 + shake, (540 - y) / 100 + (R3.lift || 0), 0); r.rotation.set(0, 0, rot); return r; }
   function objW(id, kind, x, y, z, rot = 0, w, h){ const r = obj(id, kind, w, h); r.position.set(x, y, z); r.rotation.set(0, 0, rot); return r; }
+  /* önbellekteki bir sahneyi sil (bellek: telefonda eski bölüm sahneleri birikmesin) — paylaşılan geometrilere dokunmaz */
+  function drop(id){ const o = pool.get(id); if (!o || !o.root) return; scene.remove(o.root); const shared = new Set(Object.values(GEO));
+    o.root.traverse(m => { if ((m.isMesh || m.isPoints) && m.geometry && !shared.has(m.geometry) && !m.geometry.userData.keepGeo) m.geometry.dispose(); }); pool.delete(id); used.delete(id); }
+  function hideShadowPlane(){ if (ready) shadowPlane.visible = false; }
   function custom(id, build){ let o = pool.get(id); if (!o){ o = { root:build(), sig:'c' }; pool.set(id, o); scene.add(o.root); } used.add(id); o.root.visible = true; return o.root; }
   const _v = new T.Vector3();
   function project(x, y, z){ _v.set(x, y, z).project(cam); return { x:(_v.x + 1) / 2 * W, y:(1 - _v.y) / 2 * H, behind:_v.z > 1 }; }
@@ -458,5 +462,5 @@ const R3 = (() => {
     H3on = false;
   }
   function world(){ return { scene, cam, T, mat, mesh, GEO, canvasTex, sun, hemi, fill, renderer }; }
-  return { init, side, free, shadowBox, compact, flatten, bgFrom, filter, ground, autoId, char, charW, objS, objW, platform, custom, project, render, begin, end, world, lift:0, ok:() => ready };
+  return { init, side, free, shadowBox, compact, flatten, bgFrom, filter, ground, autoId, char, charW, objS, objW, platform, custom, drop, hideShadowPlane, has:id => pool.has(id), project, render, begin, end, world, lift:0, ok:() => ready };
 })();

@@ -222,7 +222,7 @@ function aimAssist(L, p, IN){
   if (!L.d3) return null;
   const hint = IN && IN.m > .25 ? Math.atan2(-IN.z, IN.x) : p.yaw;
   let best = null, bs = 1e9;
-  for (const e of L.ents){ if (e.dead || e.grabbedBy || (e.down > 0 && !e.dummy) || !sameLevel(e, p)) continue; const d = pdist(e, p); if (d > 210) continue;
+  for (const e of L.ents){ if (e.dead || e.ent || e.grabbedBy || (e.down > 0 && !e.dummy) || !sameLevel(e, p)) continue; const d = pdist(e, p); if (d > 210) continue;
     const a = Math.atan2(-(e.z - p.z), e.x - p.x), da = Math.abs(Math.atan2(Math.sin(a - hint), Math.cos(a - hint)));
     if (da > 1.45 && d > 95) continue; const s = d + da * 90; if (s < bs){ bs = s; best = e; } }
   if (best) faceTo(p, best.x, best.z); return best;
@@ -231,7 +231,7 @@ function playerAttack(L, p, m, extra = {}){
   p.atk = Object.assign({ m, t:0, hit:new Set(), done:false }, extra); SFX.whiff();
   if (p.mk === 'ufis'){ if (Math.random() < .8) grunt('ufis', m.anim === 'spin' || m.down ? 'a' : pick(['u', 'a', 'u']), m.heavy || m.down ? .24 : .14); }
   else if (Math.random() < .35) grunt('issem', pick(['a', 'e']), .12, .8);
-  for (const e of L.ents){ if (!e.T || !e.T.dodge || e.dead || e.wind > 0 || e.strike > 0 || e.dashing > 0 || e.stun > 0 || e.dizzy > 0 || e.down > 0) continue;
+  for (const e of L.ents){ if (!e.T || !e.T.dodge || e.dead || e.ent || e.wind > 0 || e.strike > 0 || e.dashing > 0 || e.stun > 0 || e.dizzy > 0 || e.down > 0) continue;
     if (pdist(e, p) < 130 && Math.random() < e.T.dodge * DIFF().aggr * .85){ const av = awayV(e, p); e.hop = .28; e.vx = av.x * 470; e.vz = av.z * 470; e.inv = .32; } }
 }
 /* hareket girdisi: 2D'de yalnız x; 3B'de kameraya göre (ileri = kameranın baktığı yön) */
@@ -340,7 +340,7 @@ function grabAction(L, p){
   if (p.carry){ const o = p.carry; p.carry = null; o.held = false; o.broken = true; throwThing(L, p, 'obj', { obj:o.t, dmg:OBJ[o.t].tdmg, down:true }); return; }
   if (p.weapon){ const w = p.weapon; p.weapon = null; aimAssist(L, p, null); throwThing(L, p, 'weapon', { w:w.t, dmg:14, down:w.t !== 'sise' }); return; }
   if (p.carryE){ throwEnemy(L, p); return; }
-  for (const e of L.ents){ if (e.dead || e.dummy || (e.T && (e.T.boss || e.T.big)) || e.grabbedBy || !e.T) continue;
+  for (const e of L.ents){ if (e.dead || e.ent || e.dummy || (e.T && (e.T.boss || e.T.big)) || e.grabbedBy || !e.T) continue;
     if (pdist(e, p) < 72 && Math.abs(e.y - p.y) < 30 && (e.dizzy > 0 || e.stun > 0 || e.hp < e.maxhp * .35)){
       e.grabbedBy = p; p.carryE = e; e.dizzy = 0; e.stun = 0; e.wind = 0; e.strike = 0; e.atk = null; faceTo(p, e.x, e.z); SFX.grab(); floatText(L, p.x, p.y - 190, 'KALDIR!', '#f2c230', 24, p.z);
       if (!L.liftHint){ L.liftHint = true; L.hint = 'Düşmanı kaldırdın! 👊 ya da ✋ ile fırlat — diğerlerine çarpsın!'; L.hintT = 4; } return; } }
@@ -375,6 +375,7 @@ function updEnemy(L, e, dt, surf){
   if (e.grabbedBy){ const p = e.grabbedBy; e.animT += dt;
     if (p.dead || p.down > 0 || p.stun > 0 || L.p !== p || e.dead){ e.grabbedBy = null; p.carryE = null; e.down = .8; e.vy = -120; e.onGround = false; e.flying = true; return; }
     const F = fwdOf(p); e.x = p.x - F.x * 6; e.z = p.z - F.z * 6; e.y = p.y - 132; e.vx = 0; e.vz = 0; e.vy = 0; e.onGround = false; setYaw(e, p.yaw); return; }
+  if (e.ent){ e.animT += dt; entStep(L, e, dt); return; }
   e.animT += dt; if (e.flash > 0) e.flash -= dt; if (e.inv > 0) e.inv -= dt; if (e.hitT > 0) e.hitT -= dt; if (e.armorT > 0) e.armorT -= dt; if (e.jumpCd > 0) e.jumpCd -= dt;
   if (e.hitT3 > 0) e.hitT3 -= dt; if (e.blockT3 > 0) e.blockT3 -= dt;
   e.dz = Math.max(0, e.dz - dt * 6);
@@ -385,7 +386,7 @@ function updEnemy(L, e, dt, surf){
   const p = L.p, T = e.T, D = DIFF(), dx = p.x - e.x, dz = (p.z || 0) - (e.z || 0), dist = Math.hypot(dx, dz), F = fwdOf(e);
   if (e.flying && Math.hypot(e.vx, e.vz) > 200){ for (const o of L.objs){ if (!o.broken && !o.held && boxDist(o, e.x, d3 ? e.z : o.z) < 10 && Math.abs(o.y - e.y) < 60){ breakObj(L, o, dirV({ x:e.vx, z:e.vz })); e.hp -= 6; floatText(L, e.x, e.y - 120, 'ÇAT!', '#ffcc66', 22, e.z); if (e.hp <= 0 && !e.dead) killEnemy(L, e, { x:e.vx, z:e.vz }); } } }
   if (T.summon && !e.summoned && e.hp < e.maxhp * .5){ e.summoned = true; floatText(L, e.x, e.y - 170, 'ADAMLARIM!', '#ff5a5a', 34, e.z); SFX.alarm();
-    L.ents.push(makeEnemy('masked', L.camX - 40, { weapon:'sopa', z:rz(L) }), makeEnemy('masked', L.camX + W + 40, { z:rz(L) })); }
+    const s1 = makeEnemy('masked', L.camX - 40, { weapon:'sopa', z:rz(L) }), s2 = makeEnemy('masked', L.camX + W + 40, { z:rz(L) }); L.ents.push(s1, s2); sendIn(L, s1); sendIn(L, s2); }
   if (e.down > 0){ e.down -= dt; move2(e, dt); if (e.onGround) damp2(e, Math.pow(.02, dt)); if (e.down <= 0){ e.getup = .35; e.inv = .5; } }
   else if (e.getup > 0){ e.getup -= dt; }
   else if (e.dizzy > 0){ e.dizzy -= dt; e.vx = 0; e.vz = 0; }
@@ -464,6 +465,78 @@ function updEnemy(L, e, dt, surf){
 }
 
 /* =========================================================
+   GİRİŞLER (3B): düşmanlar duvardan geçmez — kapıdan / merdivenle yukarıdan / kapaktan alttan / atlayarak / koşarak gelir
+   entPath: bir girişin t saniyedeki konumu ve pozu (düşman da bölüme giren oyuncu da aynı yolu izler)
+   ========================================================= */
+function entPath(L, E, t, side = 0, face){
+  const r = { x:E.x, y:E.y || GROUND, z:E.z, yaw:-Math.PI / 2, vis:t >= 0, open:0, vx:0, vz:0, vy:0, air:false, climb:false, roll:0, dive:0, done:false };
+  if (t < 0){ r.vis = false; r.z = E.k === 'hatch' ? E.z : E.k === 'run' ? E.wz : E.k === 'drop' ? E.wz - 60 : E.wz; r.y = E.k === 'ladder' || E.k === 'drop' ? GROUND - E.h : E.k === 'hatch' ? GROUND + 190 : (E.y || GROUND); return r; }
+  const ease = k => 1 - (1 - k) * (1 - k);
+  const walk = (z0, z1, x0, x1, t0, sp = 235) => { const d = Math.hypot(z1 - z0, x1 - x0), T = Math.max(.05, d / sp), k = clamp((t - t0) / T, 0, 1); r.z = lerp(z0, z1, k); r.x = lerp(x0, x1, k);
+    if (k < 1 && t >= t0){ r.vz = (z1 - z0) / T; r.vx = (x1 - x0) / T; } if (Math.hypot(x1 - x0, z1 - z0) > 1) r.yaw = Math.atan2(-(z1 - z0), x1 - x0); return t0 + T; };
+  if (E.k === 'door'){ const tO = .36; r.y = E.y || GROUND; r.vis = t > .12;
+    const tE = walk(E.wz + 4, E.z, E.x, E.x + side, tO * .6); if (t < tO * .6) r.z = E.wz + 4;
+    r.open = t < tO ? t / tO : (r.z < E.wz + 110 ? 1 : 0); r.done = t >= tE; }
+  else if (E.k === 'hatch'){ const tO = .32, tC = .85, k = clamp((t - tO) / tC, 0, 1), fy = face != null ? face : -Math.PI / 2;
+    r.vis = t > tO - .04; r.y = GROUND + 190 * (1 - ease(k)); r.climb = k < 1; r.open = 1; r.yaw = fy;
+    if (k >= 1){ const F = { x:Math.cos(fy), z:-Math.sin(fy) }, tE = walk(E.z, E.z + F.z * 52, E.x, E.x + F.x * 52 + side, tO + tC, 200); r.done = t >= tE; } }
+  else if (E.k === 'ladder'){ const top = GROUND - E.h, tb = .42, tc = E.h / 250, ts = .2; r.vis = t > .1; r.open = t < .25 ? t / .25 : t < tb + ts + .2 ? 1 : 0;
+    if (t < tb){ r.y = top; walk(E.wz - 12, E.zt, E.x, E.x, 0, 200); }
+    else if (t < tb + ts){ r.y = top; r.z = lerp(E.zt, E.zr + 28, (t - tb) / ts); r.yaw = Math.PI / 2; }
+    else if (t < tb + ts + tc){ r.y = top + (t - tb - ts) * 250; r.z = E.zr + 28; r.yaw = Math.PI / 2; r.climb = true; }
+    else { r.y = GROUND; const tE = walk(E.zr + 28, E.z, E.x, E.x + side, tb + ts + tc); r.done = t >= tE; } }
+  else if (E.k === 'drop'){ const top = GROUND - E.h, tu = .42, tw = .16, tj = .6;
+    if (t < tu){ const k = t / tu; r.y = top + 85 * (1 - ease(k)); r.z = E.wz - 60 + 60 * k; r.climb = true; }
+    else if (t < tu + tw){ r.y = top; r.z = E.wz; }
+    else { const k = clamp((t - tu - tw) / tj, 0, 1); r.z = lerp(E.wz, E.z, k); r.x = lerp(E.x, E.x + side, k); r.y = lerp(top, GROUND, k * k) - Math.sin(k * Math.PI) * 70; r.air = k < 1; r.vy = k < .3 ? -300 : 300; r.vz = (E.z - E.wz) / tj; r.done = k >= 1; } }
+  else if (E.k === 'window'){ const sill = GROUND - E.h, t1 = .3, t2 = .62; r.open = 1;
+    if (t < t1){ const k = t / t1; r.y = sill - Math.sin(k * Math.PI) * 22; r.z = lerp(E.wz - 20, E.wz + 95, k); r.dive = 1; r.vz = 400; r.air = true; r.vy = -1; }
+    else { const k = clamp((t - t1) / t2, 0, 1); r.z = lerp(E.wz + 95, E.z, k); r.x = lerp(E.x, E.x + side, k); r.y = lerp(sill, GROUND, k * k) - Math.sin(k * Math.PI) * (E.h > 150 ? 40 : 70); r.roll = k < 1 ? Math.max(.01, k) : 0; r.air = k < 1; r.vy = 300; r.done = k >= 1; } }
+  else if (E.k === 'run'){ const tE = walk(E.wz, E.z, E.x - 160, E.x + side, 0, 430); r.done = t >= tE; }
+  return r;
+}
+function entSfx(L, E, ev){
+  if (ev === 'go'){ if (E.k === 'door') SFX.door(); else if (E.k === 'hatch' || E.k === 'ladder') SFX.metal(); else if (E.k === 'window'){ SFX.glass(); spawnParts(L, E.x, GROUND - E.h - 80, '#bfe6ff', 26, 'glass', 380, E.wz + 40); } }
+  if (ev === 'land'){ SFX.land(); spawnParts(L, E.x, GROUND - 4, 'rgba(200,190,170,.8)', 10, 'dust', 170, E.z); }
+}
+/* düşmanı bir girişe gönder (dalga / hayatta kal / patron çağırması) */
+const ENT_GAP = { door:.85, hatch:1.35, ladder:1.6, drop:1.0, run:.55, window:1 };
+function sendIn(L, e, platY){
+  if (!L.d3 || !L.ent3 || !L.ent3.length) return false;
+  const p = L.p, lo = L.lockL + 60, hi = L.lockR - 60, now = L.time;
+  let C;
+  if (platY != null){ const pl = L.plats.find(q => !q.step && Math.abs(q.y - platY) < 8 && e.x > q.x1 - 200 && e.x < q.x2 + 200) || L.plats.find(q => !q.step && Math.abs(q.y - platY) < 8); C = pl ? L.ent3.filter(E => E.plat === pl.i) : []; if (!C.length) return false; }
+  else { C = L.ent3.filter(E => !E.entry && E.plat == null && E.x > lo && E.x < hi); if (!C.length) C = L.ent3.filter(E => !E.entry && E.plat == null).sort((a, b) => Math.abs(a.x - (lo + hi) / 2) - Math.abs(b.x - (lo + hi) / 2)).slice(0, 2);
+    if (!C.length) return false;
+    const far = C.filter(E => Math.hypot(E.x - p.x, E.z - (p.z || 0)) > 190 && Math.hypot(E.x - p.x, E.wz - (p.z || 0)) > 120); if (far.length) C = far; }
+  let best = null, bs = 1e9; for (const E of C){ const s = Math.max(E.free || 0, now) + Math.random() * .7 + (E.lastUse === now ? .4 : 0); if (s < bs){ bs = s; best = E; } }
+  const E = best, start = Math.max(E.free || 0, now + .8) + .15 + Math.random() * .25;      // ≥ .8 sn önce lamba yanıp söner
+  E.free = start + (ENT_GAP[E.k] || 1) + (E.k === 'ladder' ? E.h / 250 : 0); E.lastUse = now;
+  e.ent = { i:E.i, t:now - start, face:null }; e.inside = true; e.inv = 99; e.hide3 = true; e.vx = e.vz = e.vy = 0;
+  const r = entPath(L, E, -1); e.x = r.x; e.y = r.y; e.z = r.z;
+  return true;
+}
+function entStep(L, e, dt){
+  const E = L.ent3 && L.ent3[e.ent.i]; if (!E){ e.ent = null; e.inv = 0; e.hide3 = false; return; }
+  const t0 = e.ent.t; e.ent.t += dt; const tt = e.ent.t;
+  if (tt < 0 && tt > -.85) E.warn = 1;                  // girişten hemen önce lamba yanıp söner / kapak titrer (uyarı)
+  if (t0 < 0 && tt >= 0) entSfx(L, E, 'go');
+  if (e.ent.face == null && tt >= 0) e.ent.face = Math.atan2(-((L.p.z || 0) - E.z), L.p.x - E.x);
+  const r = entPath(L, E, tt, 0, e.ent.face);
+  e.x = r.x; e.y = r.y; e.z = r.z; setYaw(e, r.yaw); e.vx = r.vx; e.vz = r.vz; e.vy = r.vy; e.onGround = !r.air; e.climbG = r.climb ? 1 : 0; e.hide3 = !r.vis; e.dive = 0;
+  E.o2 = Math.max(E.o2 || 0, r.open);
+  if (r.done){ if (E.k === 'drop' || E.k === 'window') entSfx(L, E, 'land');
+    e.ent = null; e.inv = .25; e.hide3 = false; e.climbG = 0; e.onGround = true; e.vy = 0; e.vx = 0; e.vz = 0; e.cd = Math.max(e.cd || 0, .5); e.hop = 0;
+    e.plat = E.plat != null ? L.plats.find(q => q.i === E.plat) || null : null; faceTo(e, L.p.x, L.p.z); }
+}
+function entTick(L, dt){
+  for (const E of L.ent3 || []){ const o = E.o2 || 0;
+    E.open = o >= E.open ? o : Math.max(o, E.open - dt * 2.6);
+    if (E.open > .85) E.wasOpen = true;
+    if (E.wasOpen && o < .05 && E.open < .25){ E.wasOpen = false; if (E.k === 'door') SFX.doorClose(); else if (E.k === 'hatch') SFX.metal(); }
+    E.o2 = 0; E.warn = Math.max(0, (E.warn || 0) - dt * 3); }
+}
+/* =========================================================
    DÖVÜŞ BÖLÜMÜ
    ========================================================= */
 /* 3B yerleşim: platformlar arka duvar boyunca yükseltilmiş blok; eşyalar kenarlara; düşmanlar derinliğe yayılır */
@@ -489,7 +562,7 @@ function Level(def, carry, mpo){
   L.p = L.team[0];
   if (mpo && mpo.duo && L.team.length > 1){ L.duo = true; L.p = L.team.find(f => f.kind === MP.char) || L.team[0]; L.rp = L.team.find(f => f !== L.p); L.rp.x = L.p.x - 60; if (L.d3){ L.rp.z = 70; L.p.z = -30; } }
   if (carry){ FX.zoom = 1; FX.ts = 1; FX.tsT = 0; FX.flash = 0; for (const f of L.team){ const c = carry.team.find(t => t.kind === f.kind); if (c){ f.hp = Math.max(c.hp, f.maxhp * (carry.retry ? .6 : .25)); f.sup = c.sup; f.dead = false; } }
-    const q = L.team.find(f => f.kind === carry.pk); if (q && !L.duo) L.p = q; L.entry = { kind:carry.entry, t:0 }; L.fadeIn = 1; }
+    const q = L.team.find(f => f.kind === carry.pk); if (q && !L.duo) L.p = q; L.entry = { kind:carry.entry, t:0 }; L.fadeIn = 1; if (!carry.retry) L.banT = 3; }
   const onPlat = y => y && y < GROUND - 4;
   const platZ = () => L.zMin + PLAT_D * rand(.35, .65);
   (def.objects || []).forEach((o, i) => { const D = OBJ[o[0]], y = o[2] || GROUND;
@@ -505,6 +578,8 @@ function Level(def, carry, mpo){
       const onP = L.plats.some(pl => x > pl.x1 - 70 && x < pl.x2 + 70), useBack = back && !onP, z = useBack ? L.zMin + 42 + D.w * .3 : L.zMax - 42 - D.w * .3;
       if (L.objs.some(o => Math.abs(o.x - x) < 90 && Math.abs(o.z - z) < 90)) continue;
       L.objs.push({ uid:L.objs.length, t:k, x, y:GROUND, z, w:D.w, h:D.h, d:k === 'dolap' ? 50 : D.w * .9, hp:D.hp, rot:(hash01(x * .21) - .5) * .6, decor:true }); } }
+  L.ent3 = L.d3 && typeof arenaEntrances === 'function' ? arenaEntrances(L) : [];
+  if (L.ent3.length) L.objs = L.objs.filter(o => !(o.decor && L.ent3.some(E => (E.back && Math.abs(o.x - E.x) < 110 && o.z < L.zMin + 170) || (E.k === 'hatch' && Math.hypot(o.x - E.x, o.z - E.z) < 120))));
   for (const w of def.weapons || []) L.pickups.push({ x:w[1], y:w[2] || GROUND, z:L.d3 ? rand(-80, 80) : 0, kind:'weapon', w:w[0], uses:WEAPONS[w[0]].uses, t:0 });
   (def.preset || []).forEach((it, i) => { const e = makeEnemy(it[0], it[1], it[2] || {}); e.inside = true;
     if (L.d3){ e.z = onPlat(e.y) ? platZ() : ETYPES[it[0]].boss ? 0 : ((i % 3) - 1) * 110 + rand(-25, 25); faceTo(e, L.p.x, L.p.z); }
@@ -533,7 +608,7 @@ function Level(def, carry, mpo){
       return; }
     if (tap && (inB(PAUSE_BTN, tap) || tap.pause) && !L.lost){ L.pauseM = true; showControls(null); return; }
     if (L.d3 && tap && typeof fight3dTap === 'function' && fight3dTap(L, tap)){ tap = null; }
-    if (L.fadeIn > 0) L.fadeIn = Math.max(0, L.fadeIn - dt * 2);
+    if (L.fadeIn > 0) L.fadeIn = Math.max(0, L.fadeIn - dt * (L.d3 ? 1.5 : 2));
     if (L.entry && !L.entry.done){ entryAnim(L, dt); return; }
     if (L.gate && L.gate.st !== 'wait'){ gateAnim(L, dt); return; }
     L.time += dt; if (L.hintT > 0) L.hintT -= dt;
@@ -555,8 +630,9 @@ function Level(def, carry, mpo){
     setBtnReady('super', L.p.sup >= 100); setBtnLabel('grab', L.p.carry || L.p.weapon ? '🎯' : '✋');
     for (const f of L.team) if (f !== L.p && !f.dead && f.hp < f.maxhp) f.hp = Math.min(f.maxhp, f.hp + dt * 1.5);
     for (const e of L.ents){ if (L.duo){ const sp = L.p; L.p = mpTarget(L, e); updEnemy(L, e, dt, surf); L.p = sp; } else updEnemy(L, e, dt, surf); }
+    if (L.d3) entTick(L, dt);
     if (L.d3) for (const pl of (L.duo ? [L.p, L.rp] : [L.p])){ if (!pl || pl.dead || pl.climb || pl.down > 0) continue;      // gövdeler iç içe geçmesin
-      for (const e of L.ents){ if (e.dead || e.down > 0 || e.grabbedBy || e === pl.carryE || e.dashing > 0 || e.leaping > 0 || !sameLevel(e, pl)) continue;
+      for (const e of L.ents){ if (e.dead || e.ent || e.down > 0 || e.grabbedBy || e === pl.carryE || e.dashing > 0 || e.leaping > 0 || !sameLevel(e, pl)) continue;
         const dx = e.x - pl.x, dz = e.z - pl.z, d = Math.hypot(dx, dz), R = e.dummy ? 34 : 40 * (.5 + .5 * (e.look ? e.look.scale || 1 : 1));
         if (d < R && d > .01){ const k = R - d, me = e.dummy ? 0 : .7; e.x += dx / d * k * me; e.z += dz / d * k * me; pl.x -= dx / d * k * (1 - me); pl.z -= dz / d * k * (1 - me); } } }
     for (const e of L.ents){ if (!e.thrown) continue; if (e.onGround && Math.hypot(e.vx, e.vz) < 200){ e.thrown = false; continue; }
@@ -613,7 +689,7 @@ function Level(def, carry, mpo){
     const p = L.p, n = alive(L).length;
     if (def.survive){
       L.surviveT -= dt; L.spawnT -= dt;
-      if (L.spawnT <= 0 && n < 2 + SAVE.diff){ const side = Math.random() < .5 ? 1 : -1; L.ents.push(makeEnemy(pick(def.pool), side > 0 ? L.camX + W + 40 : L.camX - 40, { z:rz(L) })); L.spawnT = rand(1.8, 3.2) / DIFF().aggr; }
+      if (L.spawnT <= 0 && n < 2 + SAVE.diff){ const side = Math.random() < .5 ? 1 : -1; const e = makeEnemy(pick(def.pool), side > 0 ? L.camX + W + 40 : L.camX - 40, { z:rz(L) }); L.ents.push(e); sendIn(L, e); L.spawnT = rand(1.8, 3.2) / DIFF().aggr; }
       if (L.surviveT <= 0){ L.done = 1; L.obj = def.doneMsg || 'Dayandın!'; SFX.ok(); for (const e of L.ents) if (!e.dead && !e.dummy){ e.stun = 3; const av = awayV(e, p); e.vx = av.x * 300; e.vz = av.z * 300; } }
       return;
     }
@@ -628,7 +704,7 @@ function Level(def, carry, mpo){
         const e = makeEnemy(t, side > 0 ? L.camX + W + 40 + i * 70 : L.camX - 40 - i * 70, Object.assign({ z:rz(L) }, o || {}));
         if (o && o.y){ e.x = L.camX + (side > 0 ? W - 120 - i * 60 : 120 + i * 60); e.inside = true; if (L.d3){ const pl = L.plats.find(pl => e.x > pl.x1 - 10 && e.x < pl.x2 + 10 && Math.abs(pl.y - o.y) < 8) || L.plats.find(pl => !pl.step); if (pl){ e.x = clamp(e.x, pl.x1 + 30, pl.x2 - 30); e.z = L.zMin + PLAT_D * .5; } } }
         if (ETYPES[t].boss){ L.bossE = e; L.bossIntro = 2.2; SFX.boss(); shake = 8; e.x = L.camX + W - 160; e.z = 0; e.inside = true; }
-        faceTo(e, p.x, p.z); L.ents.push(e); });
+        faceTo(e, p.x, p.z); L.ents.push(e); if (L.d3 && !ETYPES[t].boss) sendIn(L, e, o && o.y ? o.y : null); });
       if (w.hint){ L.hint = L.d3 ? h3txt(w.hint) : w.hint; L.hintT = 4.5; }
       SFX.whistle(); }
     else if (def.waves && L.wi >= def.waves.length && def.exit && !L.active && p.x > (def.width || W) - 150){ L.done = 1; L.obj = def.doneMsg || 'Çıkışa ulaştın!'; SFX.goal(); }
@@ -640,7 +716,7 @@ function Level(def, carry, mpo){
 /* 3B'de ⬇/⬆ gerektiren eski ipuçlarını yeni tuşlara çevir */
 function h3txt(s){ if (!s) return s;
   return s.replace(/Düşman KIRMIZI yanınca vuracak/g, 'Düşmanın altında KIRMIZI halka çıkınca vuracak').replace(/Kırmızı yanıp koşar/g, 'Altında pembe halka çıkınca koşar').replace(/⬇\s*\+\s*👊/g, '🛡️ + 👊').replace(/⬇\s*\+\s*🦵/g, '🛡️ + 🦵').replace(/⬇\+🦵/g, '🛡️+🦵').replace(/⬇\+👊/g, '🛡️+👊')
-    .replace(/⬆ zıpla, ⬇\+⬆ ile aşağı in\./g, '⬆ zıpla; kenardan yürüyüp in.').replace(/ya da ⬇ eğil/g, 'ya da 💨 kaç').replace(/🪜 ⬆ tırman/g, '🪜 merdivene yürü').replace(/⬆ tırman/g, 'merdivene yürü')
+    .replace(/⬆ zıpla, ⬇\+⬆ ile aşağı in\./g, '⬆ zıpla; kenardan yürüyüp in.').replace(/ya da ⬇ eğil/g, 'ya da 💨 kaç').replace(/🪜 ⬆ tırman/g, '🪜 merdivene yürü').replace(/Merdivenle üst kata ⬆ tırman/g, 'Üst kata merdivenden çık').replace(/⬆ tırman/g, 'merdivene yürü')
     ; }
 function breakProj(L, b){ if (b.kind === 'obj'){ const D = OBJ[b.obj]; (SFX[D.sfx] || SFX.wood)(); spawnParts(L, b.x, b.y, D.col, 14, 'chip', 300, b.z); }
   else if (b.kind === 'weapon'){ if (b.w === 'sise'){ SFX.glass(); spawnParts(L, b.x, b.y, '#2e8b57', 12, 'glass', 260, b.z); } else { L.pickups.push({ x:b.x, y:Math.min(GROUND, b.y), z:b.z || 0, kind:'weapon', w:b.w, uses:Math.max(2, WEAPONS[b.w].uses - 3), t:0, vy:-150, vx:-b.vx * .1, vz:-(b.vz || 0) * .1 }); SFX.metal(); } } }
@@ -687,6 +763,7 @@ function gateAnim(L, dt){
   else if (G.kind === 'hatch'){ p.vx = 0; p.x = lerp(p.x, G.x, Math.min(1, dt * 10)); p.climbG = 1; if (G.t > .25){ p.y += 150 * dt; L.fade = Math.min(1, (L.fade || 0) + dt * 1.6); } }
   }
   if (L.duo && L.rp){ const q = L.rp, F = fwdOf(p); q.x = p.x - F.x * 50 * (G.kind === 'ladder' || G.kind === 'hatch' ? 0 : 1); q.z = p.z - F.z * 50 * (G.kind === 'ladder' || G.kind === 'hatch' ? 0 : 1) + (L.d3 && G.kind !== 'hatch' ? 40 : 0); q.y = p.y; setYaw(q, p.yaw); q.vx = p.vx; q.vz = p.vz; q.dive = p.dive; q.climbG = p.climbG; q.hideG = p.hideG; q.animT = p.animT; }
+  if (L.fade > 0 && !G.wh){ G.wh = 1; SFX.whoosh(); }
   if ((L.fade || 0) >= 1 && G.t > .5) finishGate(L);
 }
 function finishGate(L){
@@ -694,7 +771,23 @@ function finishGate(L){
   if (room){ cur = Level(room, { team:L.team.map(f => ({ kind:f.kind, hp:f.hp, sup:f.sup })), pk:L.p.kind, entry:L.gate.kind, mpo:L.mpo }); return; }
   stats.lvls++; stats.dmg += L.lostFrac || 0; stats.ranks.push(L.rank || 'B'); next();
 }
+function entryAnim3(L, dt){
+  const En = L.entry, E = L.ent3.find(q => q.entry); En.t += dt;
+  const team = (L.duo ? [L.p, L.rp] : [L.p]).filter(Boolean); let all = true;
+  team.forEach((f, j) => { f.animT += dt; if (f.__entDone) return;
+    const tt = En.t - .45 - j * .62, t0 = tt - dt;
+    if (t0 < 0 && tt >= 0 && !j) entSfx(L, E, 'go');
+    const r = entPath(L, E, tt, j && E.k !== 'hatch' ? 80 : 0, j ? Math.PI : 0);
+    f.x = r.x; f.y = r.y; f.z = r.z; setYaw(f, r.yaw); f.vx = r.vx; f.vz = r.vz; f.vy = r.vy; f.onGround = !r.air; f.climbG = r.climb ? 1 : 0; f.roll = r.roll; f.dive = r.dive; f.hideG = !r.vis; f.atk = null; f.blocking = false;
+    E.o2 = Math.max(E.o2 || 0, r.open);
+    if (r.done){ f.__entDone = true; if (E.k === 'drop' || E.k === 'window'){ entSfx(L, E, 'land'); shake = Math.max(shake, 5); }
+      f.climbG = 0; f.roll = 0; f.dive = 0; f.hideG = false; f.vx = f.vz = f.vy = 0; f.onGround = true; f.y = GROUND; setYaw(f, 0); }
+    else all = false; });
+  entTick(L, dt);
+  if (all){ En.done = true; for (const f of L.team){ delete f.__entDone; if (!team.includes(f)){ f.x = L.p.x; f.y = GROUND; f.z = L.p.z; f.hideG = false; } } }
+}
 function entryAnim(L, dt){
+  if (L.d3 && L.ent3 && L.ent3.some(q => q.entry)) return entryAnim3(L, dt);
   const E = L.entry, p = L.p; E.t += dt; p.animT += dt;
   const sx = L.def.start || 120;
   if (E.kind === 'door' || !E.kind){ if (E.t === dt){ L.st.doorK = 1; } p.x = lerp(sx - 130, sx, Math.min(1, E.t / .7)); p.vx = 170; p.vz = 0; faceSign(p, 1); if (E.t > .7){ p.vx = 0; L.st.doorK = Math.max(0, 1 - (E.t - .7) * 3); } if (E.t > 1.05){ E.done = true; SFX.doorClose(); } }
@@ -789,6 +882,7 @@ function drawPickup(c, k){
   if (Math.sin(k.t * 5) > .3){ c.strokeStyle = 'rgba(242,194,48,.7)'; c.lineWidth = 2; c.beginPath(); c.ellipse(k.x + 20, k.y - 4, 34, 8, 0, 0, 7); c.stroke(); }
 }
 function drawEnemy(c, e, L){
+  if (e.hide3) return;
   if (e.dummy){
     c.save(); c.translate(e.x, GROUND); c.rotate(e.dead ? e.fall * (e.fallDir || 1) : e.wob * .06);
     c.fillStyle = '#6b4226'; c.fillRect(-6, -100, 12, 100); c.fillRect(-30, -78, 60, 9);
@@ -907,7 +1001,7 @@ function drawFightHud(c, L){
     txt(c, L.bark.who, 74, by0 + 22, 14, sp.col); txt(c, L.bark.t, 74, by0 + 44, 16, '#ffffff', 'left', 'normal', 0, bw - 86); c.globalAlpha = 1; }
   if (L.go && !L.active && !L.done && Math.sin(gameTime * 7) > -.3) txt(c, 'İLERLE ▶', W - 24, 250, 30, '#f2c230', 'right', '900', 5);
   c.fillStyle = 'rgba(0,0,0,.5)'; rr(c, PAUSE_BTN.x, PAUSE_BTN.y, PAUSE_BTN.w, PAUSE_BTN.h, 8); c.fill(); c.fillStyle = '#ffffff'; c.fillRect(PAUSE_BTN.x + 13, PAUSE_BTN.y + 9, 5, 18); c.fillRect(PAUSE_BTN.x + 23, PAUSE_BTN.y + 9, 5, 18);
-  if (L.frozen){ c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(0, 0, W, H); c.globalAlpha = .7 + Math.sin(gameTime * 5) * .3; pill(c, 'Hazırsan herhangi bir tuşa bas ▶', 480, 300, 24, 'rgba(10,16,40,.9)', '#f2c230', { border:'#f2c230' }); c.globalAlpha = 1; }
+  if (L.frozen && !(L.entry && !L.entry.done) && !(L.banT > .6)){ c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(0, 0, W, H); c.globalAlpha = .7 + Math.sin(gameTime * 5) * .3; pill(c, 'Hazırsan herhangi bir tuşa bas ▶', 480, 300, 24, 'rgba(10,16,40,.9)', '#f2c230', { border:'#f2c230' }); c.globalAlpha = 1; }
   if (L.done && L.rank && !(L.def.gate && L.doneT > 2.2)){ const k = Math.min(1, L.doneT * 3); c.fillStyle = 'rgba(0,0,0,' + .45 * k + ')'; c.fillRect(0, 190, W, 160);
     txt(c, L.obj || 'Tamam!', 480, 236, 26, '#ffffff', 'center', 'bold', 4, 800);
     c.save(); c.translate(480, 300); c.scale(2 - k, 2 - k); txt(c, 'DERECE: ' + L.rank, 0, 14, 44, { S:'#ffd700', A:'#7dff9a', B:'#9ad7ff', C:'#ff9a6b' }[L.rank], 'center', 'italic 900', 6); c.restore(); }

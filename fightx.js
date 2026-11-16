@@ -88,7 +88,7 @@ function perfectDodge(L, p, e){
 /* ---------- bitirici ---------- */
 function finTarget(L, p){
   let best = null, bd = 1e9;
-  for (const e of L.ents){ if (e.dead || e.dummy || !(e.dizzy > 0) || e.down > 0 || e.grabbedBy || !sameLevel(e, p)) continue; const d = pdist(e, p); if (d < 100 && d < bd){ bd = d; best = e; } }
+  for (const e of L.ents){ if (e.dead || e.ent || e.dummy || !(e.dizzy > 0) || e.down > 0 || e.grabbedBy || !sameLevel(e, p)) continue; const d = pdist(e, p); if (d < 100 && d < bd){ bd = d; best = e; } }
   return best;
 }
 function startFinisher(L, p, e){
