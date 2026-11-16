@@ -126,7 +126,7 @@ function mpOnMsg(m, topic, retained){
     case 'line': if (MP.on && cur && cur.mpLine && m.ch === curCh && m.i === curI) cur.mpLine(m.li); return;
     case 'tap': if (MP.role === 'host') MP.remoteTaps.push(m); return;
     case 'snap': if (MP.on && m.ch === curCh && m.i === curI){ MP.snap = m.d; MP.snapK = m.k; MP.snapT = performance.now(); } return;
-    case 'in': if (MP.role === 'host'){ const R = MP.rin; R.keys = {}; for (const k of m.h || []) R.keys[k] = 1; for (const k of m.p || []){ R.pressedAt[k] = gameTime; R.any = true; } R.jx = m.jx || 0; R.jy = m.jy || 0; } return;
+    case 'in': if (MP.role === 'host'){ const R = MP.rin; R.keys = {}; for (const k of m.h || []) R.keys[k] = 1; for (const k of m.p || []){ R.pressedAt[k] = gameTime; R.any = true; } R.jx = m.jx || 0; R.jy = m.jy || 0; R.mv = m.wm != null ? { x:m.wx || 0, z:m.wz || 0, m:m.wm } : null; } return;
     case 'bye': if (MP.inRoom){ if (MP.credits){ mpLeave(); return; } SFX.lose(); if (MP.on) mpLeave(peerName() + ' oyundan ayrıldı.'); else { MP.peerId = null; MP.peer = null; MP.peerPick = null; MP.peerPlay = false; if (MP.role === 'guest') mpLeave('Ev sahibi odayı kapattı.'); } } return;
     case 'look': if (m.d){ if (m.who === 'issem'){ MP.remoteIssem = m.d; applyPlayer(); } else { MP.remoteUfis = m.d; applyUfis(); } } return;
     case 'hb': return;
@@ -183,8 +183,8 @@ function MPWait(msg){ const S = { t:0, sy:2.5 }; showControls(null);
   let depth = 0;
   for (const k of Object.keys(SFX)){ const f = SFX[k]; SFX[k] = function(...a){ if (MP.rec && depth === 0 && MP.ev.length < 80) MP.ev.push(['s', k]); depth++; try { return f.apply(this, a); } finally { depth--; } }; }
   const say0 = say; window.say = say = function(text, who, onend){ if (MP.rec && MP.ev.length < 80) MP.ev.push(['v', String(text), who || 'narr']); return say0(text, who, onend); };
-  const ft0 = floatText; window.floatText = floatText = function(L, x, y, text, col, size){ if (MP.rec && MP.ev.length < 80) MP.ev.push(['t', Math.round(x), Math.round(y), text, col, size || 0]); return ft0(L, x, y, text, col, size); };
-  const sp0 = spawnParts; window.spawnParts = spawnParts = function(L, x, y, col, n, type, sp){ if (MP.rec && MP.ev.length < 80) MP.ev.push(['p', Math.round(x), Math.round(y), col, n, type || 'spark', sp || 260]); return sp0(L, x, y, col, n, type, sp); };
+  const ft0 = floatText; window.floatText = floatText = function(L, x, y, text, col, size, z){ if (MP.rec && MP.ev.length < 80) MP.ev.push(['t', Math.round(x), Math.round(y), text, col, size || 0, Math.round(z != null ? z : (L && L.p ? L.p.z || 0 : 0))]); return ft0(L, x, y, text, col, size, z); };
+  const sp0 = spawnParts; window.spawnParts = spawnParts = function(L, x, y, col, n, type, sp, z){ if (MP.rec && MP.ev.length < 80) MP.ev.push(['p', Math.round(x), Math.round(y), col, n, type || 'spark', sp || 260, Math.round(z || 0)]); return sp0(L, x, y, col, n, type, sp, z); };
   const cf0 = confetti; window.confetti = confetti = function(G, n){ if (MP.rec && MP.ev.length < 80) MP.ev.push(['c', n]); return cf0(G, n); };
 })();
 function mpPlayEv(ev, L){
@@ -192,8 +192,8 @@ function mpPlayEv(ev, L){
   for (const e of ev || []){
     if (e[0] === 's' && SFX[e[1]]) SFX[e[1]]();
     else if (e[0] === 'v') say(e[1], e[2]);
-    else if (e[0] === 't' && L && L.texts) floatText(L, e[1], e[2], e[3], e[4], e[5] || undefined);
-    else if (e[0] === 'p' && L && L.parts) spawnParts(L, e[1], e[2], e[3], e[4], e[5], e[6]);
+    else if (e[0] === 't' && L && L.texts) floatText(L, e[1], e[2], e[3], e[4], e[5] || undefined, e[6]);
+    else if (e[0] === 'p' && L && L.parts) spawnParts(L, e[1], e[2], e[3], e[4], e[5], e[6], e[7]);
     else if (e[0] === 'c' && L && L.conf) confetti(L, e[1]);
   }
 }
@@ -204,12 +204,12 @@ const poseArr = f => { const p = getPose(f); return [r2(p.lean), r2(p.bob), r2(p
 const arrPose = a => ({ lean:a[0], bob:a[1], fl:[a[2], a[3]], bl:[a[4], a[5]], fa:[a[6], a[7]], ba:[a[8], a[9]], lie:!!a[10], rot:a[11], spread:a[12], back:!!a[13] });
 function levelSnap(L){
   return { key:L.key, cam:r0(L.camX), tm:r2(L.time), sh:r0(shake), fl:r2(FX.flash), z:[r2(FX.zoom), r0(FX.zx), r0(FX.zy)], pi:L.team.indexOf(L.p), ri:L.rp ? L.team.indexOf(L.rp) : -1,
-    team:L.team.map(f => [f.kind, r0(f.x), r0(f.y), f.face, r0(f.hp), f.maxhp, r0(f.sup), f.dead ? 1 : 0, poseArr(f), fHold(f, true) || 0, exprOf(f), f.inv > 0 && f.down <= 0 ? 1 : 0, f.hideG ? 1 : 0, f.dizzy > 0 ? 1 : 0, f.down > 0 ? 1 : 0, f.weapon ? [f.weapon.t, f.weapon.uses] : 0]),
+    team:L.team.map(f => [f.kind, r0(f.x), r0(f.y), f.face, r0(f.hp), f.maxhp, r0(f.sup), f.dead ? 1 : 0, poseArr(f), fHold(f, true) || 0, exprOf(f), f.inv > 0 && f.down <= 0 ? 1 : 0, f.hideG ? 1 : 0, f.dizzy > 0 ? 1 : 0, f.down > 0 ? 1 : 0, f.weapon ? [f.weapon.t, f.weapon.uses] : 0, r0(f.z), r2(f.yaw), L.d3 ? st3(f) : 0]),
     en:L.ents.map(e => [e.uid, e.type, r0(e.x), r0(e.y), e.face, r0(e.hp), e.maxhp, e.dummy ? 0 : poseArr(e), e.dummy ? '' : exprOf(e), e.flash > 0 ? 1 : 0, r2(e.wind), e.move || '', e.weapon ? e.weapon.t : 0,
-      e.dizzy > 0 ? 1 : 0, e.down > 0 ? 1 : 0, e.dead ? 1 : 0, r2(e.deadT), e.dummy ? [r2(e.wob), r2(e.fall), e.fallDir || 1] : 0, e.dashing > 0 ? 1 : 0]),
-    ob:L.objs.map(o => [o.uid == null ? -1 : o.uid, o.t, r0(o.x), r0(o.y), o.broken ? 1 : 0, o.held ? 1 : 0, o.shakeT > 0 ? 1 : 0, o.w, o.h]),
-    pk:L.pickups.map(k => [k.kind, r0(k.x), r0(k.y), k.w || 0]), pr:L.proj.map(b => [b.kind, r0(b.x), r0(b.y), r2(b.spin), b.w || b.obj || 0, Math.sign(b.vx)]),
-    sk:L.shocks.map(s => [r0(s.x), r0(s.y), s.dir, r2(s.life)]), bu:L.bursts.map(b => [r0(b.x), r0(b.y), r2(b.t), b.big ? 1 : 0]),
+      e.dizzy > 0 ? 1 : 0, e.down > 0 ? 1 : 0, e.dead ? 1 : 0, r2(e.deadT), e.dummy ? [r2(e.wob), r2(e.fall), e.fallDir || 1] : 0, e.dashing > 0 ? 1 : 0, r0(e.z), r2(e.yaw), L.d3 && !e.dummy ? st3(e) : 0]),
+    ob:L.objs.map(o => [o.uid == null ? -1 : o.uid, o.t, r0(o.x), r0(o.y), o.broken ? 1 : 0, o.held ? 1 : 0, o.shakeT > 0 ? 1 : 0, o.w, o.h, r0(o.z), r2(o.rot || 0), o.d || o.w]),
+    pk:L.pickups.map(k => [k.kind, r0(k.x), r0(k.y), k.w || 0, r0(k.z)]), pr:L.proj.map(b => [b.kind, r0(b.x), r0(b.y), r2(b.spin), b.w || b.obj || 0, Math.sign(b.vx), r0(b.z), r0(b.vx), r0(b.vz)]),
+    sk:L.shocks.map(s => [r0(s.x), r0(s.y), r0(s.r), r2(s.life), r0(s.z)]), bu:L.bursts.map(b => [r0(b.x), r0(b.y), r2(b.t), b.big ? 1 : 0, r0(b.z)]),
     st:[L.frozen ? 1 : 0, L.lost ? 1 : 0, L.done ? 1 : 0, L.rank || '', r2(L.doneT), r2(L.lostT)], g:L.gate ? [L.gate.kind, r0(L.gate.x), L.gate.st, L.gate.hits, r2(L.gate.open)] : 0, fd:[r2(L.fade), r2(L.fadeIn)],
     hud:[L.obj || '', L.hint || '', r2(L.hintT), L.combo || 0, r2(L.comboT), L.superBanner ? [L.superBanner.name, r2(L.superBanner.t), L.superBanner.kind] : 0, L.bark ? [L.bark.who, L.bark.t] : 0, r2(L.barkT),
       L.surviveT != null ? r2(L.surviveT) : null, L.limitT != null ? r2(L.limitT) : null, r2(L.bossIntro), L.score || 0, L.pauseM ? 1 : 0, r2(L.finT || 0), L.sty ? r0(L.sty.v) : 0] };
@@ -217,20 +217,20 @@ function levelSnap(L){
 function levelApply(L, s){
   L.camX = s.cam; L.time = s.tm; shake = s.sh; FX.flash = s.fl; FX.zoom = s.z[0]; FX.zx = s.z[1]; FX.zy = s.z[2];
   for (const a of s.team){ const f = L.team.find(x => x.kind === a[0]); if (!f) continue;
-    f.tx = a[1]; f.ty = a[2]; if (f.x == null || Math.abs(f.x - a[1]) > 200) { f.x = a[1]; f.y = a[2]; }
+    f.tx = a[1]; f.ty = a[2]; f.tz = a[16] || 0; f.tyaw = a[17] || 0; if (f.x == null || Math.abs(f.x - a[1]) > 200) { f.x = a[1]; f.y = a[2]; f.z = f.tz; setYaw(f, f.tyaw); } if (a[18]) st3apply(f, a[18]);
     f.face = a[3]; f.hp = a[4]; f.maxhp = a[5]; f.sup = a[6]; f.dead = !!a[7]; f.__P = arrPose(a[8]); f.__hold = a[9]; f.__ex = a[10]; f.inv = a[11] ? .3 : 0; f.hideG = !!a[12]; f.dizzy = a[13] ? 1 : 0; f.down = a[14] ? 1 : 0; f.getup = 0;
     f.weapon = a[15] ? { t:a[15][0], uses:a[15][1] } : null; f.carry = null; }
   L.p = L.team[s.pi] || L.team[0]; L.rp = s.ri >= 0 ? L.team[s.ri] : null; L.duo = s.ri >= 0;
   if (L.duo && MP.char){ const me = L.team.find(f => f.kind === MP.char); if (me && me !== L.p){ L.rp = L.p; L.p = me; } }
   const old = new Map(L.ents.map(e => [e.uid, e])); L.ents = [];
   for (const a of s.en){ let e = old.get(a[0]); if (!e){ e = makeEnemy(a[1], a[2], {}); e.uid = a[0]; e.x = a[2]; e.y = a[3]; }
-    e.tx = a[2]; e.ty = a[3]; e.face = a[4]; e.hp = a[5]; e.maxhp = a[6]; if (a[7]) e.__P = arrPose(a[7]); e.__ex = a[8] || undefined; e.flash = a[9] ? .1 : 0; e.wind = a[10]; e.move = a[11];
+    e.tx = a[2]; e.ty = a[3]; e.tz = a[19] || 0; e.tyaw = a[20] || 0; if (e.z == null || Math.abs(e.x - a[2]) > 200){ e.z = e.tz; setYaw(e, e.tyaw); } if (a[21]) st3apply(e, a[21]); e.face = a[4]; e.hp = a[5]; e.maxhp = a[6]; if (a[7]) e.__P = arrPose(a[7]); e.__ex = a[8] || undefined; e.flash = a[9] ? .1 : 0; e.wind = a[10]; e.move = a[11];
     e.weapon = a[12] ? { t:a[12], uses:1 } : null; e.dizzy = a[13] ? 1 : 0; e.down = a[14] ? 1 : 0; e.dead = !!a[15]; e.deadT = a[16]; if (a[17]){ e.wob = a[17][0]; e.fall = a[17][1]; e.fallDir = a[17][2]; } e.dashing = a[18] ? 1 : 0; e.inv = 0; e.hop = 0;
     L.ents.push(e); }
-  const oldO = new Map(L.objs.map(o => [o.uid, o])); L.objs = s.ob.map(a => { const o = oldO.get(a[0]) || { uid:a[0], hp:1 }; Object.assign(o, { t:a[1], x:a[2], y:a[3], broken:!!a[4], held:!!a[5], shakeT:a[6] ? .1 : 0, w:a[7], h:a[8] }); return o; });
-  L.pickups = s.pk.map(a => ({ kind:a[0], x:a[1], y:a[2], w:a[3] || undefined, t:gameTime }));
-  L.proj = s.pr.map(a => ({ kind:a[0], x:a[1], y:a[2], spin:a[3], w:a[4] || undefined, obj:a[4] || undefined, vx:a[5] }));
-  L.shocks = s.sk.map(a => ({ x:a[0], y:a[1], dir:a[2], life:a[3] })); L.bursts = s.bu.map(a => ({ x:a[0], y:a[1], t:a[2], big:!!a[3] }));
+  const oldO = new Map(L.objs.map(o => [o.uid, o])); L.objs = s.ob.map(a => { const o = oldO.get(a[0]) || { uid:a[0], hp:1 }; Object.assign(o, { t:a[1], x:a[2], y:a[3], broken:!!a[4], held:!!a[5], shakeT:a[6] ? .1 : 0, w:a[7], h:a[8], z:a[9] || 0, rot:a[10] || 0, d:a[11] || a[7] }); return o; });
+  L.pickups = s.pk.map(a => ({ kind:a[0], x:a[1], y:a[2], w:a[3] || undefined, t:gameTime, z:a[4] || 0 }));
+  L.proj = s.pr.map(a => ({ kind:a[0], x:a[1], y:a[2], spin:a[3], w:a[4] || undefined, obj:a[4] || undefined, vx:a[7] != null ? a[7] : a[5], z:a[6] || 0, vz:a[8] || 0 }));
+  L.shocks = s.sk.map(a => ({ x:a[0], y:a[1], r:a[2], life:a[3], z:a[4] || 0 })); L.bursts = s.bu.map(a => ({ x:a[0], y:a[1], t:a[2], big:!!a[3], z:a[4] || 0 }));
   [L.frozen, L.lost, L.done, L.rank, L.doneT, L.lostT] = [!!s.st[0], !!s.st[1], s.st[2], s.st[3] || null, s.st[4], s.st[5]];
   L.gate = s.g ? { kind:s.g[0], x:s.g[1], st:s.g[2], hits:s.g[3], open:s.g[4] } : null; L.fade = s.fd[0]; L.fadeIn = s.fd[1];
   const h = s.hud; L.obj = h[0]; L.hint = h[1]; L.hintT = h[2]; L.combo = h[3]; L.comboT = h[4]; L.superBanner = h[5] ? { name:h[5][0], t:h[5][1], kind:h[5][2] } : null;
@@ -239,9 +239,10 @@ function levelApply(L, s){
 }
 function levelViewTick(L, dt){
   const k = Math.min(1, dt * 14);
-  for (const f of L.team){ if (f.tx != null){ f.x = lerp(f.x, f.tx, k); f.y = lerp(f.y, f.ty, k); } f.animT += dt; }
-  for (const e of L.ents){ if (e.tx != null){ e.x = lerp(e.x, e.tx, k); e.y = lerp(e.y, e.ty, k); } e.animT += dt; }
-  for (const q of L.parts){ q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += (q.type === 'dust' ? 100 : 900) * dt; q.r += dt * 8; } L.parts = L.parts.filter(q => q.life > 0);
+  const ly = (f, k2) => { if (f.tyaw != null) turnTo(f, f.tyaw, k2); };
+  for (const f of L.team){ if (f.tx != null){ f.x = lerp(f.x, f.tx, k); f.y = lerp(f.y, f.ty, k); f.z = lerp(f.z || 0, f.tz || 0, k); ly(f, k); } f.animT += dt; }
+  for (const e of L.ents){ if (e.tx != null){ e.x = lerp(e.x, e.tx, k); e.y = lerp(e.y, e.ty, k); e.z = lerp(e.z || 0, e.tz || 0, k); ly(e, k); } e.animT += dt; }
+  for (const q of L.parts){ q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z = (q.z || 0) + (q.vz || 0) * dt; q.vy += (q.type === 'dust' ? 100 : 900) * dt; q.r += dt * 8; } L.parts = L.parts.filter(q => q.life > 0);
   for (const t of L.texts) t.t += dt; L.texts = L.texts.filter(t => t.t < 1.2);
   for (const pk of L.pickups) pk.t += dt;
 }
@@ -249,12 +250,12 @@ function levelViewTick(L, dt){
 function mpRemoteUpdate(L, dt, surf){
   const R = MP.rin, sk = Object.assign({}, keys), sp = Object.assign({}, pressedAt), sj = [JOY.x, JOY.y, JOY.active];
   for (const k in keys) keys[k] = R.keys[k] ? 1 : 0; for (const k in pressedAt) pressedAt[k] = null; Object.assign(pressedAt, R.pressedAt); JOY.x = R.jx; JOY.y = R.jy; JOY.active = !!(R.jx || R.jy);
-  const P0 = L.p; L.p = L.rp;
+  const P0 = L.p, B0 = L.botDir; L.p = L.rp; if (R.mv) L.botDir = R.mv;
   try { if (!L.rp.dead) updPlayer(L, dt, surf); }
-  finally { L.p = P0; R.pressedAt = {}; for (const k in pressedAt) if (pressedAt[k] != null && gameTime - pressedAt[k] < .22) R.pressedAt[k] = pressedAt[k];
+  finally { L.p = P0; L.botDir = B0; R.pressedAt = {}; for (const k in pressedAt) if (pressedAt[k] != null && gameTime - pressedAt[k] < .22) R.pressedAt[k] = pressedAt[k];
     for (const k in keys) keys[k] = sk[k]; for (const k in pressedAt) pressedAt[k] = null; Object.assign(pressedAt, sp); [JOY.x, JOY.y, JOY.active] = sj; }
 }
-function mpTarget(L, e){ const a = [L.p, L.rp].filter(f => f && !f.dead); if (!a.length) return L.p; return a.reduce((b, f) => Math.abs(f.x - e.x) + Math.abs(f.y - e.y) * 2 < Math.abs(b.x - e.x) + Math.abs(b.y - e.y) * 2 ? f : b); }
+function mpTarget(L, e){ const a = [L.p, L.rp].filter(f => f && !f.dead); if (!a.length) return L.p; return a.reduce((b, f) => pdist(f, e) + Math.abs(f.y - e.y) * 2 < pdist(b, e) + Math.abs(b.y - e.y) * 2 ? f : b); }
 function mpDupDef(def){
   const d = Object.assign({}, def);
   if (def.preset) d.preset = def.preset.flatMap(p => ETYPES[p[0]] && ETYPES[p[0]].boss ? [p] : [p, [p[0], p[1] + 70, Object.assign({}, p[2] || {})]]);
@@ -283,7 +284,7 @@ function NodeView(n, info){
     // ortak dövüş: girişleri ev sahibine gönder
     if (info.duo){ const held = MP_KEYS.filter(k => keys[k]), pr = MP_KEYS.filter(k => pressedAt[k] != null && gameTime - pressedAt[k] < .22 && pressedAt[k] > V.lastSend);
       const sig = held.join(',') + '|' + Math.round(JOY.x * 10) + ',' + Math.round(JOY.y * 10);
-      if (pr.length || sig !== V.sig || gameTime - V.lastSend > .25){ V.sig = sig; netSend({ t:'in', h:held, p:pr, jx:r2(JOY.x), jy:r2(JOY.y) }, { fast:true }); V.lastSend = gameTime; }
+      if (pr.length || sig !== V.sig || gameTime - V.lastSend > .25){ V.sig = sig; const mv = V.inner && V.inner.d3 ? moveIn(V.inner) : null; netSend(Object.assign({ t:'in', h:held, p:pr, jx:r2(JOY.x), jy:r2(JOY.y) }, mv ? { wx:r2(mv.x), wz:r2(mv.z), wm:r2(mv.m) } : {}), { fast:true }); V.lastSend = gameTime; }
       if (tap && !V.got) netSend({ t:'in', h:[], p:['punch'] }, { fast:true }); }
     else if (tap && inB({ x:W - 182, y:56, w:170, h:34 }, tap)){ MP.watch = !MP.watch; SFX.click(); }
   };

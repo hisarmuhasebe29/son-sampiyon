@@ -65,8 +65,8 @@ function stadFlat(T, dIn, dOut, yIn, yOut, m){
 
 /* ---------- seyirci atlası: 16 farklı kişi × 4 duruş (oturan, ayakta, kollar havada, alkış/atkı) ---------- */
 function crowdAtlas(R3w, mask){
-  return R3w.canvasTex(1024, 512, (c0, w, h) => {
-    c0.clearRect(0, 0, w, h);
+  const tx = R3w.canvasTex(2048, 1024, (c0, w, h) => {
+    c0.clearRect(0, 0, w, h); c0.scale(2, 2);
     // maske modunda forma beyaz, geri kalan her şey siyah çizilir (uzakta da forma rengi doğru karışsın)
     const c = mask ? new Proxy(c0, { set(o, k, v){ if (k === 'fillStyle' || k === 'strokeStyle') v = typeof v === 'string' && v.startsWith('rgb(') && v.endsWith(',0,255)') ? '#ffffff' : typeof v === 'string' ? '#000000' : '#ffffff'; o[k] = v; return true; }, get(o, k){ const v = o[k]; return typeof v === 'function' ? v.bind(o) : v; } }) : c0;
     const skins = ['#f1c9a5', '#e0ac85', '#c48d68', '#8d5a3c', '#5a3a26', '#f5d3b5', '#d9a27c', '#a87150'];
@@ -105,6 +105,7 @@ function crowdAtlas(R3w, mask){
       c.restore(); void top;
     }
   });
+  tx.anisotropy = 8; return tx;
 }
 const CROWD_VS = `
 attribute vec4 aInfo; attribute vec3 aShirt; attribute vec2 aAng;
@@ -380,11 +381,18 @@ function buildTesis(root, U, R3w){
   /* ışık direkleri (gündüz sönük) */
   for (const sx of [1, -1]) for (const sz of [1, -1]){ const x = sx * 62, z = sz * 41; root.add(mesh('cyl', mat('#8a929c', { metalness:.6 }), .25, 22, .25, x, 11, z));
     const hd = mesh('box', mat('#e8eef5', { metalness:.3 }), 3.2, 1.6, .4, x, 22, z); hd.lookAt(0, 0, 0); root.add(hd); }
-  /* küçük tribün + aileler */
-  const benchM = mat('#c0392b'), benchB = mat('#7a7f88', { metalness:.4 }), seats = [];
-  for (let i = 0; i < 4; i++){ root.add(mesh('box', benchB, 30, .5 + i * .6, 1.2, 10, (.5 + i * .6) / 2, 47 + i * 1.2)); root.add(mesh('box', benchM, 30, .12, 1.0, 10, .56 + i * .6, 47 + i * 1.2));
-    for (let k = 0; k < 44; k++){ if (rnd() < .45) continue; seats.push({ x:-4.5 + k * .66 + (rnd() - .5) * .1, y:.62 + i * .6, z:47 + i * 1.2, yaw:Math.PI, info:[rnd(), Math.floor(rnd() * 16), rnd() < .6 ? (rnd() < .6 ? 1 : 2) : 0, 1.05], shirt:new T.Color(['#e9e9e9', '#2b2f3a', '#c0392b', '#2e86de', '#f39c12'][Math.floor(rnd() * 5)]), ang:[0, 0] }); } }
-  root.add(mesh('box', mat('#e8eaee'), 31, .2, 6, 10, 3.5, 48.8)); for (const x of [-5, 25]) root.add(mesh('cyl', mat('#c8ccd2', { metalness:.5 }), .1, 3.5, .1, x, 1.75, 51.4));
+  /* tesis tribünü: 8 basamak, çatılı, aileler ve taraftarlar */
+  const seats = [], stepM = mat('#c0392b', { roughness:.6 }), stepM2 = mat('#9b2b20', { roughness:.6 }), conc = mat('#8a9099', { roughness:.9 }), steel = mat('#d0d4da', { metalness:.5, roughness:.35 });
+  const SX0 = -26, SX1 = 30, SZ = 46.5, rows = 8, rd = .85, rr = .48;
+  for (let i = 0; i < rows; i++){ const y = .5 + i * rr, z = SZ + i * rd;
+    root.add(mesh('box', conc, SX1 - SX0, y, rd, (SX0 + SX1) / 2, y / 2, z + rd / 2)); root.add(mesh('box', i % 2 ? stepM : stepM2, SX1 - SX0, .1, rd * .6, (SX0 + SX1) / 2, y + .05, z + rd * .55));
+    for (let k = 0; k < (SX1 - SX0) / .66; k++){ if (rnd() < .42) continue; seats.push({ x:SX0 + .4 + k * .66 + (rnd() - .5) * .1, y:y + .02, z:z + rd * .5, yaw:Math.PI, info:[rnd(), Math.floor(rnd() * 16), rnd() < .62 ? (rnd() < .6 ? 1 : 2) : 0, 1.05], shirt:new T.Color(['#e9e9e9', '#2b2f3a', '#c0392b', '#2e86de', '#f39c12', '#14306b'][Math.floor(rnd() * 6)]), ang:[0, 0] }); } }
+  const backZ = SZ + rows * rd, topY = .5 + rows * rr;
+  root.add(mesh('box', conc, SX1 - SX0, topY + 3, .4, (SX0 + SX1) / 2, (topY + 3) / 2, backZ + .2));
+  root.add(mesh('box', mat('#e8eaee', { roughness:.4 }), SX1 - SX0 + 2, .25, rows * rd + 3.2, (SX0 + SX1) / 2, topY + 3.1, SZ + rows * rd / 2 - .6));
+  for (let x = SX0; x <= SX1; x += 8) root.add(mesh('cyl', steel, .12, topY + 3, .12, x, (topY + 3) / 2, SZ - .9));
+  { const sT = canvasTex(1024, 96, (c, w, h) => { c.fillStyle = '#14306b'; c.fillRect(0, 0, w, h); c.fillStyle = '#f2c230'; c.font = 'italic 900 52px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('ANOLECRAB · ARAÇ · SON ŞAMPİYON', w / 2, h / 2 + 3, 990); });
+    const sg = new T.Mesh(new T.PlaneGeometry(SX1 - SX0, 1.5), new T.MeshBasicMaterial({ map:sT })); sg.position.set((SX0 + SX1) / 2, topY + 2.2, SZ - 1.0); sg.rotation.y = Math.PI; sg.userData.keep = 1; root.add(sg); }
   root.add(crowdMesh(T, R3w, U, seats, ['#cfe6ff', 120, 330]));
   /* yan saha (küçük kaleler) */
   const sideP = new T.Mesh(new T.PlaneGeometry(40, 26), mat('#4f9a44', { roughness:.95 })); sideP.rotation.x = -Math.PI / 2; sideP.position.set(108, .01, 0); root.add(sideP);

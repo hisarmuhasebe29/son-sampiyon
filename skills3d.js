@@ -34,8 +34,13 @@ function SkillMenu(){
   const bBack = { x:16, y:12, w:110, h:38, size:16 };
   const card = i => ({ x:40 + (i % 4) * 224, y:84 + Math.floor(i / 4) * 196, w:208, h:180 });
   const tierB = k => ({ x:236 + k * 170, y:360, w:150, h:64, size:18 });
+  const bMatch = card(7), durB = k => ({ x:250 + k * 160, y:330, w:140, h:70, size:18 });
+  const DUR = [[3, 150], [5, 260], [8, 420]], bCamS = { x:216, y:412, w:258, h:40, size:14 }, bCtlS = { x:486, y:412, w:258, h:40, size:14 };
+  function startMatch(k){ SFX.whistle(); stats = newStats(); cur = Match3D({ cam:S.mcam || 'yayin', training:true, free:true, bibs:true, time:DUR[k][1], startMin:0, need:0, teams:['ANL', 'YDK'], obj:'Antrenman maçı: A takımı – Yedekler', defs:[] }); }
   S.update = dt => { S.t += dt; if (!tap) return;
-    if (inB(bBack, tap)){ SFX.back(); if (S.sel){ S.sel = null; return; } toCover(); return; }
+    if (inB(bBack, tap)){ SFX.back(); if (S.sel || S.match){ S.sel = null; S.match = false; return; } toCover(); return; }
+    if (S.match){ for (let k = 0; k < 3; k++) if (inB(durB(k), tap)){ startMatch(k); return; } if (inB(bCamS, tap)){ S.mcam = nextCam(S.mcam || 'yayin'); SFX.click(); return; } if (inB(bCtlS, tap)){ SAVE.ctl = SAVE.ctl === 'solo' ? 'team' : 'solo'; persist(); SFX.click(); return; } if (!inB({ x:200, y:150, w:560, h:330 }, tap)) S.match = false; return; }
+    if (!S.sel && inB(bMatch, tap)){ SFX.click(); S.match = true; return; }
     if (S.sel){ const d = S.sel, got = SAVE.skills[d.id] || 0;
       for (let k = 0; k < 3; k++) if (inB(tierB(k), tap)){ if (k > got){ SFX.keyErr(); S.lock = 1.2; return; } SFX.ok(); cur = Skill(d.id, k); return; }
       if (!inB({ x:200, y:120, w:560, h:330 }, tap)) S.sel = null; return; }
@@ -53,6 +58,15 @@ function SkillMenu(){
       for (let k = 0; k < 3; k++){ const x = b.x + b.w / 2 + (k - 1) * 34, y = b.y + 142; c.beginPath(); c.arc(x, y, 12, 0, 7); c.fillStyle = k < got ? SK_MEDAL[k] : 'rgba(255,255,255,.12)'; c.fill();
         if (k < got) txt(c, '★', x, y + 5, 13, '#ffffff', 'center', '900'); }
     });
+    { const b = bMatch; const g2 = c.createLinearGradient(b.x, b.y, b.x + b.w, b.y + b.h); g2.addColorStop(0, 'rgba(242,194,48,.28)'); g2.addColorStop(1, 'rgba(20,48,107,.5)'); c.fillStyle = g2; rr(c, b.x, b.y, b.w, b.h, 16); c.fill();
+      c.strokeStyle = '#f2c230'; c.lineWidth = 2; c.stroke(); txt(c, '⚽', b.x + b.w / 2, b.y + 62, 34, '#f2c230', 'center');
+      txt(c, 'ANTRENMAN MAÇI', b.x + b.w / 2, b.y + 106, 17, '#ffffff', 'center', '900', 0, b.w - 16); txt(c, 'A takımı – Yedekler', b.x + b.w / 2, b.y + 132, 13, '#c8d3ff', 'center', 'bold', 0, b.w - 16);
+      txt(c, 'Galibiyet: +20 🪙', b.x + b.w / 2, b.y + 158, 12, '#f2c230', 'center', 'bold'); }
+    if (S.match){ c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(0, 0, W, H); c.fillStyle = '#0d2a1a'; rr(c, 200, 150, 560, 330, 20); c.fill(); c.strokeStyle = '#f2c230'; c.lineWidth = 3; c.stroke();
+      txt(c, '⚽ ANTRENMAN MAÇI', 480, 196, 26, '#f2c230', 'center', 'italic 900');
+      skWrap(c, 'Tesiste 11\'e 11 hazırlık maçı: senin takımın, sarı yelek giyen Yedekler\'e karşı. Maç süresini seç:', 480, 236, 520, 22, 16, '#ffffff', 'center');
+      for (let k = 0; k < 3; k++){ const b = durB(k); c.fillStyle = 'rgba(242,194,48,.9)'; rr(c, b.x, b.y, b.w, b.h, 14); c.fill(); txt(c, DUR[k][0] + ' dk', b.x + b.w / 2, b.y + 32, 22, '#14306b', 'center', '900'); txt(c, ['Kısa', 'Normal', 'Uzun'][k], b.x + b.w / 2, b.y + 54, 13, '#14306b', 'center', 'bold'); }
+      button(c, bCamS, '📹 Kamera: ' + camName(S.mcam || 'yayin') + ' ⟳'); button(c, bCtlS, SAVE.ctl === 'solo' ? '👤 Sadece ben oynarım ⟳' : '👥 Takımı yönetirim ⟳'); txt(c, 'Zorluk: ' + DIFF().name + ' · Maçta 📹 kamerayı, 👥/👤 kontrol şeklini değiştirir', 480, 470, 12, '#c8d3ff', 'center', 'normal'); }
     if (S.sel){ const d = S.sel, got = SAVE.skills[d.id] || 0;
       c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(0, 0, W, H); c.fillStyle = '#0d2a1a'; rr(c, 200, 120, 560, 330, 20); c.fill(); c.strokeStyle = '#f2c230'; c.lineWidth = 3; c.stroke();
       txt(c, d.ic + ' ' + d.name, 480, 166, 26, '#f2c230', 'center', 'italic 900', 0, 520);
@@ -156,11 +170,11 @@ function skKick(S, tx, tz, speed, lob){
 }
 /* ---------- şut istasyonu (hedef şutu, frikik, penaltı) ---------- */
 function skStation(S, spots, o){
-  S.K = o.keeper ? newKeeper() : null; S.shots = 0; S.goals = 0; S.res = []; S.aim = { tz:0, th:.9 }; S.power = 0; S.charging = false; S.sub = 'ready';
+  S.K = o.keeper ? newKeeper() : null; S.fov = 34; S.shots = 0; S.goals = 0; S.res = []; S.aim = { tz:0, th:.9 }; S.power = 0; S.charging = false; S.sub = 'ready';
   S.setup = () => { const sp = spots[S.shots % spots.length]; S.B = newBall(sp[0], sp[1]); if (S.K){ S.K = newKeeper(); } S.shot = null; S.sub = 'ready'; S.power = 0; S.charging = false;
     const dirx = GL - sp[0], dirz = -sp[1], dl = Math.hypot(dirx, dirz), dx = dirx / dl, dz = dirz / dl; S.sp = sp; S.dx = dx; S.dz = dz;
     S.p = newP(sp[0] - dx * 2.4 + dz * -footFace(), sp[1] - dz * 2.4 - dx * -footFace()); S.p.yaw = yawTo(sp[0] - S.p.x, sp[1] - S.p.z);
-    S.aim = { tz:o.pen ? 0 : -Math.sign(sp[1] || 1) * 2.2, th:o.wall ? 1.9 : .8 };
+    S.aim = { tz:o.pen ? 0 : -Math.sign(sp[1] || 1) * 2.2, th:o.wall ? 1.9 : .8 }; if (S.curlSel == null) S.curlSel = o.wall ? (sp[1] > 0 ? -.5 : .5) : 0;
     S.wall = null;
     if (o.wall){ const np = Math.sign(sp[1] || 1) * GW * .55, wx = GL - sp[0], wz = np - sp[1], wl = Math.hypot(wx, wz), wdx = wx / wl, wdz = wz / wl;
       S.wall = { d:9.15, dx:wdx, dz:wdz, cx:sp[0] + wdx * 9.15, cz:sp[1] + wdz * 9.15, nx:-wdz, nz:wdx, jump:0, n:o.wallN || 4 }; } };
@@ -168,14 +182,15 @@ function skStation(S, spots, o){
   S.stUpdate = (dt, onResult) => {
     const B = S.B, p = S.p;
     if (S.sub === 'ready'){
+      if (!o.pen) curlTap(S);
       const I = f3Input(); S.aim.tz = clamp(S.aim.tz + I.ix * dt * 4.2, -4.6, 4.6); S.aim.th = clamp(S.aim.th + I.iy * dt * 2.1, .12, 3.0);
       if (keys.shoot){ if (!S.charging){ S.charging = true; S.power = 0; } S.power = Math.min(1, S.power + dt * .95); }
       else if (S.charging){ S.charging = false; S.sub = 'runup'; S.stT = .38; S.rx = p.x; S.rz = p.z; }
-      if (S.K && S.K.st === 'ready') S.K.z = Math.sin(S.t * 1.6) * (o.pen ? .35 : .2) + (o.pen ? 0 : clamp(B.z * .12, -1, 1));
+      if (S.K && S.K.st === 'ready'){ S.K.z = Math.sin(S.t * (o.pen ? 1.3 : .9)) * (o.pen ? .55 : .35) + (o.pen ? 0 : clamp(B.z * .12, -1, 1)); S.K.x = GL - (o.pen ? .35 : 1.4 + Math.sin(S.t * .7) * .3); S.K.mode = o.pen ? 'pen' : 'set'; S.K.yaw = yawTo(B.x - S.K.x, B.z - S.K.z); }
     } else if (S.sub === 'runup'){
       S.stT -= dt; const k = 1 - Math.max(0, S.stT) / .38; p.x = lerp(S.rx, B.x - Math.cos(p.yaw) * .55, k); p.z = lerp(S.rz, B.z + Math.sin(p.yaw) * .55, k); p.sp = 6;
       if (S.stT <= 0){ p.sp = 0; p.atk = { m:{ dur:.42, anim:'shoot' }, t:.15 };
-        S.shot = f3Shot(B, S.aim, S.power, { curl:o.wall ? .95 : .35 });
+        S.shot = f3Shot(B, S.aim, S.power, o.pen ? { curl:.2 } : { curlAbs:(S.curlSel || 0) * 1.7 });
         if (S.K){ f3Resolve(S.shot, S.K, { wall:S.wall, keeperMul:o.keeper, react:o.pen ? .06 : null }); keeperDive(S.K, S.shot.dive || { z:S.K.z, y:1, react:.3 }, S.shot); }
         else { const Sh = S.shot; if (S.wall){ f3Resolve(Sh, { z:0 }, { wall:S.wall, keeperMul:0 }); }
           if (Sh.ev !== 'wall'){ const ty = Sh.ty, tz = Sh.tz; Sh.ev = Math.abs(Math.abs(tz) - GW) < .13 && ty < GH + .08 ? 'post' : Math.abs(ty - GH) < .12 && Math.abs(tz) < GW + .05 ? 'bar' : Math.abs(tz) > GW || ty > GH ? (ty > GH ? 'over' : 'out') : 'goal'; Sh.kev = 1; } }
@@ -197,7 +212,7 @@ function skStation(S, spots, o){
     if (B.free) ballPhys(B, dt, S.shot && S.shot.ev === 'goal');
     if (B.held && S.K){ B.x = S.K.x - .45; B.y = S.K.y + 1.15; B.z = S.K.z; }
     if (S.wall && S.wall.jump > 0){ S.wall.jump += dt; if (S.wall.jump > .7) S.wall.jump = 0; }
-    if (S.sub === 'ready' || S.sub === 'runup') camTo(S, S.sp[0] - S.dx * 11.5, 4.6, S.sp[1] - S.dz * 11.5, GL, .2, S.sp[1] * .3 + (S.aim.tz - S.sp[1] * .3) * .15, Math.min(1, dt * 4));
+    if (S.sub === 'ready' || S.sub === 'runup') camTo(S, S.sp[0] - S.dx * 8.5, 3.4, S.sp[1] - S.dz * 8.5, GL, .5, S.sp[1] * .3 + (S.aim.tz - S.sp[1] * .3) * .15, Math.min(1, dt * 4));
     else camTo(S, S.camPos.x, S.camPos.y, S.camPos.z, lerp(GL, B.x, .35), Math.max(.8, B.y * .6), B.z * .6, Math.min(1, dt * 3));
     S.focus = { x:GL - 10, z:B.z * .5 };
     return false;
@@ -212,7 +227,7 @@ function skStation(S, spots, o){
       f3Reticle(S.aim.th + Math.max(0, S.power - .85) * 2, S.aim.tz, .32 + err * .9, S.power > .85 ? '#ff4a3a' : '#f2c230'); }
   };
   S.stHud = c => { for (let i = 0; i < o.shots; i++){ const r = S.res[i], x = 26 + i * 24, y = 112; c.fillStyle = r === 1 ? '#2ecc71' : r === 0 ? '#e74c3c' : 'rgba(255,255,255,.25)'; c.beginPath(); c.arc(x, y, 8, 0, 7); c.fill(); }
-    if (S.sub === 'ready') powerHud(c, S.power, S.charging ? 'GÜÇ — bırakınca vurur' : '⚽ basılı tut: güç · joystick: hedef'); };
+    if (S.sub === 'ready'){ shotPreview(c, S.B, S.aim, S.power, o.pen ? { curl:.2 } : { curlAbs:(S.curlSel || 0) * 1.7 }); aimMarker(c, S.aim.th, S.aim.tz, .45); if (!o.pen) curlDraw(c, S); powerHud(c, S.power, S.charging ? 'GÜÇ — bırakınca vurur' : '⚽ basılı tut: güç · joystick: hedef'); } };
 }
 /* hedef halkası (kale çizgisinde dikey) */
 function skGoalTarget(id, z, y, r, col, on){

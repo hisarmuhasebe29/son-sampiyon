@@ -26,18 +26,19 @@ function styleHit(L, o){
 }
 
 /* ---------- darbe efektleri ---------- */
-function impactFX(L, x, y, dir, o){
-  const fx = L.fx || (L.fx = { rings:[], lines:0, lx:0, ly:0, bars:0 });
-  for (let i = 0; i < (o.heavy ? 9 : 5); i++){ const a = (dir > 0 ? 0 : Math.PI) + rand(-.7, .7), v = rand(380, 820); L.parts.push({ x, y, vx:Math.cos(a) * v, vy:Math.sin(a) * v - 60, life:rand(.14, .26), col:o.heavy ? '#ffffff' : '#ffe9a0', type:'streak', r:0, ang:a }); }
-  if (o.heavy || o.launch || o.finisher){ fx.rings.push({ x, y, t:0, big:!!o.finisher }); FX.zoom = Math.max(FX.zoom, o.finisher ? 1.22 : 1.06); FX.zx = x; FX.zy = y; }
-  if (o.finisher || o.launch){ fx.lines = .32; fx.lx = x; fx.ly = y; }
+function impactFX(L, x, y, dir, o, z = 0){
+  const fx = L.fx || (L.fx = { rings:[], lines:0, lx:0, ly:0, bars:0 }), dv = dirV(dir);
+  for (let i = 0; i < (o.heavy ? 9 : 5); i++){ const a = rand(-.7, .7), b = L.d3 ? rand(-.6, .6) : 0, v = rand(380, 820), h = Math.cos(a) * v, cx = Math.cos(b), sx = Math.sin(b);
+    L.parts.push({ x, y, z, vx:(dv.x * cx - dv.z * sx) * h, vz:(dv.z * cx + dv.x * sx) * h, vy:Math.sin(a) * v - 60, life:rand(.14, .26), col:o.heavy ? '#ffffff' : '#ffe9a0', type:'streak', r:0, ang:a }); }
+  if (o.heavy || o.launch || o.finisher){ fx.rings.push({ x, y, z, t:0, big:!!o.finisher, dv }); FX.zoom = Math.max(FX.zoom, o.finisher ? 1.22 : 1.06); FX.zx = x; FX.zy = y; }
+  if (o.finisher || o.launch){ fx.lines = .32; fx.lx = x; fx.ly = y; fx.lz = z; }
 }
 function fxTick(L, dt){
-  if (!L.chHint && L.ents.some(e => e.T && e.T.rush && !e.dead)){ L.chHint = true; L.hint = 'HÜCUMCU! Kırmızı yanıp koşar: çarpmadan hemen önce 🛡️ (MÜKEMMEL BLOK) ya da 💨 kay. Duvara çarparsa sersemler!'; L.hintT = 6; }
+  if (!L.chHint && L.ents.some(e => e.T && e.T.rush && !e.dead)){ L.chHint = true; L.hint = (L.d3 ? 'HÜCUMCU! Altında pembe halka çıkınca koşar:' : 'HÜCUMCU! Kırmızı yanıp koşar:') + ' çarpmadan hemen önce 🛡️ (MÜKEMMEL BLOK) ya da 💨 kay. Duvara çarparsa sersemler!'; L.hintT = 6; }
   const fx = L.fx; if (fx){ for (const r of fx.rings) r.t += dt; fx.rings = fx.rings.filter(r => r.t < .35); if (fx.lines > 0) fx.lines -= dt; if (fx.bars > 0 && !(L.finT > 0)) fx.bars = Math.max(0, fx.bars - dt * 3); }
   if (L.finT > 0){ L.finT -= dt; if (fx) fx.bars = Math.min(1, fx.bars + dt * 6); if (L.finT <= 0) L.finE = null; }
   if (L.sty){ const S = L.sty; if (S.hold > 0) S.hold -= dt; else S.v = Math.max(0, S.v - dt * 14); if (S.pop > 0) S.pop -= dt * 2.5; }
-  for (const q of L.parts) if (q.type === 'streak'){ q.vx *= Math.pow(.02, dt); q.vy *= Math.pow(.02, dt); }
+  for (const q of L.parts) if (q.type === 'streak'){ q.vx *= Math.pow(.02, dt); q.vy *= Math.pow(.02, dt); if (q.vz) q.vz *= Math.pow(.02, dt); }
 }
 function fxDrawWorld(c, L){
   const fx = L.fx; if (!fx) return;
@@ -72,43 +73,43 @@ function drawStyleRank(c, L){
 /* ---------- mükemmel blok / kaçış ---------- */
 function parry(L, p, e){
   SFX.parry(); SFX.clang(); vib([10, 30, 40]); hitstop = .16; shake = Math.max(shake, 7); FX.flash = .35;
-  spawnParts(L, p.x + p.face * 26, p.y - 82, '#9ad7ff', 14); impactFX(L, p.x + p.face * 26, p.y - 82, p.face, { heavy:true });
-  floatText(L, p.x, p.y - 150, 'MÜKEMMEL BLOK!', '#9ad7ff', 26); p.sup = Math.min(100, p.sup + 18); styleAdd(L, 24); p.inv = .25;
-  if (e && !e.dead){ e.wind = 0; e.strike = 0; e.dashing = 0; e.stun = 0; e.vx = -e.face * 260; e.dizzy = Math.max(e.dizzy || 0, e.T.boss ? .9 : 1.5); e.dz = 0;
-    if (!e.T.boss) SFX.dizzy(); floatText(L, e.x, e.y - 120, 'SENDELEDİ!', '#fff176', 20); }
+  const F = fwdOf(p); spawnParts(L, p.x + F.x * 26, p.y - 82, '#9ad7ff', 14, 'spark', 260, p.z + F.z * 26); impactFX(L, p.x + F.x * 26, p.y - 82, F, { heavy:true }, p.z + F.z * 26);
+  floatText(L, p.x, p.y - 150, 'MÜKEMMEL BLOK!', '#9ad7ff', 26, p.z); p.sup = Math.min(100, p.sup + 18); styleAdd(L, 24); p.inv = .25; p.parryT3 = .3;
+  if (e && !e.dead){ const av = awayV(e, p); e.wind = 0; e.strike = 0; e.dashing = 0; e.stun = 0; e.vx = av.x * 260; e.vz = av.z * 260; e.dizzy = Math.max(e.dizzy || 0, e.T.boss ? .9 : 1.5); e.dz = 0;
+    if (!e.T.boss) SFX.dizzy(); floatText(L, e.x, e.y - 120, 'SENDELEDİ!', '#fff176', 20, e.z); }
   if (!L.parryHint){ L.parryHint = true; L.hint = 'Harika! Sersemleyen rakibe 🦵 bas: BİTİRİCİ!'; L.hintT = 4; }
 }
 function perfectDodge(L, p, e){
   slowMo(p.x, p.y - 80, .5); SFX.whoosh ? SFX.whoosh() : SFX.dash(); vib(20);
-  floatText(L, p.x, p.y - 150, 'MÜKEMMEL KAÇIŞ!', '#7dff9a', 24); p.sup = Math.min(100, p.sup + 14); styleAdd(L, 18); p.inv = Math.max(p.inv, .35);
+  floatText(L, p.x, p.y - 150, 'MÜKEMMEL KAÇIŞ!', '#7dff9a', 24, p.z); p.sup = Math.min(100, p.sup + 14); styleAdd(L, 18); p.inv = Math.max(p.inv, .35);
   if (e && !e.dead && !e.T.boss){ e.stun = Math.max(e.stun, .5); }
 }
 
 /* ---------- bitirici ---------- */
 function finTarget(L, p){
   let best = null, bd = 1e9;
-  for (const e of L.ents){ if (e.dead || e.dummy || !(e.dizzy > 0) || e.down > 0 || e.grabbedBy || !sameLevel(e, p)) continue; const d = Math.abs(e.x - p.x); if (d < 100 && d < bd){ bd = d; best = e; } }
+  for (const e of L.ents){ if (e.dead || e.dummy || !(e.dizzy > 0) || e.down > 0 || e.grabbedBy || !sameLevel(e, p)) continue; const d = pdist(e, p); if (d < 100 && d < bd){ bd = d; best = e; } }
   return best;
 }
 function startFinisher(L, p, e){
-  p.face = e.x >= p.x ? 1 : -1; p.atk = { m:{ dur:1.05, a:0, b:0, special:'finisher', anim:'punch', heavy:true }, t:0, hit:new Set(), e, stage:0 };
-  p.inv = 1.3; p.vx = 0; e.dizzy = Math.max(e.dizzy, 1.2); e.inv = 0; e.face = -p.face; e.wind = 0; e.strike = 0;
+  faceTo(p, e.x, e.z); p.atk = { m:{ dur:1.05, a:0, b:0, special:'finisher', anim:'punch', heavy:true }, t:0, hit:new Set(), e, stage:0 };
+  p.inv = 1.3; p.vx = 0; p.vz = 0; e.dizzy = Math.max(e.dizzy, 1.2); e.inv = 0; faceTo(e, p.x, p.z); e.wind = 0; e.strike = 0;
   L.finT = 1.15; L.finE = e; FX.zoom = 1.12; FX.zx = (p.x + e.x) / 2; FX.zy = e.y - 90; SFX.anticip ? SFX.anticip() : SFX.whoosh && SFX.whoosh(); vib(20);
   grunt(p.mk === 'ufis' ? 'ufis' : 'issem', 'a', .28, 1.1);
 }
 function finisherTick(L, p, a, dt){
-  const e = a.e, m = a.m; p.vx = 0;
+  const e = a.e, m = a.m, F = fwdOf(p); p.vx = 0; p.vz = 0;
   if (!e || e.dead){ if (a.t > .3) a.t = m.dur; return; }
   // rakibi önümüzde tut
-  e.x = lerp(e.x, p.x + p.face * 62, Math.min(1, dt * 10)); FX.zx = (p.x + e.x) / 2; FX.zy = e.y - 90; FX.zoom = Math.max(FX.zoom, 1.12 + a.t * .12);
+  e.x = lerp(e.x, p.x + F.x * 62, Math.min(1, dt * 10)); e.z = lerp(e.z || 0, (p.z || 0) + F.z * 62, Math.min(1, dt * 10)); faceTo(e, p.x, p.z); FX.zx = (p.x + e.x) / 2; FX.zy = e.y - 90; FX.zoom = Math.max(FX.zoom, 1.12 + a.t * .12);
   const boss = e.T && e.T.boss, base = Math.round((p.mk === 'issem' ? 10 : 12) * (p.mk === 'issem' ? .85 + PST('guc') * .4 : 1));
-  const calm = () => { e.dizzy = 1; e.stun = 0; e.vx = 0; e.wind = 0; e.strike = 0; e.armorT = 0; e.hits = 0; e.hitT = 0; e.dashing = 0; };
-  if (a.stage === 0 && a.t > .12){ a.stage = 1; m.anim = 'punch'; calm(); hitEnemy(L, e, base, 0, p.face, { heavy:true }); calm(); }
-  else if (a.stage === 1 && a.t > .34){ a.stage = 2; m.anim = 'upper'; calm(); hitEnemy(L, e, base + 3, 0, p.face, { heavy:true }); calm(); }
+  const calm = () => { e.dizzy = 1; e.stun = 0; e.vx = 0; e.vz = 0; e.wind = 0; e.strike = 0; e.armorT = 0; e.hits = 0; e.hitT = 0; e.dashing = 0; };
+  if (a.stage === 0 && a.t > .12){ a.stage = 1; m.anim = 'punch'; calm(); hitEnemy(L, e, base, 0, F, { heavy:true }); calm(); }
+  else if (a.stage === 1 && a.t > .34){ a.stage = 2; m.anim = 'upper'; calm(); hitEnemy(L, e, base + 3, 0, F, { heavy:true }); calm(); }
   else if (a.stage === 2 && a.t > .6){ a.stage = 3; m.anim = 'flykick'; p.vy = -380; p.onGround = false;
     const dmg = boss ? Math.round(e.maxhp * .16) : e.hp + 50;
     calm(); e.dizzy = 0; slowMo(e.x, e.y - 80, .9); FX.flash = .5; hitstop = .18; shake = 18; SFX.crunch(); SFX.punchHeavy();
-    hitEnemy(L, e, dmg, 620, p.face, { heavy:true, down:true, launch:!boss, finisher:true, super:true });
-    floatText(L, e.x, e.y - 190, boss ? 'AĞIR DARBE!' : 'BİTİRDİ!', '#f2c230', 40); p.sup = Math.min(100, p.sup + 20);
+    hitEnemy(L, e, dmg, 620, F, { heavy:true, down:true, launch:!boss, finisher:true, super:true });
+    floatText(L, e.x, e.y - 190, boss ? 'AĞIR DARBE!' : 'BİTİRDİ!', '#f2c230', 40, e.z); p.sup = Math.min(100, p.sup + 20);
     say(pick(['Bitirici!', 'Ne vuruş ama!', 'Muhteşem!']), 'Spiker'); }
 }

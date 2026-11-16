@@ -233,33 +233,40 @@ const R3 = (() => {
   /* ---------- ifade ---------- */
   function setFace(R, ex, talk){
     const U = R.head.userData; if (!U || !U.brows) return;
-    const t = gameTime, open = talk && Math.sin(t * 22) > 0;
+    if (!U.b0) U.b0 = { eyes:U.eyes.map(e => e.scale.y), pup:U.pupils.map(p => p.scale.y), brows:U.brows.map(b => b.position.y), m:U.mouth ? U.mouth.scale.clone() : null };
+    const fs = U.fs || 1, t = gameTime, open = talk && Math.sin(t * 22) > 0;
     const brow = { angry:[.06, .5], shout:[.06, .5], shock:[.078, 0], sad:[.06, -.4], pain:[.058, -.4], dizzy:[.058, -.3] }[ex] || [.066, 0];
-    U.brows.forEach((b, i) => { b.position.y = brow[0]; b.rotation.x = (i ? -1 : 1) * brow[1]; });
+    U.brows.forEach((b, i) => { b.position.y = U.b0.brows[i] + (brow[0] - .066) * fs; b.rotation.x = (i ? -1 : 1) * brow[1]; });
     const eyeY = ex === 'shock' || ex === 'pain' ? 1.25 : ex === 'angry' || ex === 'shout' ? .7 : ex === 'happy' ? .55 : ex === 'ko' || ex === 'dizzy' ? .15 : 1;
-    U.eyes.forEach(e => e.scale.y = .026 * eyeY); U.pupils.forEach(p => { p.visible = ex !== 'ko'; p.scale.y = .015 * Math.min(1, eyeY + .2); });
-    const m = U.mouth; if (!m) return;
-    if (ex === 'shock' || ex === 'shout' || ex === 'pain' || open){ m.scale.set(.012, ex === 'shout' ? .05 : .04, ex === 'shout' ? .07 : .05); }
-    else if (ex === 'happy'){ m.scale.set(.012, .026, .085); }
-    else if (ex === 'smirk'){ m.scale.set(.012, .014, .06); m.rotation.x = .25; return; }
-    else m.scale.set(.012, .014, .062);
-    m.rotation.x = 0;
+    U.eyes.forEach((e, i) => e.scale.y = U.b0.eyes[i] * eyeY); U.pupils.forEach((p, i) => { p.visible = ex !== 'ko'; p.scale.y = U.b0.pup[i] * Math.min(1, eyeY + .2); });
+    const m = U.mouth; if (!m) return; const s0 = U.b0.m; let sy = 1, sz = 1, rx = 0;
+    if (ex === 'shock' || ex === 'shout' || ex === 'pain' || open){ sy = ex === 'shout' ? 3.57 : 2.86; sz = ex === 'shout' ? 1.13 : .8; }
+    else if (ex === 'happy'){ sy = 1.86; sz = 1.37; } else if (ex === 'smirk'){ sz = .97; rx = .25; }
+    m.scale.set(s0.x, s0.y * sy, s0.z * sz); m.rotation.x = rx;
   }
   /* ---------- poz uygula (2D açılar → 3B eklemler) ---------- */
   function applyPose(R, P, face, ex, talk, hold){
     const near = face >= 0 ? 0 : 1, far = 1 - near;
-    const L = R.legs, A = R.arms;
-    const setLeg = (l, a) => { l.leg.rotation.z = a[0]; l.knee.rotation.z = a[1] - a[0]; l.ank.rotation.z = -a[1]; };
-    const sp = P.spread || 0;
-    const ab = .1, setArm = (r, a) => { r.sh.rotation.z = a[0]; r.el.rotation.z = a[1] - a[0]; r.hand.rotation.z = 0; r.sh.rotation.x = r === A[0] ? -(sp + ab) : sp + ab; };
-    setLeg(L[near], P.fl); setLeg(L[far], P.bl); setArm(A[near], P.fa); setArm(A[far], P.ba);
-    R.hips.position.y = (56 - P.bob) / 100;
-    R.spine.rotation.z = -Math.atan2(P.lean, 41);
-    const tw = P.lie || P.rot ? 0 : clamp(((P.fa[0] || 0) - (P.ba[0] || 0)) * (near ? -1 : 1), -1.6, 1.6);   // kol salınımına göre gövde/kalça dönmesi
-    R.spine.rotation.y = tw * .07; R.hips.rotation.y = -tw * .045; R.head.rotation.y = -tw * .05;
+    const L = R.legs, A = R.arms, HB = R.hipBase || .56;
     R.body.rotation.set(0, 0, 0); R.body.position.set(0, 0, 0);
-    if (P.lie){ R.body.rotation.z = Math.PI / 2; R.body.position.y = .12; }
-    else if (P.rot){ R.body.rotation.z = -P.rot; R.body.position.y = .55; R.hips.position.y -= .55; }
+    if (P.L3){ const Q = P.L3;
+      for (let i = 0; i < 2; i++){ const sg = i ? -1 : 1, l = L[i], q = Q.legs[i], a = A[i], w = Q.arms[i];
+        l.leg.rotation.set(-sg * (q.ab || 0), -sg * (q.tw || 0), q.h); l.knee.rotation.set(0, 0, q.k); l.ank.rotation.set(0, 0, q.a || 0);
+        a.sh.rotation.set(-sg * (w.ab || 0), -sg * (w.tw || 0), w.s); a.el.rotation.set(0, 0, w.e); a.hand.rotation.set(0, 0, w.h || 0); }
+      R.hips.position.y = HB + (Q.pel.y || 0) * (HB / .98); R.hips.rotation.set(Q.pel.roll || 0, Q.pel.yaw || 0, Q.pel.pitch || 0);
+      R.spine.rotation.set(Q.sp.roll || 0, Q.sp.yaw || 0, Q.sp.pitch || 0); R.head.rotation.set(0, Q.hd.yaw || 0, Q.hd.pitch || 0);
+      setFace(R, ex, talk); setHeld(R, 0, hold === 'box' ? 'box' : hold); return; }
+    const setLeg = (l, a) => { l.leg.rotation.set(0, 0, a[0]); l.knee.rotation.set(0, 0, a[1] - a[0]); l.ank.rotation.set(0, 0, -a[1]); };
+    const sp = P.spread || 0;
+    const ab = R.real ? .12 : .1, setArm = (r, a) => { r.sh.rotation.set(r === A[0] ? -(sp + ab) : sp + ab, 0, a[0]); r.el.rotation.set(0, 0, a[1] - a[0]); r.hand.rotation.set(0, 0, 0); };
+    setLeg(L[near], P.fl); setLeg(L[far], P.bl); setArm(A[near], P.fa); setArm(A[far], P.ba);
+    if (R.real && !P.lie && !P.rot){ for (const l of L) l.leg.rotation.x = (l === L[0] ? -1 : 1) * .045; }
+    R.hips.position.y = HB * (1 - P.bob / 56);
+    R.spine.rotation.set(0, 0, -Math.atan2(P.lean, 41));
+    const tw = P.lie || P.rot ? 0 : clamp(((P.fa[0] || 0) - (P.ba[0] || 0)) * (near ? -1 : 1), -1.6, 1.6);   // kol salınımına göre gövde/kalça dönmesi
+    R.spine.rotation.y = tw * .07; R.hips.rotation.set(0, -tw * .045, 0); R.head.rotation.set(0, -tw * .05, 0);
+    if (P.lie){ R.body.rotation.z = Math.PI / 2; R.body.position.y = R.real ? .14 : .12; }
+    else if (P.rot){ R.body.rotation.z = -P.rot; R.body.position.y = HB; R.hips.position.y -= HB; }
     setFace(R, ex, talk);
     if (hold === 'box') setHeld(R, near, 'box'); else setHeld(R, near, hold);
   }
@@ -267,10 +274,10 @@ const R3 = (() => {
     if (R.tint === tint) return; R.tint = tint;
     R.root.traverse(o => { if (!o.isMesh) return; if (!o.userData.base) o.userData.base = o.material; o.material = tint ? mat(tint, { emissive:new T.Color(tint), emissiveIntensity:.6 }) : o.userData.base; });
   }
-  function rigFor(id, look){
+  function rigFor(id, look, real){
     let R = pool.get(id);
-    const sig = look.__sig || (look.__sig = Math.random().toString(36));
-    if (!R || R.sig !== sig){ if (R){ scene.remove(R.root); R.root.traverse(o => { if (o.isMesh && o.geometry.userData.own) o.geometry.dispose(); }); } R = buildRig(look); R.sig = sig; pool.set(id, R); scene.add(R.root); }
+    const sig = (look.__sig || (look.__sig = Math.random().toString(36))) + (real ? ':r' : '');
+    if (!R || R.sig !== sig){ if (R){ scene.remove(R.root); R.root.traverse(o => { if (o.isMesh && o.geometry.userData.own) o.geometry.dispose(); }); } R = real ? buildRealRig(look) : buildRig(look); R.sig = sig; pool.set(id, R); scene.add(R.root); }
     used.add(id); R.root.visible = true; return R;
   }
 
@@ -345,7 +352,7 @@ const R3 = (() => {
     shadowPlane = new T.Mesh(new T.PlaneGeometry(400, 12), new T.ShadowMaterial({ opacity:.38 })); shadowPlane.rotation.x = -Math.PI / 2; shadowPlane.receiveShadow = true; scene.add(shadowPlane);
     ready = true; resize3(); return true;
   }
-  function resize3(){ if (!ready) return; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, R3.lowRes ? 1 : 1.75)); renderer.setSize(W * scale, H * scale, false); g3.style.width = (W * scale) + 'px'; g3.style.height = (H * scale) + 'px'; }
+  function resize3(){ if (!ready) return; prNow = 0; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, R3.lowRes ? 1 : 1.75)); renderer.setSize(W * scale, H * scale, false); g3.style.width = (W * scale) + 'px'; g3.style.height = (H * scale) + 'px'; }
   addEventListener('resize', () => setTimeout(resize3, 50));
   const D = 2.7 / Math.tan(15 * Math.PI / 180);
   /* yan görünüm: kamera sabit, 1 birim = 100 ekran pikseli → karakterler 2D ekran koordinatına birebir oturur
@@ -381,7 +388,7 @@ const R3 = (() => {
   }
   /* serbest dünyada karakter (metre / birim) */
   function charW(id, look, P, wx, wy, wz, yaw, s = 1, ex = 'neutral', talk = false, hold = null, extra){
-    const R = rigFor(id, look); applyPose(R, P, extra && extra.face || 1, ex, talk, hold); tintRig(R, extra && extra.tint || null);
+    const R = rigFor(id, look, typeof buildRealRig === 'function' && !(extra && extra.oldRig)); applyPose(R, P, extra && extra.face || 1, ex, talk, hold); tintRig(R, extra && extra.tint || null);
     const sc = s * (look.scale || 1);
     R.root.position.set(wx, wy, wz); R.root.rotation.set(extra && extra.rx || 0, yaw, extra && extra.rz || 0, 'YXZ'); R.root.scale.set(sc, sc * (look.hgt || 1), sc);
     return R;
@@ -391,7 +398,8 @@ const R3 = (() => {
   function custom(id, build){ let o = pool.get(id); if (!o){ o = { root:build(), sig:'c' }; pool.set(id, o); scene.add(o.root); } used.add(id); o.root.visible = true; return o.root; }
   const _v = new T.Vector3();
   function project(x, y, z){ _v.set(x, y, z).project(cam); return { x:(_v.x + 1) / 2 * W, y:(1 - _v.y) / 2 * H, behind:_v.z > 1 }; }
-  function free(){ if (!init()) return false; mode = 'free'; drew = true; g3.style.display = 'block'; bgPlane.visible = false; shadowPlane.visible = false; cam.zoom = 1; R3.lift = 0; H3on = false; return true; }
+  let prNow = 0; function applyPR(cap){ const v = Math.min(window.devicePixelRatio || 1, R3.lowRes ? 1 : cap); if (v !== prNow){ prNow = v; renderer.setPixelRatio(v); renderer.setSize(W * scale, H * scale, false); } }
+  function free(){ if (!init()) return false; applyPR(2); mode = 'free'; drew = true; g3.style.display = 'block'; bgPlane.visible = false; shadowPlane.visible = false; cam.zoom = 1; R3.lift = 0; H3on = false; return true; }
   /* ---------- son işlem: parlama (bloom) + renk + vinyet — sadece futbolda; yavaş telefonda kendini kapatır ---------- */
   let PP = null;
   const PP_VS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
@@ -409,9 +417,10 @@ const R3 = (() => {
         down:ppMat('uniform sampler2D t; uniform vec2 px; varying vec2 vUv; void main(){ gl_FragColor = vec4((texture2D(t, vUv + px * vec2(-1., -1.)).rgb + texture2D(t, vUv + px * vec2(1., -1.)).rgb + texture2D(t, vUv + px * vec2(-1., 1.)).rgb + texture2D(t, vUv + px * vec2(1., 1.)).rgb) * .25, 1.); }', { t:{ value:null }, px:{ value:new T.Vector2() } }),
         blur:ppMat('uniform sampler2D t; uniform vec2 dir; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb * .2270; c += (texture2D(t, vUv + dir * 1.3846).rgb + texture2D(t, vUv - dir * 1.3846).rgb) * .3162; c += (texture2D(t, vUv + dir * 3.2308).rgb + texture2D(t, vUv - dir * 3.2308).rgb) * .0703; gl_FragColor = vec4(c, 1.); }', { t:{ value:null }, dir:{ value:new T.Vector2() } }),
         comp:new T.ShaderMaterial({ vertexShader:PP_VS, depthTest:false, depthWrite:false, toneMapped:true,
-          uniforms:{ tCol:{ value:null }, tB:{ value:null }, tH:{ value:null }, bloom:{ value:.55 }, sat:{ value:1.12 }, vig:{ value:.55 }, tint:{ value:new T.Vector3(1, 1, 1) }, lift:{ value:.0 } },
-          fragmentShader:`uniform sampler2D tCol, tB, tH; uniform float bloom, sat, vig, lift; uniform vec3 tint; varying vec2 vUv;
-            void main(){ vec3 c = texture2D(tCol, vUv).rgb; vec3 b = texture2D(tB, vUv).rgb + texture2D(tH, vUv).rgb * .35;
+          uniforms:{ tCol:{ value:null }, tB:{ value:null }, tH:{ value:null }, bloom:{ value:.55 }, sat:{ value:1.12 }, vig:{ value:.55 }, tint:{ value:new T.Vector3(1, 1, 1) }, lift:{ value:.0 }, px:{ value:new T.Vector2() }, sharp:{ value:.45 } },
+          fragmentShader:`uniform sampler2D tCol, tB, tH; uniform float bloom, sat, vig, lift, sharp; uniform vec3 tint; uniform vec2 px; varying vec2 vUv;
+            void main(){ vec3 c = texture2D(tCol, vUv).rgb; vec3 nb = (texture2D(tCol, vUv + vec2(px.x, 0.)).rgb + texture2D(tCol, vUv - vec2(px.x, 0.)).rgb + texture2D(tCol, vUv + vec2(0., px.y)).rgb + texture2D(tCol, vUv - vec2(0., px.y)).rgb) * .25;
+              c = max(vec3(0.), c + (c - nb) * sharp); vec3 b = texture2D(tB, vUv).rgb + texture2D(tH, vUv).rgb * .35;
               c += b * bloom; float l = dot(c, vec3(.2126, .7152, .0722)); c = mix(vec3(l), c, sat) * tint + lift;
               gl_FragColor = vec4(c, 1.);
               #include <tonemapping_fragment>
@@ -435,7 +444,7 @@ const R3 = (() => {
     M.down.uniforms.px.value.set(1 / (PP.w >> 1), 1 / (PP.h >> 1)); pass(M.down, PP.h2.texture, PP.q1);
     for (let k = 0; k < 2; k++){ M.blur.uniforms.dir.value.set(1 / (PP.w >> 2), 0); pass(M.blur, PP.q1.texture, PP.q2); M.blur.uniforms.dir.value.set(0, 1 / (PP.h >> 2)); pass(M.blur, PP.q2.texture, PP.q1); }
     const C = M.comp.uniforms; C.tCol.value = PP.rt.texture; C.tB.value = PP.q1.texture; C.tH.value = PP.h2.texture; C.bloom.value = P.bloom != null ? P.bloom : .55; C.sat.value = P.sat || 1.1; C.vig.value = P.vig != null ? P.vig : .5;
-    C.tint.value.set(...(P.tint || [1, 1, 1])); C.lift.value = P.lift || 0;
+    C.tint.value.set(...(P.tint || [1, 1, 1])); C.lift.value = P.lift || 0; C.px.value.set(1 / PP.w, 1 / PP.h); C.sharp.value = P.sharp != null ? P.sharp : .45;
     PP.quad.material = M.comp; renderer.setRenderTarget(null); renderer.render(PP.sc, PP.oc); rendered = true; }
   const ids = new Map(); let zc = 0;
   function autoId(look){ const sig = look.__sig || (look.__sig = Math.random().toString(36)); const n = (ids.get(sig) || 0) + 1; ids.set(sig, n); return sig + ':' + n; }

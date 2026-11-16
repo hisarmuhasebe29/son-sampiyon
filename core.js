@@ -3,7 +3,7 @@
    SON ŞAMPİYON — ARAÇ   ·   core.js
    ekran · yardımcılar · kayıt · ses · müzik · dublaj · kontroller
    ========================================================= */
-const VERSION = 'v.10';
+const VERSION = 'v.11';
 const W = 960, H = 540, GROUND = 470;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scale = 1, dpr = 1, paused = false;
@@ -538,7 +538,7 @@ function joySet(dx, dy){
   knobEl.style.transform = 'translate(' + (dx * 34) + '%,' + (dy * 34) + '%)';
   press('left', dx < -.35); press('right', dx > .35);
   const up = dy < -.55, dn = dy > .55;
-  if (up && !keys.up) press('jump', 1); else if (!up) press('jump', 0);
+  if (!JOY.noJump){ if (up && !keys.up) press('jump', 1); else if (!up) press('jump', 0); }
   press('up', up); press('down', dn);
 }
 function joyMove(e){ const r = joyEl.getBoundingClientRect(); const R = Math.max(r.width, r.height) / 2;
@@ -560,7 +560,7 @@ addEventListener('keydown', e => {
   audioInit();
   if (e.repeat) { if (KMAP[e.code] || e.code === 'ArrowUp' || e.code === 'Space') e.preventDefault(); return; }
   if (KMAP[e.code]){ press(KMAP[e.code], 1); e.preventDefault(); }
-  if (e.code === 'ArrowUp'){ press('up', 1); press('jump', 1); e.preventDefault(); }
+  if (e.code === 'ArrowUp'){ press('up', 1); if (!JOY.noJump) press('jump', 1); e.preventDefault(); }
   if (e.code === 'Enter'){ tap = { x: W / 2, y: H / 2, key: true }; e.preventDefault(); }
   if (e.code === 'Space'){ press('jump', 1); tap = { x: W / 2, y: H / 2, key: true }; e.preventDefault(); }
   if (e.code === 'Escape' || e.code === 'KeyP') tap = { x: W - 30, y: 30, pause: true };
@@ -574,9 +574,11 @@ const SLOTS = { A:'right:19vmin;bottom:3vmin;width:21vmin;height:21vmin;font-siz
   /* futbol: PES mobil tarzı elmas dizilim */
   H:'right:34vmin;bottom:14vmin;width:19vmin;height:19vmin;font-size:7vmin;border-color:#5aa0ff', I:'right:15vmin;bottom:1vmin;width:17vmin;height:17vmin;font-size:6vmin;border-color:#2ecc71',
   J:'right:15vmin;bottom:33vmin;width:17vmin;height:17vmin;font-size:6vmin;border-color:#f1c40f', K:'right:0vmin;bottom:16vmin;width:16vmin;height:16vmin;font-size:6vmin;border-color:#ff6b6b',
-  L:'right:36vmin;bottom:35vmin;width:13vmin;height:13vmin;font-size:5vmin;border-color:#9ad7ff' };
+  L:'right:36vmin;bottom:35vmin;width:13vmin;height:13vmin;font-size:5vmin;border-color:#9ad7ff',
+  M:'right:40vmin;bottom:37vmin;width:15vmin;height:15vmin;font-size:6vmin;border-color:#7dff9a' };
 const MODES = {
   fight: { punch:['A', '👊'], kick:['B', '🦵'], block:['C', '🛡️'], slide:['D', '💨'], super:['E', '⭐'], grab:['F', '✋'], swap:['G', '⇄'] },
+  fight3:{ punch:['A', '👊'], kick:['B', '🦵'], block:['C', '🛡️'], slide:['D', '💨'], super:['E', '⭐'], grab:['F', '✋'], swap:['G', '⇄'], jump:['M', '⬆'] },
   match: { shoot:['A', '⚽'], dash:['B', '💨'], tackle:['C', '🦶'] },
   shot:  { shoot:['A', '⚽'] },
   foot:  { shoot:['H', '⚽'], pass:['I', '➡️'], thru:['J', '⤴️'], lob:['K', '🌙'], dash:['L', '💨'] },
@@ -584,7 +586,7 @@ const MODES = {
 const UI = document.getElementById('ui');
 function showControls(mode, opt = {}){
   UI.style.display = mode ? 'block' : 'none';
-  for (const k in keys) keys[k] = 0; JOY.x = JOY.y = 0; knobEl.style.transform = '';
+  for (const k in keys) keys[k] = 0; JOY.x = JOY.y = 0; knobEl.style.transform = ''; JOY.noJump = mode === 'fight3';
   if (!mode) return;
   const M = MODES[mode];
   document.querySelectorAll('.btn').forEach(b => {
