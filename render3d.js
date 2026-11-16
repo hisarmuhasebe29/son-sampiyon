@@ -12,11 +12,11 @@ const R3 = (() => {
   const pool = new Map(), used = new Set();
   const g3 = document.getElementById('g3');
   /* ---------- malzeme & geometri önbelleği ---------- */
-  const MATS = new Map();
+  const MATS = new Map(), NUMTEX = new Map();
   function mat(col, o){ const k = col + (o ? JSON.stringify(o) : ''); let m = MATS.get(k);
     if (!m){ m = new T.MeshStandardMaterial(Object.assign({ color:new T.Color(col), roughness:.6, metalness:.04 }, o || {})); MATS.set(k, m); } return m; }
   const GEO = { sph:new T.SphereGeometry(1, 22, 16), box:new T.BoxGeometry(1, 1, 1), cyl:new T.CylinderGeometry(1, 1, 1, 18), cone:new T.ConeGeometry(1, 1, 14),
-    cap:new T.SphereGeometry(1, 22, 12, 0, Math.PI * 2, 0, Math.PI * .56), torso:new T.CylinderGeometry(1, .76, 1, 20), skirt:new T.CylinderGeometry(.86, 1, 1, 20, 1, true),
+    cap:new T.SphereGeometry(1, 22, 12, 0, Math.PI * 2, 0, Math.PI * .56), torso:(() => { const pts = [[.74, -.5], [.78, -.38], [.86, -.15], [.97, .12], [1.0, .3], [.93, .42], [.72, .49], [.35, .5]].map(([x, y]) => new T.Vector2(x, y)); return new T.LatheGeometry(pts, 22); })(), limb:new T.CylinderGeometry(1, .82, 1, 16), skirt:new T.CylinderGeometry(.86, 1, 1, 20, 1, true),
     ring:new T.TorusGeometry(1, .08, 8, 32), brim:new T.CylinderGeometry(1, 1, 1, 24) };
   function mesh(geo, m, sx, sy, sz, x = 0, y = 0, z = 0){ const o = new T.Mesh(GEO[geo] || geo, m); o.scale.set(sx, sy, sz); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = false; return o; }
   const G = () => new T.Group();
@@ -43,6 +43,11 @@ const R3 = (() => {
       if (look.glasses) H.add(mesh('box', mat('#0a0a0a'), .01, .008, .05, .142, .03, 0));
       const nose = mesh('cone', mat(shade(look.skin, .9)), .024, .06, .024, .152, -.012, 0); nose.rotation.z = -Math.PI / 2; H.add(nose);
       U.mouth = mesh('box', mat('#6b1f1f'), .012, .014, .062, .134, -.074, 0); U.mouth.userData.dyn = 1; H.add(U.mouth);
+      const lid = mat(shade(look.skin, .92)), lip = mat(shade(look.skin, .78));
+      for (const z of [.052, -.052]){ const l = mesh('cap', lid, .021, .02, .034, .112, .033, z); l.rotation.z = -.2; H.add(l); }
+      H.add(mesh('sph', lip, .012, .009, .036, .136, -.061, 0)); H.add(mesh('sph', lip, .013, .011, .04, .133, -.088, 0));
+      H.add(mesh('sph', mat(shade(look.skin, 1.04)), .03, .022, .03, .118, -.03, .07)); H.add(mesh('sph', mat(shade(look.skin, 1.04)), .03, .022, .03, .118, -.03, -.07));
+      H.add(mesh('box', mat(shade(look.skin, .95)), .02, .05, .022, .145, .01, 0));
       if (look.scar) H.add(mesh('box', mat('#8a3a3a'), .006, .09, .01, .135, .02, -.075));
     }
     // saç
@@ -69,7 +74,7 @@ const R3 = (() => {
       else { const s = mesh('sph', mat(look.beard, { transparent:true, opacity:.45 }), .137, .08, .137, .01, -.07, 0); H.add(s); } }
     return H;
   }
-  function limb(parent, len, r, m, jointM){ parent.add(mesh('cyl', m, r, len, r, 0, -len / 2, 0)); if (jointM) parent.add(mesh('sph', jointM, r * 1.05, r * 1.05, r * 1.05)); }
+  function limb(parent, len, r, m, jointM){ parent.add(mesh('limb', m, r, len, r, 0, -len / 2, 0)); if (jointM) parent.add(mesh('sph', jointM, r * 1.05, r * 1.05, r * 1.05)); }
   function fist(parent, look, gloves){
     const sk = gloves ? mat('#f5f5f5') : mat(look.skin);
     parent.add(mesh('box', sk, .062, .07, .07, .006, -.032, 0));
@@ -104,6 +109,9 @@ const R3 = (() => {
     if (look.tie){ spine.add(mesh('box', mat('#e8e8e8'), .02, .16, .06, .118 * wt, .33, 0)); spine.add(mesh('box', mat(look.tie), .02, .22, .03, .125 * wt, .28, 0)); }
     if (look.suit) spine.add(mesh('box', mat(shade(look.shirt, .8)), .02, .3, .02, .121 * wt, .26, .05));
     spine.add(mesh('cyl', skin, .052, .1, .05, 0, .46, 0));
+    if (look.sh && look.num){ const key = look.num + '|' + look.stripe + '|' + look.shirt; let tx = NUMTEX.get(key);
+      if (!tx){ tx = canvasTex(128, 128, (c, w, h) => { c.clearRect(0, 0, w, h); c.font = '900 88px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 8; c.strokeStyle = shade(look.shirt, .6); c.strokeText(look.num, w / 2, h / 2 + 6); c.fillStyle = look.stripe || '#ffffff'; c.fillText(look.num, w / 2, h / 2 + 6); }); NUMTEX.set(key, tx); }
+      const pl = new T.Mesh(new T.PlaneGeometry(.2, .2), new T.MeshStandardMaterial({ map:tx, transparent:true, alphaTest:.4, roughness:.7 })); pl.position.set(-.188 * wt, .27, 0); pl.rotation.y = -Math.PI / 2; spine.add(pl); }
     const head = R.head = buildHead(look); head.position.set(.01, .6, 0); head.scale.setScalar(1.14); spine.add(head);
     for (const side of [1, -1]){
       const sh = G(); sh.position.set(0, .4, side * .2 * wt); spine.add(sh);
@@ -264,6 +272,10 @@ const R3 = (() => {
     sun = new T.DirectionalLight(0xfff2dd, 2.3); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.0006;
     const sc = sun.shadow.camera; sc.left = -9; sc.right = 9; sc.top = 6; sc.bottom = -6; sc.near = .5; sc.far = 60; scene.add(sun); scene.add(sun.target);
     fill = new T.DirectionalLight(0x9ab8ff, .6); scene.add(fill);
+    try { const pm = new T.PMREMGenerator(renderer), es = new T.Scene();
+      const sky = new T.Mesh(new T.SphereGeometry(20, 32, 16), new T.MeshBasicMaterial({ side:T.BackSide, map:canvasTex(16, 256, (c, w, h) => { const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#ffffff'); g.addColorStop(.45, '#dfe9f5'); g.addColorStop(.55, '#8a9a7a'); g.addColorStop(1, '#3a4a30'); c.fillStyle = g; c.fillRect(0, 0, w, h); }) }));
+      es.add(sky); for (const [x, y, z] of [[8, 10, 6], [-9, 8, 4], [0, 12, -8]]){ const p = new T.Mesh(new T.PlaneGeometry(7, 4), new T.MeshBasicMaterial({ color:0xffffff, side:T.DoubleSide })); p.position.set(x, y, z); p.lookAt(0, 0, 0); es.add(p); }
+      scene.environment = pm.fromScene(es, .03).texture; scene.environmentIntensity = .55; pm.dispose(); } catch(e){}
     bgCanvas = document.createElement('canvas'); bgCanvas.width = W; bgCanvas.height = H; bgCtx = bgCanvas.getContext('2d');
     bgTex = new T.CanvasTexture(bgCanvas); bgTex.colorSpace = T.SRGBColorSpace;
     bgPlane = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map:bgTex, toneMapped:false, depthWrite:false }));
@@ -282,7 +294,7 @@ const R3 = (() => {
     mode = 'side'; drew = true; g3.style.display = 'block';
     cam.fov = 30; cam.zoom = 1; cam.aspect = W / H; cam.position.set(4.8, 2.7, D); cam.rotation.set(0, 0, 0); cam.updateProjectionMatrix();
     bgPlane.visible = false; shadowPlane.visible = true; shadowPlane.position.set(4.8, (540 - groundY) / 100 + .002, 0);
-    scene.background = null; scene.fog = null; hemi.intensity = o.dark ? .75 : 1.25; sun.intensity = o.dark ? 1.4 : 2.3; fill.intensity = .6;
+    scene.background = null; scene.fog = null; hemi.intensity = o.dark ? .75 : o.bright ? 1.7 : 1.25; sun.intensity = o.dark ? 1.4 : o.bright ? 2.8 : 2.3; fill.intensity = o.bright ? 1.1 : .6;
     shadowBox(9, 6, 60); sun.position.set(2.2, 9.5, 7); sun.target.position.set(4.8, .5, 0); fill.position.set(8, 3, 6);
     R3.lift = 0; H3on = true;
     return true;

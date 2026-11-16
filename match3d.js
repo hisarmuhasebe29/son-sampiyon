@@ -60,7 +60,7 @@ function Match3D(def){
     else { v = clamp(d * 1.05 + 6, 9, 24); vy = kind === 'clear' ? 7 : 0; if (kind === 'clear') v = 22; }
     B.owner = null; B.vx = dx / d * v; B.vz = dz / d * v; B.vy = vy; B.y = BR + .02; B.last = p.t; B.flight = { kind, by:p, t:0, tried:new Set([p]) };
     passRecv = recv || null; if (recv){ recv.runTo = { x:tx, z:tz }; }
-    p.kick = .42; SFX.ballKick();
+    p.kick = .42; (kind === 'lob' ? SFX.lobKick : kind === 'clear' ? SFX.ballKick : SFX.pass)();
   }
   function bestMate(p, ux, uz, ahead){
     let best = null, bs = -1e9;
@@ -86,7 +86,7 @@ function Match3D(def){
   function shootUs(){
     const p = ctrl; B.x = p.x + Math.cos(p.yaw) * .5; B.z = p.z - Math.sin(p.yaw) * .5;
     M.shot = f3Shot(B, M.aim, M.power, { curl:.35, acc:p === me ? PST('sut') : .5 }); const K = teams[1][0];
-    f3Resolve(M.shot, K, { keeperMul:training ? .8 : 1 }); keeperDive(K, M.shot.dive || { z:K.z, y:1, react:.3 }, M.shot);
+    f3Resolve(M.shot, K, { keeperMul:training ? .8 : 1 }); keeperDive(K, M.shot.dive || { z:K.z, y:1, react:.3 }, M.shot); setTimeout(() => SFX.dive(), 380); SFX.anticip();
     B.owner = null; B.last = 0; M.state = 'shot'; p.kick = .42; SFX.ballKick(); vib(30); M.charging = false; M.shooter = p;
   }
   function shootThem(p){
@@ -100,20 +100,21 @@ function Match3D(def){
     B.x = q.x; B.y = q.y; B.z = q.z; B.vx = (q.x - q0.x) * k; B.vy = (q.y - q0.y) * k; B.vz = (q.z - q0.z) * k; B.flight = { kind:'shot', t:0, tried:new Set(all) };
     const K = teams[ours ? 1 : 0][0];
     if (ev === 'goal'){ M.state = 'goal'; M.stT = ours ? 3.6 : 2.4; f3Net(M, Sh.side); M.inNet = Sh.side; SFX.net(); M.shake = 9;
-      if (ours){ M.goals++; M.score[0]++; SFX.goal(); crowdLevel(.38); vib([80, 60, 200]); M.cheer = true; wtext(M, 'GOOOOL!', GL - 3, 3.4, B.z * .4, '#f2c230', 88);
+      if (ours){ M.goals++; M.score[0]++; SFX.goal(); SFX.airhorn(); crowdLevel(.38); vib([80, 60, 200]); M.cheer = true; wtext(M, 'GOOOOL!', GL - 3, 3.4, B.z * .4, '#f2c230', 88);
         say(M.shooter === me ? nm(pick(['Gol! Gol! Issem!', 'Muhteşem bir gol! Issem!'])) : pick(['Gol! Harika bir takım golü!', 'Ağlar havalandı!']), 'Spiker'); confetti(M, 120);
         M.scorer = M.shooter; M.cx = clamp(M.shooter.x + 3, -40, GL - 6); M.cz = clamp(M.shooter.z, -20, 20); M.ct = 0; }
-      else { M.score[1]++; SFX.ooh(); wtext(M, 'RAKİP GOL ATTI!', -GL + 3, 3.2, B.z * .4, '#ff6b6b', 50); say('Rakip gol attı!', 'Spiker'); crowdLevel(.06); }
+      else { M.score[1]++; SFX.boo(); wtext(M, 'RAKİP GOL ATTI!', -GL + 3, 3.2, B.z * .4, '#ff6b6b', 50); say('Rakip gol attı!', 'Spiker'); crowdLevel(.06); }
       return; }
     M.state = 'play'; M.inNet = 0; SFX.ooh(); let msg = 'AUT!';
-    if (ev === 'catch'){ B.vx = B.vy = B.vz = 0; K.hold = true; give(K); K.holdT = .35; SFX.punch(); msg = 'KALECİ YAKALADI!'; }
-    else if (ev === 'parry'){ B.vx = -Sh.side * 3.5; B.vy = 3.4; B.vz = (Math.sign(B.z - K.z) || 1) * 5.5; SFX.punch(); msg = 'KALECİ ÇELDİ!'; }
+    if (ev === 'catch'){ B.vx = B.vy = B.vz = 0; K.hold = true; give(K); K.holdT = .35; SFX.gloveCatch(); if (ours) SFX.ooh(); else SFX.applause(); msg = 'KALECİ YAKALADI!'; }
+    else if (ev === 'parry'){ B.vx = -Sh.side * 3.5; B.vy = 3.4; B.vz = (Math.sign(B.z - K.z) || 1) * 5.5; SFX.glovePunch(); if (!ours) SFX.applause(); msg = 'KALECİ ÇELDİ!'; }
     else if (ev === 'post' || ev === 'bar'){ B.vx = -Sh.side * 5.5; B.vy = ev === 'bar' ? 3 : 1.4; B.vz = -Math.sign(B.z) * 2.4; SFX.post(); msg = ev === 'bar' ? 'ÜST DİREK!' : 'DİREK!'; M.shake = 4; }
     else { msg = ev === 'over' ? 'ÜSTTEN AUT!' : 'AUT!'; goalKick(ours ? 1 : 0); }
     wtext(M, msg, Sh.side * (GL - 2), 3.2, B.z * .5, '#ffffff', 44);
     if (!ours && (ev === 'catch' || ev === 'parry')) wtext(M, 'KURTARIŞ!', -GL + 4, 2.6, 0, '#7dff9a', 34);
+    say(ev === 'catch' || ev === 'parry' ? pick(['Kurtarış!', 'Kaleci gol vermiyor!']) : ev === 'post' || ev === 'bar' ? 'Direkten döndü!' : pick(['Az farkla dışarıda.', 'Aut.']), 'Spiker');
   }
-  function goalKick(team){ const K = teams[team][0]; K.z = 0; K.x = K.g * (GL - 2); B.x = K.x - K.g * .5; B.z = 0; B.vx = B.vy = B.vz = 0; give(K); K.holdT = .5; say2('AUT ATIŞI'); SFX.whistle(); }
+  function goalKick(team){ SFX.shortWhistle(); const K = teams[team][0]; K.z = 0; K.x = K.g * (GL - 2); B.x = K.x - K.g * .5; B.z = 0; B.vx = B.vy = B.vz = 0; give(K); K.holdT = .5; say2('AUT ATIŞI'); SFX.whistle(); }
   /* ---------- taç / korner ---------- */
   function outOfPlay(){
     if (Math.abs(B.z) > 34.2){ const team = 1 - B.last; const z = Math.sign(B.z) * 33.4, x = clamp(B.x, -GL + 2, GL - 2);
@@ -125,7 +126,7 @@ function Match3D(def){
   function restartAt(team, x, z, what){
     B.x = x; B.z = z; B.y = BR; B.vx = B.vy = B.vz = 0; B.flight = null;
     let best = null, bd = 1e9; for (const p of teams[team]) if (p.role !== 'GK'){ const d = Math.hypot(p.x - x, p.z - z); if (d < bd){ bd = d; best = p; } }
-    best.x = x - Math.sign(z) * 0 - dirOf(team) * .4; best.z = z - Math.sign(z) * .5; give(best); best.holdT = .9; say2(what); SFX.whistle();
+    best.x = x - Math.sign(z) * 0 - dirOf(team) * .4; best.z = z - Math.sign(z) * .5; give(best); best.holdT = .9; say2(what); SFX.shortWhistle(); if (what === 'KORNER' && team === 0) SFX.anticip(); say(what === 'KORNER' ? 'Korner.' : 'Taç.', 'Spiker');
   }
   /* ---------- güncelle ---------- */
   M.update = dt => {
@@ -193,8 +194,8 @@ function Match3D(def){
       if (took('pass')){ let best = null, bd = 1e9; for (const p of teams[0]) if (p !== c && p.role !== 'GK'){ const d = Math.hypot(p.x - B.x, p.z - B.z); if (d < bd){ bd = d; best = p; } } if (best){ ctrl = best; switchLock = 1.2; SFX.click(); } }
       if (took('lob') && c.slideT <= 0 && c.down <= 0){ c.slideT = .5; if (own) c.yaw = yawTo(own.x - c.x, own.z - c.z); SFX.slide(); }
       if (took('shoot') && own && own.t === 1 && c.tackleCd <= 0){ c.tackleCd = .6; c.kick = .35; const d = Math.hypot(own.x - c.x, own.z - c.z);
-        if (d < 1.7 && Math.random() < (.38 + (c === me ? PST('guc') * .25 : .1)) / Math.sqrt(D.aggr)){ own.down = .5; give(c); SFX.kick(); vib(30); wtext(M, 'TOPU KAPTIN!', c.x, 2.6, c.z, '#7dff9a', 30); } else SFX.whiff(); }
-      if (c.slideT > 0 && own && own.t === 1 && Math.hypot(own.x - (c.x + Math.cos(c.yaw) * .7), own.z - (c.z - Math.sin(c.yaw) * .7)) < 1.2){ own.down = 1; give(c); SFX.kick(); vib(40); SFX.crowd(); wtext(M, 'KAYARAK ALDIN!', c.x, 2.6, c.z, '#7dff9a', 32); }
+        if (d < 1.7 && Math.random() < (.38 + (c === me ? PST('guc') * .25 : .1)) / Math.sqrt(D.aggr)){ own.down = .5; give(c); SFX.tackleHit(); SFX.applause(); vib(30); wtext(M, 'TOPU KAPTIN!', c.x, 2.6, c.z, '#7dff9a', 30); } else SFX.whiff(); }
+      if (c.slideT > 0 && own && own.t === 1 && Math.hypot(own.x - (c.x + Math.cos(c.yaw) * .7), own.z - (c.z - Math.sin(c.yaw) * .7)) < 1.2){ own.down = 1; give(c); SFX.tackleHit(); vib(40); SFX.applause(); wtext(M, 'KAYARAK ALDIN!', c.x, 2.6, c.z, '#7dff9a', 32); }
     }
     // yapay zekâ
     const poss = own ? own.t : B.last;
@@ -227,7 +228,7 @@ function Match3D(def){
         // rakip savunma: bizim topçuya müdahale (kırmızı halka uyarısı)
         if (t === 1 && own && own.t === 0 && chasers.includes(p)){ const od = Math.hypot(own.x - p.x, own.z - p.z);
           if (p.wind > 0){ p.wind -= dt; p.vx *= .3; p.vz *= .3; if (p.wind <= 0){ p.kick = .35; p.tackleCd = 1.2;
-              if (Math.hypot(own.x - p.x, own.z - p.z) < 1.8 && own.burst <= 0){ M.tackles++; SFX.hurt(); SFX.whistle(); vib(90); M.shake = 6; wtext(M, 'TOP KAPTIRILDI!', own.x, 2.6, own.z, '#ff6b6b', 30); own.down = .45; M.charging = false; give(p); }
+              if (Math.hypot(own.x - p.x, own.z - p.z) < 1.8 && own.burst <= 0){ M.tackles++; SFX.tackleHit(); SFX.ooh(); vib(90); M.shake = 6; wtext(M, 'TOP KAPTIRILDI!', own.x, 2.6, own.z, '#ff6b6b', 30); own.down = .45; M.charging = false; give(p); }
               else { SFX.whiff(); if (own.burst > 0) wtext(M, 'ÇALIM!', own.x, 2.6, own.z, '#7dff9a', 30); } } }
           else if (od < 2.6 && p.tackleCd <= 0 && M.state === 'play'){ p.wind = .42 / D.aggr * (training ? 1.35 : 1); } }
         // bizim yapay zekâ: rakip topçuya müdahale
@@ -236,6 +237,9 @@ function Match3D(def){
       }
     }
     // top
+    if (B.owner && B.owner.t === 0 && B.owner.sp > 1.5){ M.touchT = (M.touchT || 0) - dt; if (M.touchT <= 0){ SFX.touch(); M.touchT = B.owner.sp > 6.5 ? .28 : .4; } }
+    M.chantT = (M.chantT || 18) - dt; if (M.chantT <= 0 && !training){ SFX.chant(); M.chantT = rand(18, 30); }
+    if (B.owner && B.owner.t === 0 && B.owner.x > GL - 24 && !M.antic){ M.antic = true; SFX.anticip(); crowdLevel(.24); } else if (!(B.owner && B.owner.t === 0 && B.owner.x > GL - 24) && M.antic){ M.antic = false; crowdLevel(training ? .06 : .15); }
     if (B.owner && B.owner.role !== 'GK'){ const o = B.owner, lead = .5 + Math.abs(Math.sin(o.animT * 6)) * .22 * Math.min(1, o.sp / 5);
       B.x = o.x + Math.cos(o.yaw) * lead; B.z = o.z - Math.sin(o.yaw) * lead; B.y = BR; B.yaw = o.yaw; B.rot -= o.sp * dt / BR; B.vx = o.vx; B.vz = o.vz; B.vy = 0; }
     else if (!B.owner){ freeBall(dt); }
@@ -244,7 +248,7 @@ function Match3D(def){
   }
   function freeBall(dt){
     B.vy -= 9.8 * dt; B.x += B.vx * dt; B.y += B.vy * dt; B.z += B.vz * dt;
-    if (B.y < BR){ B.y = BR; if (B.vy < -1.5) B.vy = -B.vy * .45; else B.vy = 0; }
+    if (B.y < BR){ B.y = BR; if (B.vy < -1.5){ SFX.bounce(Math.min(1, -B.vy / 8)); B.vy = -B.vy * .45; } else B.vy = 0; }
     if (B.y <= BR + .01){ const f = Math.pow(.42, dt); B.vx *= f; B.vz *= f; }
     const sp = Math.hypot(B.vx, B.vz); if (sp > .1){ B.yaw = yawTo(B.vx, B.vz); B.rot -= sp * dt / BR; }
     if (B.flight) B.flight.t += dt;
@@ -254,7 +258,7 @@ function Match3D(def){
       if (d < r && B.y < (isRecv ? 2.3 : 1.2)){
         if (B.flight && B.flight.by && B.flight.by.t === p.t && !isRecv && B.flight.t < .25) continue;
         if (B.flight && B.flight.by && B.flight.by.t !== p.t && !isRecv){ if (B.flight.tried.has(p)) continue; B.flight.tried.add(p); const ch = (p.t === 0 ? (p === ctrl ? .75 : .45) : .38 * D.aggr) * (1 - Math.min(.6, sp / 40)); if (Math.random() > ch) continue; }
-        give(p); if (p.t === 0) SFX.ballKick(); return; } }
+        give(p); (B.y > 1.3 ? SFX.header : SFX.trap)(); return; } }
   }
   function gkAI(K, dt){
     if (B.owner === K){ K.hold = true; if (!(K.holdT > 0) && K.st === 'ready'){ K.hold = false; const t = K.t, opp = teams[1 - t];

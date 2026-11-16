@@ -357,6 +357,39 @@ function drawPortrait(c, cx, cy, R, key, ex = 'neutral', talk = false){
 /* =========================================================
    IŞIK — lambaya yakın dar, aşağı doğru genişleyen koni
    ========================================================= */
+/* ---------- aydınlık stadyum (kapak / ikon): beyaza çalan, parlak, sabah ışığı ---------- */
+const BRIGHT_CROWD = [];
+function bgBright(c, t, w = W, h = H){
+  const sky = c.createLinearGradient(0, 0, 0, h * .55); sky.addColorStop(0, '#ffffff'); sky.addColorStop(1, '#dde7f1'); c.fillStyle = sky; c.fillRect(0, 0, w, h);
+  if (!BRIGHT_CROWD.length) for (let i = 0; i < 2600; i++) BRIGHT_CROWD.push([Math.random(), Math.random(), pick(['#9fb2c8', '#c2cfdd', '#d6c9b8', '#b8c7a8', '#d9b3b3', '#a9b9d6', '#e3e3e3', '#8ea3bd'])]);
+  // çatı kemeri
+  c.strokeStyle = 'rgba(160,175,195,.55)'; c.lineWidth = w * .006; c.beginPath(); c.moveTo(-w * .05, h * .16); c.quadraticCurveTo(w * .5, -h * .05, w * 1.05, h * .16); c.stroke();
+  c.lineWidth = w * .002; for (let i = 0; i <= 24; i++){ const x = i / 24 * w; c.beginPath(); c.moveTo(x, h * .08 + Math.abs(i - 12) * h * .006); c.lineTo(x + w * .02, h * .2); c.stroke(); }
+  // tribünler (iki kat)
+  for (const [y0, y1, a] of [[.17, .36, .75], [.37, .6, .9]]){
+    const g = c.createLinearGradient(0, h * y0, 0, h * y1); g.addColorStop(0, '#cfd9e4'); g.addColorStop(1, '#aebdcc'); c.fillStyle = g;
+    c.beginPath(); c.moveTo(0, h * (y0 + .03)); c.quadraticCurveTo(w * .5, h * (y0 - .03), w, h * (y0 + .03)); c.lineTo(w, h * y1); c.lineTo(0, h * y1); c.fill();
+    c.globalAlpha = a; for (const [px, py, col] of BRIGHT_CROWD){ const y = h * (y0 + .02 + py * (y1 - y0 - .03)), x = px * w; c.fillStyle = col; c.fillRect(x, y + Math.sin(t * 6 + px * 40) * h * .002, w * .0045, h * .007); } c.globalAlpha = 1; }
+  c.fillStyle = 'rgba(255,255,255,.55)'; c.fillRect(0, h * .36, w, h * .012);
+  // reklam şeridi + saha
+  c.fillStyle = '#e8eef5'; c.fillRect(0, h * .6, w, h * .03);
+  const p = c.createLinearGradient(0, h * .63, 0, h); p.addColorStop(0, '#8fc27a'); p.addColorStop(1, '#5d9a4c'); c.fillStyle = p; c.fillRect(0, h * .63, w, h * .37);
+  c.fillStyle = 'rgba(255,255,255,.12)'; for (let i = 0; i < 8; i++){ c.beginPath(); c.moveTo(w * (i / 8), h * .63); c.lineTo(w * ((i + .5) / 8), h * .63); c.lineTo(w * ((i + .5) / 8) * 1.4 - w * .2, h); c.lineTo(w * (i / 8) * 1.4 - w * .2, h); c.fill(); }
+  // ışık patlaması ve beyaz pus (aşırı pozlanmış görünüm)
+  const sun = c.createRadialGradient(w * .78, h * .12, 0, w * .78, h * .12, w * .55); sun.addColorStop(0, 'rgba(255,255,255,1)'); sun.addColorStop(.25, 'rgba(255,255,255,.7)'); sun.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = sun; c.fillRect(0, 0, w, h);
+  const haze = c.createRadialGradient(w * .5, h * .55, h * .2, w * .5, h * .55, w * .75); haze.addColorStop(0, 'rgba(255,255,255,0)'); haze.addColorStop(1, 'rgba(255,255,255,.75)'); c.fillStyle = haze; c.fillRect(0, 0, w, h);
+}
+/* ARAÇ rozeti (kendi tasarımımız) */
+function aracBadge(c, x, y, r){
+  c.save(); c.fillStyle = '#ffffff'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); c.lineWidth = r * .12; c.strokeStyle = '#14306b'; c.stroke();
+  c.lineWidth = r * .04; c.strokeStyle = '#f2c230'; c.beginPath(); c.arc(x, y, r * .8, 0, 7); c.stroke();
+  c.font = 'italic 900 ' + Math.round(r * .62) + 'px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#14306b'; c.fillText('ARAÇ', x, y + r * .04);
+  c.restore();
+}
+/* sarı pencere ışığı: yıldız şeklinde */
+function starRect(c, x, y, w, h, glow){ const r = Math.min(w, h) * .62 + 1, cx = x + w / 2, cy = y + h / 2;
+  if (glow){ const st = c.fillStyle; c.save(); c.globalAlpha *= .35; c.beginPath(); c.arc(cx, cy, r * 1.6, 0, 7); c.fill(); c.restore(); c.fillStyle = st; }
+  c.beginPath(); for (let k = 0; k < 10; k++){ const rr2 = k % 2 ? r * .45 : r, an = k * Math.PI / 5 - Math.PI / 2; c.lineTo(cx + Math.cos(an) * rr2, cy + Math.sin(an) * rr2); } c.closePath(); c.fill(); }
 function lightCone(c, x, y0, w0, w1, y1, rgb = '255,232,170', a = .32){
   const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, 'rgba(' + rgb + ',' + a + ')'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
   c.fillStyle = g; c.beginPath(); c.moveTo(x - w0 / 2, y0); c.lineTo(x + w0 / 2, y0); c.lineTo(x + w1 / 2, y1); c.lineTo(x - w1 / 2, y1); c.closePath(); c.fill();
@@ -583,7 +616,7 @@ function bgSehir(c, t, car){
   c.fillStyle = '#f5f0d0'; c.beginPath(); c.arc(820, 80, 34, 0, 7); c.fill();
   for (const b of BUILD){ c.fillStyle = '#10142a'; c.fillRect(b.x, 400 - b.h, b.w, b.h);
     c.fillStyle = 'rgba(255,214,102,.75)'; for (let y = 420 - b.h; y < 390; y += 22) for (let x = b.x + 8; x < b.x + b.w - 8; x += 16)
-      if (((x * 7 + y * 3) | 0) % 5 === 0) c.fillRect(x, y, 6, 9); }
+      if (((x * 7 + y * 3) | 0) % 5 === 0) starRect(c, x - 2, y - 1, 10, 11); }
   c.fillStyle = '#1b1d29'; c.fillRect(0, 400, W, H - 400);
   c.fillStyle = '#f2c230'; for (let x = 0; x < W; x += 80) c.fillRect(x, 500, 40, 5);
   drawProp(c, 'streetlamp', 640, {}, t);
@@ -650,7 +683,7 @@ function bgSokak(c, camX, st, t){
   const g = c.createLinearGradient(0, 0, 0, 260); g.addColorStop(0, '#0a1024'); g.addColorStop(1, '#1d2a52'); c.fillStyle = g; c.fillRect(0, 0, W, 300);
   // uzak binalar (parallaks)
   const fx = -(camX * .3) % 220; c.fillStyle = '#121a33'; for (let i = -1; i < 7; i++){ const x = fx + i * 220, h = 120 + ((i * 7919 + Math.floor(camX * .3 / 220) * 31) % 5) * 26; c.fillRect(x, 200 - h, 180, h + 100);
-    c.fillStyle = 'rgba(255,220,140,.35)'; for (let k = 0; k < 8; k++) if ((i * 13 + k * 7) % 3) c.fillRect(x + 14 + (k % 4) * 40, 200 - h + 18 + Math.floor(k / 4) * 34, 16, 18); c.fillStyle = '#121a33'; }
+    c.fillStyle = 'rgba(255,214,110,.75)'; for (let k = 0; k < 8; k++) if ((i * 13 + k * 7) % 3) starRect(c, x + 14 + (k % 4) * 40, 200 - h + 18 + Math.floor(k / 4) * 34, 16, 18, true); c.fillStyle = '#121a33'; }
   // dükkân cephesi
   const bx = -(camX % 320);
   for (let i = -1; i < 5; i++){ const x = bx + i * 320, s = SHOPS[((Math.floor(camX / 320) + i) % SHOPS.length + SHOPS.length) % SHOPS.length];
@@ -689,7 +722,7 @@ function bgArkaSokak(c, camX, st, t){
   for (let i = -1; i < 4; i++){ const x = bx + i * 400;
     c.fillStyle = i % 2 ? '#5a2e26' : '#4e2a24'; c.fillRect(x, 0, 400, 430);
     c.fillStyle = 'rgba(0,0,0,.22)'; for (let y = 0; y < 430; y += 16){ c.fillRect(x, y, 400, 2); for (let k = (y / 16) % 2 ? 0 : 24; k < 400; k += 48) c.fillRect(x + k, y, 2, 16); }
-    c.fillStyle = '#1a1c24'; c.fillRect(x + 60, 70, 90, 110); c.fillStyle = 'rgba(255,210,120,' + (.5 + .2 * Math.sin(t * 3 + i)) + ')'; c.fillRect(x + 68, 78, 74, 94);
+    c.fillStyle = '#1a1c24'; c.fillRect(x + 60, 70, 90, 110); c.fillStyle = '#2a2230'; c.fillRect(x + 68, 78, 74, 94); c.fillStyle = 'rgba(255,210,120,' + (.75 + .2 * Math.sin(t * 3 + i)) + ')'; starRect(c, x + 75, 88, 60, 74, true);
     c.strokeStyle = '#2b2f37'; c.lineWidth = 4; c.strokeRect(x + 220, 60, 130, 6); c.strokeRect(x + 220, 190, 130, 6);
     for (let k = 0; k < 6; k++){ c.beginPath(); c.moveTo(x + 226 + k * 24, 60); c.lineTo(x + 226 + k * 24, 196); c.stroke(); }
     c.beginPath(); c.moveTo(x + 230, 196); c.lineTo(x + 330, 330); c.moveTo(x + 250, 196); c.lineTo(x + 350, 330); c.stroke();

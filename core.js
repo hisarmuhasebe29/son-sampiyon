@@ -3,19 +3,26 @@
    SON ŞAMPİYON — ARAÇ   ·   core.js
    ekran · yardımcılar · kayıt · ses · müzik · dublaj · kontroller
    ========================================================= */
-const VERSION = 'v.07';
+const VERSION = 'v.08';
 const W = 960, H = 540, GROUND = 470;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scale = 1, dpr = 1, paused = false;
+/* telefon dik tutulsa bile oyun yatay: tüm sahne 90° döndürülür */
+let ROT = false, APPW = innerWidth, APPH = innerHeight;
 function resize(){
   dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const sw = innerWidth, sh = innerHeight;
-  scale = Math.min(sw / W, sh / H);
+  ROT = innerHeight > innerWidth * 1.05;
+  APPW = ROT ? innerHeight : innerWidth; APPH = ROT ? innerWidth : innerHeight;
+  const app = document.getElementById('app');
+  app.style.width = APPW + 'px'; app.style.height = APPH + 'px'; app.style.transform = ROT ? 'rotate(90deg) translateY(-100%)' : 'none';
+  scale = Math.min(APPW / W, APPH / H);
   cv.style.width = (W * scale) + 'px'; cv.style.height = (H * scale) + 'px';
   cv.width = Math.round(W * scale * dpr); cv.height = Math.round(H * scale * dpr);
-  paused = sh > sw * 1.05;
-  document.getElementById('rotate').style.display = paused ? 'flex' : 'none';
+  paused = false;
 }
+function toLocal(x, y){ return ROT ? [y, innerWidth - x] : [x, y]; }
+function cvOff(){ return { left:(APPW - W * scale) / 2, top:(APPH - H * scale) / 2 }; }
+function evXY(e){ const [lx, ly] = toLocal(e.clientX, e.clientY), o = cvOff(); return { x:(lx - o.left) / scale, y:(ly - o.top) / scale }; }
 addEventListener('resize', resize); addEventListener('orientationchange', () => setTimeout(resize, 200));
 resize();
 
@@ -95,11 +102,16 @@ const ICON_SVG = {
   pin:'<path d="M12 22s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',
   mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
   refresh:'<path d="M20 12a8 8 0 1 1-2.5-5.8L20 8M20 3v5h-5"/>',
+  coin:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5"/><path d="M12 9.5v5"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.6c2.8.2 4.8 2 5.5 5"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
+  eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  play:'<path d="M7 4l13 8-13 8z"/>',
 };
 const EMOJI2ICON = { '👊':'fist', '🦵':'kick', '🦶':'boot', '🛡':'shield', '💨':'wind', '⚽':'ball', '✋':'hand', '⭐':'star', '★':'star', '⇄':'swap', '➡':'arrow',
   '⤴':'thru', '🌙':'lob', '⬆':'up', '⬇':'down', '🔥':'fire', '⚡':'bolt', '🔁':'loop', '🔄':'loop', '❤':'heart', '👤':'user', '🎲':'dice', '🎯':'target',
   '🚪':'door', '🪟':'window', '🪜':'ladder', '⚠':'warn', '⏱':'timer', '🚨':'siren', '🔊':'speaker', '📱':'phone', '📖':'book', '🎵':'music', '🔇':'mute',
-  '🗣':'voice', '🤐':'novoice', '🔒':'lock', '⏭':'skip', '📹':'camera', '🛝':'slide', '🥋':'gi', '💻':'laptop', '📍':'pin', '✉':'mail', '⟳':'refresh', '↺':'refresh' };
+  '🗣':'voice', '🤐':'novoice', '🔒':'lock', '⏭':'skip', '📹':'camera', '🛝':'slide', '🥋':'gi', '💻':'laptop', '📍':'pin', '✉':'mail', '⟳':'refresh', '↺':'refresh', '🪙':'coin', '👥':'users', '🌐':'globe', '👁':'eye' };
 const ICON_RE = new RegExp('(' + Object.keys(EMOJI2ICON).join('|') + ')\\ufe0f?', 'gu');
 const ICON_IMG = {};
 function iconImg(name, col, sw = 2.2){
@@ -245,6 +257,8 @@ const SFX = {
   crowd(){ noise(2.2, .14, 0, 300, 2500); },
   ooh(){ tone(220, .8, 'sawtooth', .04, -60); noise(1, .12, 0, 300, 1200); },
   blip(){ tone(900, .02, 'square', .015); },
+  type(){ noise(.018, .22, 0, 2200, 9000); tone(rand(1500, 1900), .012, 'square', .02); },
+  typeBell(){ tone(2100, .25, 'sine', .07); },
   click(){ tone(1600, .03, 'square', .05); tone(2400, .03, 'square', .03, 0, .02); },
   ok(){ tone(660, .08, 'triangle', .15); tone(990, .14, 'triangle', .15, 0, .08); },
   ko(){ tone(320, .45, 'sawtooth', .1, -260); noise(.2, .3, 0, 0, 900); },
@@ -283,6 +297,46 @@ const SFX = {
   static(){ noise(.5, .25, 0, 1000); },
   screenOff(){ tone(4000, .25, 'sine', .05, -3800); noise(.1, .1, 0, 3000); },
   rank(){ boom(0, .4); tone(880, .3, 'triangle', .12); },
+  /* --- dövüş (Sifu kapsamı) --- */
+  punchFace(){ noise(.05, .5, 0, 600, 5000); noise(.02, .35, .005, 3000); tone(rand(150, 210), .08, 'sine', .45, -80); },
+  bodyBlow(){ noise(.09, .55, 0, 0, 900); tone(rand(70, 95), .16, 'sine', .7, -30); },
+  elbow(){ noise(.04, .55, 0, 1200, 6000); tone(240, .06, 'square', .12, -120); },
+  crunch(){ noise(.14, .6, 0, 0, 2200); for (let i = 0; i < 5; i++) noise(.012, .3, i * .018, 2500, 8000); tone(60, .25, 'sine', .7, -20); },
+  parry(){ swoosh(.12, .2, 0, 1500, 6000); tone(2600, .12, 'sine', .12, -600); tone(1300, .08, 'triangle', .12, 0, .01); noise(.03, .3, 0, 3500); },
+  perfect(){ tone(1760, .3, 'sine', .12); tone(2637, .4, 'sine', .08, 0, .05); swoosh(.25, .15, 0, 2000, 8000); },
+  whiffHeavy(){ swoosh(.22, .28, 0, 300, 1800); },
+  step(){ noise(.03, .07, 0, 300, 1500); },
+  bodyFall(){ noise(.2, .55, 0, 0, 700); tone(55, .3, 'sine', .7, -15); noise(.06, .2, .12, 0, 900); },
+  wallSlam(){ noise(.16, .6, 0, 0, 1200); tone(70, .3, 'sine', .7, -20); noise(.1, .2, .05, 2000, 6000); },
+  clang(){ tone(620, .6, 'triangle', .14, -40); tone(1640, .5, 'sine', .1); tone(2480, .3, 'sine', .05); noise(.04, .4, 0, 2500); },
+  batHit(){ noise(.1, .6, 0, 300, 3000); tone(260, .12, 'square', .12, -120); },
+  bottle(){ SFX.glass(); noise(.06, .4, 0, 4000); },
+  clatter(){ for (let i = 0; i < 4; i++){ tone(rand(900, 1700), .07, 'square', .05, 0, i * .07); noise(.03, .15, i * .07, 2000); } },
+  alert(){ tone(520, .08, 'square', .05); tone(780, .1, 'square', .05, 0, .07); },
+  heart(){ tone(55, .12, 'sine', .7); tone(50, .14, 'sine', .55, 0, .2); },
+  slowmo(){ swoosh(1.0, .3, 0, 2000, 200); tone(140, 1.0, 'sawtooth', .05, -100); },
+  combo(){ tone(rand(1100, 1500), .06, 'triangle', .08); },
+  /* --- futbol (FIFA kapsamı) --- */
+  pass(){ noise(.03, .4, 0, 0, 2600); tone(150, .07, 'sine', .45, -60); },
+  lobKick(){ noise(.05, .5, 0, 0, 1800); tone(90, .14, 'sine', .7, -40); },
+  touch(){ noise(.02, .12, 0, 0, 1800); tone(180, .04, 'sine', .14, -60); },
+  trap(){ noise(.04, .25, 0, 0, 1200); tone(120, .07, 'sine', .3, -40); },
+  header(){ noise(.04, .45, 0, 0, 1400); tone(170, .07, 'sine', .5, -70); },
+  bounce(v = 1){ noise(.03, .18 * v, 0, 0, 1000); tone(95, .06, 'sine', .3 * v, -40); },
+  gloveCatch(){ noise(.06, .55, 0, 200, 2500); tone(140, .08, 'sine', .5, -60); noise(.02, .2, .03, 3000); },
+  glovePunch(){ noise(.05, .6, 0, 0, 3000); tone(200, .06, 'square', .12, -100); },
+  dive(){ noise(.25, .3, 0, 200, 1800); tone(60, .2, 'sine', .4, -10, .18); },
+  tackleHit(){ noise(.1, .5, 0, 0, 1100); tone(80, .14, 'sine', .5, -30); },
+  shortWhistle(){ refWhistle([.16]); },
+  airhorn(){ for (const f of [233, 294, 349]) tone(f, 1.2, 'sawtooth', .05, 0, 0); },
+  boo(){ noise(2.4, .18, 0, 150, 700); for (let i = 0; i < 8; i++) tone(rand(1600, 2600), rand(.3, .7), 'sine', .02, rand(-200, 200), rand(0, 1.5)); },
+  anticip(){ noise(1.6, .14, 0, 300, 2400); },
+  chant(){ for (let i = 0; i < 8; i++){ noise(.06, .22, i * .3, 1000, 4500); if (i % 2 === 0) noise(.5, .1, i * .3, 300, 1400); } },
+  applause(){ for (let i = 0; i < 26; i++) noise(.03, .12, rand(0, 1.8), 1200, 7000); },
+  coin(){ tone(1568, .08, 'square', .06); tone(2093, .16, 'square', .06, 0, .07); },
+  buy(){ [784, 988, 1175, 1568].forEach((f, i) => tone(f, .12, 'triangle', .1, 0, i * .07)); },
+  back(){ tone(1200, .03, 'square', .04); tone(800, .04, 'square', .04, 0, .03); },
+  flip(){ swoosh(.2, .2, 0, 1000, 5000); },
 };
 function refWhistle(parts){ let t = 0; for (const d of parts){ if (!AC) return;
   const t0 = AC.currentTime + t; const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), lfo = AC.createOscillator(), lg = AC.createGain();
@@ -406,21 +460,54 @@ const VOX = {
   'Leo':{ p:1.05, r:1.02 }, 'Usta':{ p:.52, r:.74 }, 'Narak':{ p:.5, r:1.14 }, 'Dövüşçü':{ p:.32, r:.84 },
   'Gizemli Kişi':{ p:.28, r:.74 }, 'Spiker':{ p:1.3, r:1.24 },
 };
-let TR_VOICES = [], SPEAKING = false, SPEAK_ID = 0;
-function loadVoices(){ try { TR_VOICES = speechSynthesis.getVoices().filter(v => /^tr/i.test(v.lang)); } catch(e){} }
-if (window.speechSynthesis){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
-const clean = s => String(s).replace(/[←-⯿\u{1F000}-\u{1FFFF}️]/gu, '').replace(/…/g, '.').trim();
+/* ---------- dublaj: her karaktere ayrı ses (telefondaki Türkçe sesler + ton/hız) ----------
+   Not: sesler/<karakter>_<bölüm>_<satır>.mp3 kaydı eklenirse otomatik onu çalar (VOICE_FILES) */
+let TR_VOICES = [], ALL_VOICES = [], SPEAKING = false, SPEAK_ID = 0, VOICE_OK = null, VOICE_TRIED = 0;
+const FEMALE_V = /yelda|filiz|seda|emel|zeynep|female|kadın|x-ama|x-cfs|x-efu|-f-|#f/i;
+function loadVoices(){ try { ALL_VOICES = speechSynthesis.getVoices(); TR_VOICES = ALL_VOICES.filter(v => /^tr/i.test(v.lang)); } catch(e){} }
+if (window.speechSynthesis){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; setTimeout(loadVoices, 600); setTimeout(loadVoices, 2500); }
+const clean = s => String(s).replace(/[←-⯿\u{1F000}-\u{1FFFF}️]/gu, '').replace(/…/g, '.').replace(/[«»"]/g, '').trim();
+const VOX_SEX = { narr:'f', 'Spiker':'m' };
+function voiceFor(who){
+  if (!TR_VOICES.length) return null;
+  const fem = TR_VOICES.filter(v => FEMALE_V.test(v.name + ' ' + v.voiceURI)), male = TR_VOICES.filter(v => !FEMALE_V.test(v.name + ' ' + v.voiceURI));
+  const want = VOX_SEX[who] === 'f' ? (fem.length ? fem : TR_VOICES) : (male.length ? male : TR_VOICES);
+  if (who === 'Lider') who = 'Gizemli Adam';
+  let h = 0; for (const ch of String(who)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return want[h % want.length];
+}
+const UTTER = [];                                            // Chrome: konuşma nesnesi çöpe gitmesin
+function voiceAvailable(){ return !!window.speechSynthesis && VOICE_OK !== false; }
 function say(text, who, onend){
   if (!SAVE.voice || !window.speechSynthesis){ return false; }
   try {
-    speechSynthesis.cancel(); const t = clean(nmz(text)); if (!t) return false;
+    const t = clean(nmz(text)); if (!t) return false;
+    const was = speechSynthesis.speaking || speechSynthesis.pending; if (was) speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(t); u.lang = 'tr-TR';
-    const v = VOX[who] || VOX.narr; u.pitch = v.p; u.rate = v.r; u.volume = 1;
-    if (TR_VOICES.length) u.voice = TR_VOICES[who && who !== 'narr' && TR_VOICES.length > 1 && v.p > 1.1 ? 1 : 0];
+    const v = VOX[who] || VOX.narr; u.pitch = clamp(v.p, 0, 2); u.rate = clamp(v.r, .5, 1.6); u.volume = 1;
+    const vo = voiceFor(who || 'narr'); if (vo){ u.voice = vo; u.lang = vo.lang; }
     const id = ++SPEAK_ID; SPEAKING = true; setDuck(.3);
-    const end = () => { if (id === SPEAK_ID){ SPEAKING = false; setDuck(1); if (onend) onend(); } };
-    u.onend = end; u.onerror = end; speechSynthesis.speak(u); return true;
+    const end = () => { if (id === SPEAK_ID){ SPEAKING = false; setDuck(1); if (onend) onend(); } const i = UTTER.indexOf(u); if (i >= 0) UTTER.splice(i, 1); };
+    u.onstart = () => { VOICE_OK = true; };
+    u.onend = end; u.onerror = ev => { if (ev && ev.error !== 'interrupted' && ev.error !== 'canceled' && VOICE_OK !== true && ++VOICE_TRIED >= 2) VOICE_OK = false; end(); };
+    UTTER.push(u); if (UTTER.length > 8) UTTER.shift();
+    const go = () => { if (id === SPEAK_ID){ try { speechSynthesis.resume(); speechSynthesis.speak(u); } catch(e){} } };
+    if (was) setTimeout(go, 70); else go();                  // Android hatası: cancel'dan hemen sonra speak susar
+    setTimeout(() => { if (VOICE_OK === null && id === SPEAK_ID && !speechSynthesis.speaking){ if (++VOICE_TRIED >= 2) VOICE_OK = false; end(); } }, 2500);
+    return true;
   } catch(e){ SPEAKING = false; return false; }
+}
+/* ---------- efor / acı sesleri (sentez: "hu!", "ha!", "hya!", "ah!") ---------- */
+const GRUNT = { ufis:{ f:118, v:1 }, issem:{ f:205, v:.8 }, enemy:{ f:96, v:.7 }, boss:{ f:78, v:.9 } };
+const VFORM = { u:[320, 800], a:[760, 1150], o:[480, 900], e:[520, 1750], i:[300, 2200] };
+function grunt(who = 'ufis', vowel = 'a', len = .16, vol = 1){
+  if (!AC) return; const g0 = GRUNT[who] || GRUNT.enemy, t = AC.currentTime, f = g0.f * rand(.94, 1.08), V = g0.v * vol * .9;
+  const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f * 1.25, t); o.frequency.exponentialRampToValueAtTime(f * .82, t + len);
+  const out = AC.createGain(); env(out, t, V * .5, .012, len); out.connect(SFXG);
+  for (const [i, fr] of (VFORM[vowel] || VFORM.a).entries()){ const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = fr; bp.Q.value = 7 + i * 3; const gg = AC.createGain(); gg.gain.value = i ? .5 : 1; o.connect(bp); bp.connect(gg); gg.connect(out); }
+  const s = AC.createBufferSource(); s.buffer = nbuf(); const hp = AC.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 1400; hp.Q.value = .8;
+  const ng = AC.createGain(); env(ng, t, V * .28, .004, len * .7); s.connect(hp); hp.connect(ng); ng.connect(SFXG);   // nefes ("h")
+  o.start(t); o.stop(t + len + .05); s.start(t, Math.random()); s.stop(t + len);
 }
 function hush(){ SPEAK_ID++; SPEAKING = false; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} setDuck(1); }
 function unlockSpeech(){ try { if (window.speechSynthesis){ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } } catch(e){} }
@@ -452,14 +539,19 @@ function joySet(dx, dy){
   if (up && !keys.up) press('jump', 1); else if (!up) press('jump', 0);
   press('up', up); press('down', dn);
 }
-function joyMove(e){ const r = joyEl.getBoundingClientRect(); const R = r.width / 2;
-  let dx = (e.clientX - r.left - R) / (R * .8), dy = (e.clientY - r.top - R) / (R * .8); const m = Math.hypot(dx, dy); if (m > 1){ dx /= m; dy /= m; } joySet(dx, dy); }
+function joyMove(e){ const r = joyEl.getBoundingClientRect(); const R = Math.max(r.width, r.height) / 2;
+  const [cx, cy] = toLocal(r.left + r.width / 2, r.top + r.height / 2), [px, py] = toLocal(e.clientX, e.clientY);
+  let dx = (px - cx) / (R * .8), dy = (py - cy) / (R * .8); const m = Math.hypot(dx, dy); if (m > 1){ dx /= m; dy /= m; } joySet(dx, dy); }
 joyEl.addEventListener('pointerdown', e => { e.preventDefault(); audioInit(); joyId = e.pointerId; try { joyEl.setPointerCapture(joyId); } catch(_){} JOY.active = true; joyEl.classList.add('on'); joyMove(e); });
 joyEl.addEventListener('pointermove', e => { if (e.pointerId === joyId){ e.preventDefault(); joyMove(e); } });
 const joyEnd = e => { if (e.pointerId !== joyId) return; joyId = null; JOY.active = false; joyEl.classList.remove('on'); joySet(0, 0); };
 joyEl.addEventListener('pointerup', joyEnd); joyEl.addEventListener('pointercancel', joyEnd);
 
-cv.addEventListener('pointerdown', e => { audioInit(); const r = cv.getBoundingClientRect(); tap = { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale }; });
+cv.addEventListener('pointerdown', e => { audioInit(); tap = evXY(e); });
+/* ilk dokunuşta: ses, konuşma ve tam ekran açılır (telefonlar sesi dokunmadan açtırmaz) */
+let FIRST_TOUCH = false;
+function firstTouch(){ if (FIRST_TOUCH) return; FIRST_TOUCH = true; audioInit(); unlockSpeech(); if (typeof fs === 'function') fs(); }
+addEventListener('pointerdown', firstTouch, true); addEventListener('keydown', firstTouch, true);
 addEventListener('contextmenu', e => e.preventDefault());
 const KMAP = { ArrowLeft:'left', ArrowRight:'right', ArrowDown:'down', KeyZ:'punch', KeyX:'kick', KeyC:'block', KeyV:'slide', KeyA:'grab', KeyD:'super', KeyS:'swap', KeyQ:'shoot', KeyW:'dash', KeyE:'tackle', KeyR:'pass', KeyF:'thru', KeyG:'lob' };
 addEventListener('keydown', e => {

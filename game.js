@@ -27,11 +27,12 @@ function endChapter(){
   if (avg > .5) reasons.push('−1 ★  Çok hasar aldın (ortalama canının %' + Math.round(avg * 100) + '\'ini kaybettin). İpucu: kombo yap, sersemleyen düşmanı bitir, can şişelerini topla.');
   if (stats.tackles > 3) reasons.push('Maçlarda topu ' + stats.tackles + ' kez kaptırdın. İpucu: rakip kırmızı yanınca ⬆ zıpla ya da 💨 çalım at.');
   let st = 3 - (stats.retries > 0 ? 1 : 0) - (avg > .5 ? 1 : 0); st = Math.max(1, st);
-  SAVE.stars[curCh] = Math.max(SAVE.stars[curCh] || 0, st);
+  const before = SAVE.stars[curCh] || 0, coins = awardCoins(curCh, st, before);
+  SAVE.stars[curCh] = Math.max(before, st);
   SAVE.maxCh = Math.max(SAVE.maxCh, Math.min(10, curCh + 1));
   SAVE.cur = curCh < 10 ? { ch:curCh + 1, i:0 } : null; persist();
   showControls(null);
-  cur = ChapterEnd(curCh, st, reasons, stats.ranks.slice());
+  cur = ChapterEnd(curCh, st, reasons, stats.ranks.slice(), coins);
 }
 function toCover(){ showControls(null); crowdAmb(false); hush(); cur = Cover(); }
 function fs(){ try { const d = document.documentElement; if (d.requestFullscreen && !document.fullscreenElement) d.requestFullscreen().catch(() => {});
@@ -105,12 +106,14 @@ function Intro(){
    ========================================================= */
 function Cover(){
   const K = { t:0, msg:'' }; playMusic('menu');
-  const bMain = { x:340, y:212, w:280, h:58, size:24 }, bCh = { x:340, y:280, w:280, h:46, size:20 }, bDiff = { x:340, y:334, w:280, h:42, size:18 },
+  const bMain = { x:340, y:180, w:280, h:56, size:22 }, bMP = { x:340, y:242, w:280, h:46, size:19 }, bCh = { x:340, y:294, w:280, h:40, size:18 }, bDiff = { x:340, y:340, w:280, h:38, size:16 },
     bMus = { x:340, y:384, w:136, h:40, size:15 }, bVox = { x:484, y:384, w:136, h:40, size:15 }, bUpd = { x:796, y:496, w:154, h:32, size:13 }, bPl = { x:796, y:452, w:154, h:38, size:15 };
   K.update = dt => { K.t += dt;
     if (!tap) return;
     if (inB(bMain, tap) || tap.key){ SFX.whistle(); fs(); const s = SAVE.cur; if (!SAVE.player){ cur = Creator(() => startChapter(1)); return; } if (s && (s.ch > 1 || s.i > 0)) startChapter(s.ch, s.i); else startChapter(1); }
     else if (inB(bPl, tap)){ SFX.click(); cur = Creator(); }
+    else if (inB(bMP, tap)){ SFX.click(); fs(); cur = Lobby(); }
+    else if (K.chip && inB(K.chip, tap)){ SFX.click(); cur = ProfileScreen(); }
     else if (inB(bCh, tap)){ SFX.click(); cur = ChapterSelect(); }
     else if (inB(bDiff, tap)){ SAVE.diff = (SAVE.diff + 1) % 3; persist(); SFX.click(); }
     else if (inB(bMus, tap)){ SAVE.music = SAVE.music ? 0 : 1; persist(); SFX.click(); if (SAVE.music){ MUSIC.kind = null; playMusic('menu'); } else stopMusic(); }
@@ -118,27 +121,31 @@ function Cover(){
     else if (inB(bUpd, tap)){ SFX.click(); UPDATE_MSG = 'Kontrol ediliyor…'; checkVersion(true); }
   };
   K.draw = c => {
-    const D3 = R3.side(515), b = D3 ? R3.bgFrom(c) : c;
-    bgStad(b, K.t, { cheer:true, noBoard:true });
-    const g = b.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(5,8,25,.5)'); g.addColorStop(1, 'rgba(5,8,25,.88)'); b.fillStyle = g; b.fillRect(0, 0, W, H);
-    for (let i = 0; i < 6; i++){ const a = K.t * .3 + i; b.fillStyle = 'rgba(242,194,48,.06)'; b.beginPath(); b.moveTo(480, 520); b.lineTo(480 + Math.cos(a) * 900, 520 + Math.sin(a) * 900 - 600); b.lineTo(480 + Math.cos(a + .12) * 900, 520 + Math.sin(a + .12) * 900 - 600); b.fill(); }
-    b.strokeStyle = 'rgba(242,194,48,' + (.35 + .25 * Math.sin(K.t * 6)) + ')'; b.lineWidth = 3; b.beginPath();
-    for (let x = 250; x <= 710; x += 20) b.lineTo(x, 350 + Math.sin(x * .07 + K.t * 12) * 10); b.stroke();
-    drawHuman(c, 170, 515, LOOK.issem, getPose({ animT:K.t, pose:'guard' }), 1, 2.25, 1, null, 'angry');
-    drawHuman(c, 790, 515, LOOK.ufis, getPose({ animT:K.t + 1, pose:'guard' }), -1, 2.25, 1, null, 'angry');
-    drawBall(c, 250, 500, K.t * 3, 1.6);
-    txt(c, 'ARAÇ', 22, 34, 22, '#f2c230', 'left', 'italic 900');
-    c.font = 'italic 900 84px ' + FONT; c.textAlign = 'center'; c.lineWidth = 10; c.strokeStyle = '#000000'; c.lineJoin = 'round'; c.strokeText('SON ŞAMPİYON', 480, 118);
-    const tg = c.createLinearGradient(0, 50, 0, 120); tg.addColorStop(0, '#fff6c8'); tg.addColorStop(.6, '#f2c230'); tg.addColorStop(1, '#b37a00'); c.fillStyle = tg; c.fillText('SON ŞAMPİYON', 480, 118); c.textAlign = 'left';
-    txt(c, 'Birinde saha, diğerinde savaş alanı. İkisinde de şampiyonluk mücadelesi!', 480, 158, 17, '#d8e0ff', 'center', 'italic', 4, 640);
+    const D3 = R3.side(540, { bright:true }), b = D3 ? R3.bgFrom(c) : c;
+    bgBright(b, K.t);
+    const fade = b.createLinearGradient(0, 0, 0, H); fade.addColorStop(0, 'rgba(255,255,255,0)'); fade.addColorStop(.75, 'rgba(255,255,255,0)'); fade.addColorStop(1, 'rgba(230,238,246,.6)'); b.fillStyle = fade; b.fillRect(0, 0, W, H);
+    // kahramanlar: Issem önde sevinç çığlığı, Ufis arkada dövüş duruşu
+    const Pi = getPose({ animT:K.t, pose:'cheer' }); Pi.fa = [2.0 + Math.sin(K.t * 2) * .05, 2.6]; Pi.ba = [.9, 2.3]; Pi.lean = -6;
+    drawHuman(c, 210, 560, LOOK.issem, Pi, 1, 2.75, 1, null, 'shout');
+    drawHuman(c, 785, 548, LOOK.ufis, getPose({ animT:K.t + 1, pose:'guard' }), -1, 2.45, 1, null, 'angry');
+    drawBall(c, 330, 512, K.t * 3, 1.5);
+    aracBadge(c, 48, 44, 32);
+    c.font = 'italic 900 86px ' + FONT; c.textAlign = 'center'; c.lineJoin = 'round';
+    c.lineWidth = 16; c.strokeStyle = '#ffffff'; c.strokeText('SON ŞAMPİYON', 480, 120);
+    c.lineWidth = 5; c.strokeStyle = '#0b0f1a'; c.strokeText('SON ŞAMPİYON', 480, 120);
+    const tg = c.createLinearGradient(0, 50, 0, 122); tg.addColorStop(0, '#2a2f3a'); tg.addColorStop(.55, '#0b0f1a'); tg.addColorStop(1, '#14306b'); c.fillStyle = tg; c.fillText('SON ŞAMPİYON', 480, 120); c.textAlign = 'left';
+    txt(c, 'Birinde saha, diğerinde savaş alanı. İkisinde de şampiyonluk mücadelesi!', 480, 158, 17, '#14306b', 'center', 'italic 900', 0, 640);
     const s = SAVE.cur, cont = s && (s.ch > 1 || s.i > 0);
-    button(c, bMain, cont ? '▶  DEVAM ET (Bölüm ' + s.ch + ')' : '▶  YENİ OYUN', true, K.t);
+    button(c, bMain, cont ? '▶  TEK OYUNCULU · Bölüm ' + s.ch : '▶  TEK OYUNCULU', true, K.t);
+    button(c, bMP, '👥  ÇOK OYUNCULU');
     button(c, bCh, '📖  BÖLÜMLER');
     button(c, bDiff, 'Zorluk: ' + DIFF().name + '  ⟳');
     button(c, bMus, (SAVE.music ? '🎵 Müzik: Açık' : '🔇 Müzik: Kapalı'));
     button(c, bVox, (SAVE.voice ? '🗣 Dublaj: Açık' : '🤐 Dublaj: Kapalı'));
+    if (SAVE.voice && VOICE_OK === false) txt(c, 'Bu telefonda Türkçe ses bulunamadı — yazı sesi çalar. (Ayarlar › Metin okuma › Türkçe ses indir)', 480, 438, 12, '#ffcc66', 'center', 'bold', 3, 600);
     button(c, bUpd, '⟳ Güncelle · ' + VERSION);
-    button(c, bPl, '👤 Oyuncum');
+    button(c, bPl, '👤 Karakterler');
+    K.chip = profileChip(c, 728, 8);
     if (UPDATE_MSG) pill(c, UPDATE_MSG, 480, 448, 16, 'rgba(0,0,0,.7)', '#7dff9a');
   };
   return K;
@@ -163,8 +170,8 @@ function ChapterSelect(){
   };
   return S;
 }
-function ChapterEnd(n, st, reasons, ranks){
-  const E = { t:0 }; const bNext = { x:270, y:452, w:200, h:52 }, bMenu = { x:490, y:452, w:200, h:52, size:20 };
+function ChapterEnd(n, st, reasons, ranks, coins){
+  const E = { t:0 }; if (coins) setTimeout(() => SFX.coin(), 900); const bNext = { x:270, y:452, w:200, h:52 }, bMenu = { x:490, y:452, w:200, h:52, size:20 };
   SFX.win(); playMusic(n >= 10 ? 'final' : 'menu'); say('Bölüm ' + n + ' tamamlandı. ' + st + ' yıldız.', 'Spiker');
   E.update = dt => { E.t += dt; if (!tap || E.t < 1.2) return;
     if (inB(bMenu, tap)) toCover();
@@ -177,6 +184,7 @@ function ChapterEnd(n, st, reasons, ranks){
       c.save(); c.translate(400 + j * 80, 158); c.scale(sc, sc); c.fillStyle = j < st ? '#f2c230' : 'rgba(255,255,255,.18)'; drawStar(c, 0, 0, 28); c.restore();
       if (k > 0 && k < .2 && j < st && !E['s' + j]){ E['s' + j] = true; tone(880 + j * 220, .15, 'triangle', .12); } }
     if (ranks.length) txt(c, 'Dereceler: ' + ranks.join(' · '), 480, 212, 17, '#9ad7ff', 'center', 'bold', 0, 800);
+    if (coins && E.t > .9){ const k = Math.min(1, (E.t - .9) * 3); c.globalAlpha = k; pill(c, '+' + coins + ' 🪙 oyun parası kazandın!  (toplam ' + prof().coins + ')', 780, 158, 15, 'rgba(242,194,48,.95)', '#14306b'); c.globalAlpha = 1; }
     let y = 244;
     if (st === 3) { txt(c, 'Kusursuz! Hiç yenilmeden ve az hasarla bitirdin.', 480, y, 18, '#7dff9a', 'center', 'bold', 0, 860); y += 30; }
     else { txt(c, 'Neden ' + st + ' yıldız?', 480, y, 18, '#ffcc66', 'center', 'bold'); y += 26;
@@ -274,7 +282,7 @@ function Cut(def){
     if (ln.sfx && SFX[ln.sfx]) SFX[ln.sfx]();
     // dublaj
     const spoken = ln.card ? (ln.card + (ln.sub ? '. ' + ln.sub : '')) : ln.big ? ln.big : ln.msg ? ln.msg : ln.call ? ln.t : textOf(ln);
-    if (spoken) say(spoken, ln.big ? 'Spiker' : ln.call ? ln.who : (ln.who || 'narr'));
+    C.spoke = false; if (spoken) C.spoke = say(spoken, ln.big ? 'Spiker' : ln.call ? ln.who : (ln.who || 'narr'));
   }
   nextLine();
   C.update = dt => {
@@ -292,7 +300,7 @@ function Cut(def){
         else { a.vx = 0; a.tx = null; if (a.faceTo) a.face = a.faceTo; if (a.hideAt){ a.hidden = true; if (a.closeDoor){ C.st.door = false; SFX.doorClose(); } } } } }
     for (const q of C.conf){ q.y += q.vy * dt; q.x += q.vx * dt + Math.sin(C.t * 3 + q.r) * .5; q.r += dt * 4; }
     const full = textOf(ln).length;
-    if (C.typed < full){ C.typed = Math.min(full, C.typed + dt * 40); C.blipT -= dt; if (C.blipT <= 0 && (ln.who || ln.call) && !SAVE.voice){ SFX.blip(); C.blipT = .07; } }
+    if (C.typed < full){ C.typed = Math.min(full, C.typed + dt * 40); C.blipT -= dt; if (C.blipT <= 0 && (!SAVE.voice || !voiceAvailable() || !C.spoke)){ SFX.type(); C.blipT = rand(.045, .075); } }
     if (C.speaker) C.speaker.talking = C.typed < full || SPEAKING;
     if (tap && C.lt > .15){
       if (inB(SKIP_BTN, tap) && !tap.key){ hush(); next(); return; }
@@ -452,6 +460,6 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 stats = newStats();
-cur = Splash();
+cur = Intro();
 requestAnimationFrame(loop);
 window.__sim = sec => { for (let i = 0; i < sec * 60; i++){ if (window.__bot) window.__bot(); gameTime += 1 / 60; if (hitstop > 0) hitstop -= 1 / 60; else cur.update(1 / 60); tap = null; } };

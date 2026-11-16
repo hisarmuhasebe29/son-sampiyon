@@ -67,18 +67,27 @@ function drawCard(c, p, x, y, sc = 1){
 }
 
 /* ---------- oluşturma ekranı ---------- */
-function Creator(after){
-  const C = { t:0, tab:0, yaw:-.4, drag:null, p:playerProfile(), msg:'' };
+function Creator(after, who0){
+  const C = { t:0, tab:0, yaw:-.4, drag:null, p:playerProfile(), u:ufisProfile(), who:who0 || 'issem', msg:'' };
   showControls(null); playMusic('menu'); applyTemp();
-  const TABS = ['Görünüş', 'Kıyafet', 'Profil', 'Yetenek', 'Kart'];
+  const TABS_I = ['Görünüş', 'Kıyafet', 'Profil', 'Yetenek', 'Kart'], TABS_U = ['Görünüş', 'Kıyafet'];
+  let TABS = C.who === 'ufis' ? TABS_U : TABS_I;
   const input = document.createElement('input'); input.maxLength = 14; input.value = C.p.name; input.setAttribute('aria-label', 'Oyuncu adı');
-  Object.assign(input.style, { position:'fixed', display:'none', zIndex:5, font:'bold 18px system-ui', padding:'4px 10px', borderRadius:'8px', border:'2px solid #f2c230', background:'#0b1020', color:'#fff' });
-  document.body.appendChild(input);
+  Object.assign(input.style, { position:'absolute', display:'none', zIndex:5, font:'bold 18px system-ui', padding:'4px 10px', borderRadius:'8px', border:'2px solid #f2c230', background:'#0b1020', color:'#fff' });
+  document.getElementById('app').appendChild(input);
   input.addEventListener('input', () => { C.p.name = input.value; applyTemp(); });
-  function applyTemp(){ const keep = SAVE.player; SAVE.player = C.p; applyPlayer(); SAVE.player = keep; }
+  function applyTemp(){ const keep = SAVE.player; SAVE.player = C.p; applyPlayer(); SAVE.player = keep; applyUfis(C.u); }
   function set(k, v){ C.p[k] = v; SFX.click(); applyTemp(); }
+  function setU(k, v){ C.u[k] = v; if (k === 'hair') C.u.beard = v; SFX.click(); applyTemp(); }
   function rows(){
-    const p = C.p;
+    const p = C.p, u = C.u;
+    if (C.who === 'ufis'){
+      if (C.tab === 0) return [ { l:'Ten', sw:OPT.skin, v:u.skin, f:v => setU('skin', v) }, { l:'Yüz', ch:OPT.face, v:u.face, f:v => setU('face', v) },
+        { l:'Göz', sw:OPT.eye, v:u.eye, f:v => setU('eye', v) }, { l:'Saç', ch:UOPT.hs, v:u.hs, f:v => setU('hs', v) },
+        { l:'Saç / sakal rengi', sw:UOPT.hair, v:u.hair, f:v => setU('hair', v) }, { l:'Sakal', ch:UOPT.bs, v:u.bs, f:v => setU('bs', v) } ];
+      return [ { l:'Cübbe', sw:UOPT.robe, v:u.shirt, f:v => setU('shirt', v) }, { l:'Kuşak', sw:UOPT.belt, v:u.belt, f:v => setU('belt', v) },
+        { l:'Pantolon', sw:UOPT.pants, v:u.shorts, f:v => setU('shorts', v) }, { l:'Ayakkabı', sw:['#222222', '#5d4037', '#f3efe6', '#8a1c1c'], v:u.shoes, f:v => setU('shoes', v) },
+        { l:'Boy', num:[160, 196, 2, ' cm'], v:u.hgt, f:v => setU('hgt', v) }, { l:'Kilo', num:[55, 100, 1, ' kg'], v:u.wt, f:v => setU('wt', v) } ]; }
     if (C.tab === 0) return [
       { l:'Ten', sw:OPT.skin, v:p.skin, f:v => set('skin', v) }, { l:'Yüz', ch:OPT.face, v:p.face, f:v => set('face', v) },
       { l:'Göz', sw:OPT.eye, v:p.eye, f:v => set('eye', v) }, { l:'Saç', ch:OPT.hs, v:p.hs, f:v => set('hs', v) },
@@ -118,7 +127,7 @@ function Creator(after){
       else if (r.cyc){ const i0 = r.cyc.indexOf(r.v), bm = { x, y, w:40, h:34 }, bp = { x:x + 230, y, w:40, h:34 };
         button(c, bm, '◀'); button(c, bp, '▶'); drawFlag(c, r.v, x + 52, y + 6, 32, 22); txt(c, r.v, x + 160, y + 24, 17, '#ffffff', 'center', 'bold', 0, 130);
         hits.push([bm, () => r.f(r.cyc[(i0 - 1 + r.cyc.length) % r.cyc.length])], [bp, () => r.f(r.cyc[(i0 + 1) % r.cyc.length])]); }
-      else if (r.input){ const rect = cv.getBoundingClientRect(); Object.assign(input.style, { display:'block', left:(rect.left + (x) * scale) + 'px', top:(rect.top + (y) * scale) + 'px', width:(230 * scale) + 'px', fontSize:Math.max(12, 18 * scale) + 'px' }); }
+      else if (r.input){ const o = cvOff(); Object.assign(input.style, { display:'block', left:(o.left + x * scale) + 'px', top:(o.top + y * scale) + 'px', width:(230 * scale) + 'px', fontSize:Math.max(12, 18 * scale) + 'px' }); }
       else if (r.stat){ const v = r.v, bw = 220; c.fillStyle = 'rgba(255,255,255,.12)'; rr(c, x, y + 8, bw, 18, 6); c.fill();
         c.fillStyle = v >= 85 ? '#2ecc71' : v >= 70 ? '#f1c40f' : '#e67e22'; rr(c, x, y + 8, bw * (v - 40) / 59, 18, 6); c.fill();
         txt(c, String(v), x + bw + 14, y + 25, 20, '#ffffff', 'left', '900');
@@ -136,19 +145,21 @@ function Creator(after){
       if (inB(bSave, tap)){ finish(true); return; }
       if (inB(bRand, tap)){ randomize(); return; }
       TABS.forEach((n, i) => { if (inB({ x:20 + i * 106, y:52, w:100, h:34 }, tap)){ C.tab = i; SFX.click(); } });
+      ['issem', 'ufis'].forEach((w, i) => { if (inB({ x:640 + i * 150, y:12, w:140, h:38 }, tap) && C.who !== w){ C.who = w; C.tab = 0; TABS = w === 'ufis' ? TABS_U : TABS_I; SFX.flip(); } });
       for (const [b, f] of hits) if (inB(b, tap)){ f(); break; }
     }
   };
-  cv.addEventListener('pointerdown', C.pd = e => { const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / scale; if (x > 600) C.drag = { x:e.clientX, yaw:C.yaw }; });
-  addEventListener('pointermove', C.pm = e => { if (C.drag) C.yaw = C.drag.yaw + (e.clientX - C.drag.x) * .012; });
+  cv.addEventListener('pointerdown', C.pd = e => { const p = evXY(e); if (p.x > 600) C.drag = { x:p.x, yaw:C.yaw }; });
+  addEventListener('pointermove', C.pm = e => { if (C.drag) C.yaw = C.drag.yaw + (evXY(e).x - C.drag.x) * .012 * scale; });
   addEventListener('pointerup', C.pu = () => { C.drag = null; });
-  function randomize(){ const p = C.p; p.skin = pick(OPT.skin); p.face = pick(OPT.face)[0]; p.eye = pick(OPT.eye); p.hs = pick(OPT.hs)[0]; p.hair = pick(OPT.hair); p.bs = pick(OPT.bs)[0];
+  function randomize(){ if (C.who === 'ufis'){ const u = C.u; u.skin = pick(OPT.skin); u.hs = pick(UOPT.hs)[0]; u.hair = u.beard = pick(UOPT.hair); u.bs = pick(UOPT.bs)[0]; u.shirt = pick(UOPT.robe); u.belt = pick(UOPT.belt); u.shorts = pick(UOPT.pants); SFX.ok(); applyTemp(); return; }
+    const p = C.p; p.skin = pick(OPT.skin); p.face = pick(OPT.face)[0]; p.eye = pick(OPT.eye); p.hs = pick(OPT.hs)[0]; p.hair = pick(OPT.hair); p.bs = pick(OPT.bs)[0];
     p.band = pick(OPT.band); p.shirt = pick(OPT.kit); p.stripe = pick(OPT.kit); p.shorts = pick(OPT.kit); p.socks = pick(OPT.kit); p.boots = pick(OPT.kit);
     p.hgt = 166 + Math.round(Math.random() * 28); p.wt = 62 + Math.round(Math.random() * 25); SFX.ok(); applyTemp(); }
   function finish(saveIt){
     input.remove(); cv.removeEventListener('pointerdown', C.pd); removeEventListener('pointermove', C.pm); removeEventListener('pointerup', C.pu);
-    if (saveIt){ C.p.name = (C.p.name || '').trim() || 'Issem'; SAVE.player = C.p; persist(); SFX.win(); say('Hoş geldin, ' + C.p.name + '!', 'Spiker'); }
-    applyPlayer(); if (after && saveIt) after(); else toCover();
+    if (saveIt){ C.p.name = cleanName(C.p.name, 'Issem'); SAVE.player = C.p; SAVE.ufisLook = C.u; persist(); SFX.win(); say('Hoş geldin, ' + C.p.name + '!', 'Spiker'); }
+    applyPlayer(); applyUfis(); if (after && saveIt) after(); else toCover();
   }
   C.draw = c => {
     // 3B önizleme
@@ -156,21 +167,32 @@ function Creator(after){
     bgStad(b, C.t, { cheer:true, noBoard:true }); const g = b.createLinearGradient(0, 0, W, 0); g.addColorStop(0, 'rgba(5,8,25,.92)'); g.addColorStop(.55, 'rgba(5,8,25,.75)'); g.addColorStop(1, 'rgba(5,8,25,.2)'); b.fillStyle = g; b.fillRect(0, 0, W, H);
     b.fillStyle = 'rgba(242,194,48,.18)'; b.beginPath(); b.ellipse(775, 474, 120, 22, 0, 0, 7); b.fill();
     { const P = getPose({ animT:C.t, pose:C.tab === 3 ? 'guard' : C.tab === 4 ? 'arms' : null });
-      if (D3) R3.charW('creator', LOOK.issem, P, 7.75, .7, 0, C.yaw, 2.1, C.tab === 3 ? 'angry' : 'happy');
-      else drawHuman(c, 775, 470, LOOK.issem, P, 1, 2.3, 1, null, 'happy'); }
+      const lk = C.who === 'ufis' ? LOOK.ufis : LOOK.issem;
+      if (D3) R3.charW('creator_' + C.who, lk, P, 7.75, .7, 0, C.yaw, 2.1, C.tab === 3 ? 'angry' : 'happy');
+      else drawHuman(c, 775, 470, lk, P, 1, 2.3, 1, null, 'happy'); }
     if (D3) R3.render();
     // panel
     c.fillStyle = 'rgba(8,12,30,.55)'; rr(c, 10, 46, 580, 422, 14); c.fill();
     button(c, bBack, '◀ Geri');
-    txt(c, 'OYUNCUNU OLUŞTUR', 360, 36, 26, '#f2c230', 'center', 'italic 900', 5);
+    txt(c, C.who === 'ufis' ? 'UFİS\'İ ÖZELLEŞTİR' : 'OYUNCUNU OLUŞTUR', 360, 36, 26, '#f2c230', 'center', 'italic 900', 5, 400);
+    ['issem', 'ufis'].forEach((w, i) => { const b = { x:640 + i * 150, y:12, w:140, h:38 }; c.fillStyle = C.who === w ? '#f2c230' : 'rgba(8,12,30,.75)'; rr(c, b.x, b.y, b.w, b.h, 19); c.fill(); c.strokeStyle = '#f2c230'; c.lineWidth = 2; c.stroke(); txt(c, w === 'ufis' ? 'UFİS' : (C.p.name || 'ISSEM').toLocaleUpperCase('tr-TR'), b.x + 70, b.y + 26, 16, C.who === w ? '#14306b' : '#ffffff', 'center', '900', 0, 130); });
     TABS.forEach((n, i) => { const b = { x:20 + i * 106, y:52, w:100, h:34 }; c.fillStyle = i === C.tab ? '#f2c230' : 'rgba(255,255,255,.1)'; rr(c, b.x, b.y, b.w, b.h, 9); c.fill(); txt(c, n, b.x + 50, b.y + 23, 15, i === C.tab ? '#14306b' : '#ffffff', 'center'); });
     if (C.tab === 4){ input.style.display = 'none'; drawCard(c, C.p, 150, 96, 1.1);
       txt(c, 'Kartın hazır! Yetenekler oyunda gerçekten işe yarar.', 300, 455, 14, '#c8d3ff', 'center', 'normal'); }
     else layout(c);
     if (C.tab !== 4){ txt(c, '↔ Döndürmek için sürükle', 775, 470, 13, 'rgba(255,255,255,.6)', 'center', 'normal');
-      pill(c, (C.p.name || 'Issem') + ' · #' + C.p.num + ' · ' + C.p.pos + ' · ' + overall(C.p), 775, 70, 16, 'rgba(0,0,0,.6)', '#f2c230', { maxW:340 }); }
+      if (C.who === 'issem') pill(c, (C.p.name || 'Issem') + ' · #' + C.p.num + ' · ' + C.p.pos + ' · ' + overall(C.p), 775, 70, 16, 'rgba(0,0,0,.6)', '#f2c230', { maxW:340 }); }
     button(c, bRand, '🎲 Rastgele'); button(c, bSave, '✓ KAYDET VE DEVAM ET', true, C.t);
   };
   return C;
 }
-applyPlayer();
+const UFIS_DEF = { skin:'#e0b090', hair:'#d9d9d9', hs:'bun', beard:'#e6e6e6', bs:'long', eye:'#2a2a2a', face:'oval', shirt:'#f3efe6', belt:'#1a1a1a', shorts:'#2b2b2b', shoes:'#222222', hgt:176, wt:72 };
+const UOPT = { hs:[['bun', 'Topuz'], ['long', 'Uzun'], ['short', 'Kısa'], ['curly', 'Kıvırcık'], ['bald', 'Kel']], hair:['#d9d9d9', '#f4f4f4', '#9a9a9a', '#111111', '#3a2414', '#6b4a2b'],
+  bs:[['long', 'Uzun'], ['full', 'Tam'], ['goatee', 'Keçi'], ['stubble', 'Kirli'], ['', 'Yok']], robe:['#f3efe6', '#111111', '#8a1c1c', '#14306b', '#2f6b2a', '#c9a227', '#5d4037', '#7f8c8d'],
+  belt:['#1a1a1a', '#8a1c1c', '#c9a227', '#14306b', '#ffffff', '#2f6b2a'], pants:['#2b2b2b', '#f3efe6', '#14306b', '#5d4037', '#8a1c1c'] };
+function ufisProfile(){ return Object.assign({}, UFIS_DEF, SAVE.ufisLook || {}); }
+function applyUfis(u = ufisProfile()){
+  LOOK.ufis = { skin:u.skin, hair:u.hair, hs:u.hs, beard:u.bs ? u.beard : null, bs:u.bs || null, brow:u.hair, shirt:u.shirt, shorts:u.shorts, socks:u.shorts, shoes:u.shoes, robe:true, belt:u.belt, eye:u.eye, face:u.face,
+    hgt:u.hgt / 176, wt:.82 + (u.wt - 55) / 45 * .42 };
+}
+applyPlayer(); applyUfis();

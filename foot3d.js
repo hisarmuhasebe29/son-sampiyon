@@ -339,7 +339,7 @@ function SetPiece3D(def){
     f3Resolve(S.shot, S.K, { wall:S.wall, keeperMul:mode === 'penalty' ? .85 : mode === 'shot' ? .9 : 1, react:mode === 'penalty' ? .06 : null });
     keeperDive(S.K, S.shot.dive || { z:S.K.z, y:1, react:.3 }, S.shot);
     if (S.wall) S.wall.jump = .001;
-    SFX.ballKick(); vib(25); S.shots++; S.state = 'shot';
+    SFX.ballKick(); setTimeout(() => SFX.dive(), 300); vib(25); S.shots++; S.state = 'shot';
   }
   function event(ev){
     const B = S.B, Sh = S.shot, q = shotPos(Sh, Sh.kev), q0 = shotPos(Sh, Math.max(0, Sh.kev - .02)), k = 1 / (.02 * Sh.dur);
@@ -347,10 +347,10 @@ function SetPiece3D(def){
     let msg = '', col = '#ffffff';
     if (ev === 'goal'){ S.goals++; S.results.push(1); SFX.net(); SFX.goal(); vib([60, 50, 160]); f3Net(S, 1); msg = 'GOOOL!'; col = '#f2c230'; say(pick(['Gol!', 'Harika vuruş!', 'Köşeye!']), 'Spiker'); confetti(S, 70); S.cheer = true; S.shake = 6; }
     else { S.results.push(0); SFX.ooh();
-      if (ev === 'catch'){ B.free = false; B.held = true; S.K.hold = true; SFX.punch(); msg = 'KALECİ YAKALADI!'; }
-      else if (ev === 'parry'){ B.vx = -3.5; B.vy = 3.4; B.vz = (Math.sign(B.z - S.K.z) || 1) * 5.5; SFX.punch(); msg = 'KALECİ ÇELDİ!'; }
+      if (ev === 'catch'){ B.free = false; B.held = true; S.K.hold = true; SFX.gloveCatch(); msg = 'KALECİ YAKALADI!'; }
+      else if (ev === 'parry'){ B.vx = -3.5; B.vy = 3.4; B.vz = (Math.sign(B.z - S.K.z) || 1) * 5.5; SFX.glovePunch(); msg = 'KALECİ ÇELDİ!'; }
       else if (ev === 'post' || ev === 'bar'){ B.vx = -5.5; B.vy = ev === 'bar' ? 3 : 1.4; B.vz = -Math.sign(B.z) * 2.4; SFX.post(); msg = ev === 'bar' ? 'ÜST DİREK!' : 'DİREK!'; S.shake = 4; }
-      else if (ev === 'wall'){ B.vx = -S.wall.dx * 6; B.vy = 3.2; B.vz = -S.wall.dz * 6 + rand(-2, 2); SFX.punch(); msg = 'BARAJ!'; }
+      else if (ev === 'wall'){ B.vx = -S.wall.dx * 6; B.vy = 3.2; B.vz = -S.wall.dz * 6 + rand(-2, 2); SFX.bodyBlow(); msg = 'BARAJ!'; }
       else msg = ev === 'over' ? 'ÜSTTEN AUT!' : 'AUT!';
     }
     wtext(S, msg, GL - 2, 3.2, B.z * .5, col, ev === 'goal' ? 76 : 44);
