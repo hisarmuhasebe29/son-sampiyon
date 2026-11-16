@@ -8,12 +8,13 @@ const PDEF = { name:'Issem', num:10, pos:'Forvet', age:24, nat:'Türkiye', foot:
 const STAT_NAMES = { hiz:'Hız', sut:'Şut', calim:'Çalım', guc:'Güç', day:'Dayanıklılık' };
 const STAT_BUDGET = 385;
 let PNAME = 'Issem';
-function playerProfile(){ const p = Object.assign({}, PDEF, SAVE.player || {}); p.stats = Object.assign({}, PDEF.stats, (SAVE.player || {}).stats || {}); return p; }
+function playerProfile(){ const src = (typeof MP !== 'undefined' && MP.on && MP.remoteIssem) || SAVE.player || {}; const p = Object.assign({}, PDEF, src); p.stats = Object.assign({}, PDEF.stats, src.stats || {}); return p; }
+function ufisProfile(){ const src = (typeof MP !== 'undefined' && MP.on && MP.remoteUfis) || SAVE.ufisLook || {}; return Object.assign({}, UFIS_DEF, src); }
 const PST = k => (playerProfile().stats[k] - 40) / 59;              // 0..1
-function applyPlayer(){
-  const p = playerProfile();
+function applyPlayer(p0){
+  const p = p0 || playerProfile();
   LOOK.issem = { skin:p.skin, hair:p.hair, hs:p.hs, headband:p.band || null, eye:p.eye, face:p.face, beard:p.bs ? (p.hs === 'bald' ? '#3a2414' : p.hair) : null, bs:p.bs || null,
-    shirt:p.shirt, stripe:p.stripe, shorts:p.shorts, socks:p.socks, shoes:p.boots, sh:1, num:String(p.num), hgt:p.hgt / 180, wt:.82 + (p.wt - 55) / 45 * .42 };
+    shirt:p.shirt, stripe:p.stripe, shorts:p.shorts, socks:p.socks, shoes:p.boots, sh:1, num:String(p.num), nm:(p.name || 'Issem').trim().slice(0, 12), hgt:p.hgt / 180, wt:.82 + (p.wt - 55) / 45 * .42 };
   PNAME = (p.name || 'Issem').trim() || 'Issem'; NAMES.issem = PNAME.toLocaleUpperCase('tr-TR');
 }
 const nm = s => s == null ? s : String(s).replace(/Issem/g, PNAME);
@@ -190,7 +191,6 @@ const UFIS_DEF = { skin:'#e0b090', hair:'#d9d9d9', hs:'bun', beard:'#e6e6e6', bs
 const UOPT = { hs:[['bun', 'Topuz'], ['long', 'Uzun'], ['short', 'Kısa'], ['curly', 'Kıvırcık'], ['bald', 'Kel']], hair:['#d9d9d9', '#f4f4f4', '#9a9a9a', '#111111', '#3a2414', '#6b4a2b'],
   bs:[['long', 'Uzun'], ['full', 'Tam'], ['goatee', 'Keçi'], ['stubble', 'Kirli'], ['', 'Yok']], robe:['#f3efe6', '#111111', '#8a1c1c', '#14306b', '#2f6b2a', '#c9a227', '#5d4037', '#7f8c8d'],
   belt:['#1a1a1a', '#8a1c1c', '#c9a227', '#14306b', '#ffffff', '#2f6b2a'], pants:['#2b2b2b', '#f3efe6', '#14306b', '#5d4037', '#8a1c1c'] };
-function ufisProfile(){ return Object.assign({}, UFIS_DEF, SAVE.ufisLook || {}); }
 function applyUfis(u = ufisProfile()){
   LOOK.ufis = { skin:u.skin, hair:u.hair, hs:u.hs, beard:u.bs ? u.beard : null, bs:u.bs || null, brow:u.hair, shirt:u.shirt, shorts:u.shorts, socks:u.shorts, shoes:u.shoes, robe:true, belt:u.belt, eye:u.eye, face:u.face,
     hgt:u.hgt / 176, wt:.82 + (u.wt - 55) / 45 * .42 };

@@ -17,12 +17,30 @@ function buildWorld(kind){
   const { T, mat, mesh, canvasTex } = R3.world();
   const root = new T.Group(), U = root.userData = { ads:[], crowd:[], nets:[], kind };
   const night = kind === 'stad';
-  U.fog = new T.Fog(night ? '#0b1430' : '#cfe6ff', night ? 110 : 120, night ? 260 : 330);
-  /* çim */
-  const grassTex = canvasTex(1024, 128, (c, w, h) => { for (let i = 0; i < 20; i++){ c.fillStyle = i % 2 ? '#3b8a35' : '#46993f'; c.fillRect(i * w / 20, 0, w / 20 + 1, h); }
-    const d = c.getImageData(0, 0, w, h); for (let k = 0; k < d.data.length; k += 4){ const n = (Math.random() - .5) * 24; d.data[k] += n * .55; d.data[k + 1] += n; d.data[k + 2] += n * .4; } c.putImageData(d, 0, 0); });
-  const pitch = new T.Mesh(new T.PlaneGeometry(130, 90), new T.MeshStandardMaterial({ map:grassTex, roughness:.95 })); pitch.rotation.x = -Math.PI / 2; pitch.receiveShadow = true; root.add(pitch);
-  const outer = new T.Mesh(new T.PlaneGeometry(500, 400), new T.MeshStandardMaterial({ color:night ? '#1c3a1b' : '#5f913f', roughness:1 })); outer.rotation.x = -Math.PI / 2; outer.position.y = -.03; outer.receiveShadow = true; root.add(outer);
+  U.fog = new T.Fog(night ? '#0b1430' : '#d6e9fb', night ? 110 : 150, night ? 260 : 560);
+  /* çim: biçme desenli (20 şerit), kale ağızlarında aşınma, yakında çim dokusu; şeritler bakış açısına göre açılıp kararır (PES gibi) */
+  const grassTex = canvasTex(2048, 1024, (c, w, h) => {
+    for (let i = 0; i < 20; i++){ c.fillStyle = i % 2 ? '#3f8f37' : '#4fa346'; c.fillRect(i * w / 20, 0, w / 20 + 1, h); }
+    for (let j = 0; j < 14; j++){ c.fillStyle = j % 2 ? 'rgba(255,255,255,.025)' : 'rgba(0,0,0,.025)'; c.fillRect(0, j * h / 14, w, h / 14 + 1); }
+    const px = x => (x + 65) / 130 * w, pz = z => (z + 45) / 90 * h;
+    const wear = (x, z, rx, rz, a) => { const g = c.createRadialGradient(px(x), pz(z), 0, px(x), pz(z), rx / 130 * w); g.addColorStop(0, 'rgba(150,130,70,' + a + ')'); g.addColorStop(1, 'rgba(150,130,70,0)'); c.save(); c.translate(px(x), pz(z)); c.scale(1, (rz / 90 * h) / (rx / 130 * w)); c.translate(-px(x), -pz(z)); c.fillStyle = g; c.beginPath(); c.arc(px(x), pz(z), rx / 130 * w, 0, 7); c.fill(); c.restore(); };
+    for (const s of [1, -1]){ wear(s * 51, 0, 4.5, 6, .45); wear(s * 41.5, 0, 1.6, 1.6, .35); wear(s * 46, 0, 9, 12, .12); }
+    wear(0, 0, 3, 3, .18); wear(0, 0, 14, 10, .06);
+    const d = c.getImageData(0, 0, w, h); for (let k = 0; k < d.data.length; k += 4){ const n = (Math.random() - .5) * 26; d.data[k] += n * .5; d.data[k + 1] += n; d.data[k + 2] += n * .35; } c.putImageData(d, 0, 0); });
+  grassTex.anisotropy = 8;
+  const detTex = canvasTex(256, 256, (c, w, h) => { c.fillStyle = '#808080'; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 5200; i++){ const x = Math.random() * w, y = Math.random() * h, l = 2 + Math.random() * 5, v = Math.random() < .5 ? 40 + Math.random() * 60 : 170 + Math.random() * 70; c.strokeStyle = 'rgb(' + v + ',' + v + ',' + v + ')'; c.lineWidth = .8 + Math.random(); c.beginPath(); c.moveTo(x, y); c.lineTo(x + (Math.random() - .5) * 1.5, y - l); c.stroke(); } });
+  detTex.wrapS = detTex.wrapT = T.RepeatWrapping; detTex.colorSpace = T.NoColorSpace; detTex.anisotropy = 4;
+  const pitchM = new T.MeshStandardMaterial({ map:grassTex, roughness:.92, color:night ? '#e2f0dc' : '#d2e4c8' });
+  pitchM.onBeforeCompile = sh => { sh.uniforms.tDet = { value:detTex };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;').replace('#include <project_vertex>', '#include <project_vertex>\nvGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW; uniform sampler2D tDet;').replace('#include <map_fragment>', `#include <map_fragment>
+      { float band = mod(floor((vGW.x + 65.0) / 6.5), 2.0); vec3 V = normalize(cameraPosition - vGW);
+        float k = (band * 2.0 - 1.0) * (0.035 + 0.09 * V.x); float det = texture2D(tDet, vGW.xz * .6).r * .6 + texture2D(tDet, vGW.xz * .13).r * .4;
+        diffuseColor.rgb *= (1.0 + k) * (0.84 + 0.32 * det); }`); };
+  pitchM.customProgramCacheKey = () => 'pitchGrass';
+  const pitch = new T.Mesh(new T.PlaneGeometry(130, 90), pitchM); pitch.rotation.x = -Math.PI / 2; pitch.receiveShadow = true; pitch.userData.keep = 1; root.add(pitch);
+  const outer = new T.Mesh(new T.PlaneGeometry(500, 400), new T.MeshStandardMaterial({ color:night ? '#16301a' : '#5f913f', roughness:1 })); outer.rotation.x = -Math.PI / 2; outer.position.y = -.03; outer.receiveShadow = true; root.add(outer);
   /* çizgiler */
   const LM = new T.MeshStandardMaterial({ color:'#f5f5f5', roughness:.75 }), LW = .12;
   const flat = (geo, x, z) => { const m = new T.Mesh(geo, LM); m.rotation.x = -Math.PI / 2; m.position.set(x, .012, z); m.receiveShadow = true; root.add(m); return m; };
@@ -61,65 +79,14 @@ function buildWorld(kind){
   const board = (len, x, z, ry) => { const tx = adTex.clone(); tx.repeat.x = len / 16; tx.wrapS = T.RepeatWrapping; tx.needsUpdate = true; U.ads.push(tx);
     const m = new T.Mesh(new T.BoxGeometry(len, .9, .12), new T.MeshStandardMaterial({ map:tx, emissiveMap:tx, emissive:new T.Color('#ffffff'), emissiveIntensity:night ? .85 : .3, roughness:.5 }));
     m.position.set(x, .45, z); m.rotation.y = ry; m.castShadow = true; root.add(m); };
-  board(96, 0, 36, 0); board(96, 0, -36, 0); for (const s of [1, -1]){ board(14, s * 57, -11, Math.PI / 2); board(14, s * 57, 11, Math.PI / 2); }
+  if (night){ board(96, 0, 37.2, 0); board(96, 0, -37.2, 0); for (const s of [1, -1]){ board(17, s * 57.5, -12, Math.PI / 2); board(17, s * 57.5, 12, Math.PI / 2); } }
+  else { board(96, 0, 36, 0); board(96, 0, -36, 0); for (const s of [1, -1]){ board(14, s * 57, -11, Math.PI / 2); board(14, s * 57, 11, Math.PI / 2); } }
   void adM;
   if (night){
-    /* tribünler */
-    const crowd = home => canvasTex(1024, 512, (c, w, h) => {
-      c.fillStyle = '#151a28'; c.fillRect(0, 0, w, h);
-      const cols = home ? ['#14306b', '#14306b', '#f2c230', '#f2c230', '#ffffff', '#1d4fa8'] : ['#c0392b', '#c0392b', '#ffffff', '#14306b', '#f2c230', '#2a2f3a'];
-      const skins = ['#f1c9a5', '#e0ac85', '#c48d68', '#8d5a3c', '#5a3a26'];
-      for (let r = 0; r < 34; r++){ const y = r * 15 + 4; c.fillStyle = r % 2 ? '#20283a' : '#273049'; c.fillRect(0, y + 10, w, 5);
-        for (let i = 0; i < 64; i++){ if (Math.random() < .07) continue; const x = i * 16 + 8 + rand(-3, 3), yy = y + rand(-1, 1);
-          c.fillStyle = pick(cols); c.fillRect(x - 5, yy + 5, 10, 8); c.fillStyle = pick(skins); c.beginPath(); c.arc(x, yy + 2, 3.6, 0, 7); c.fill();
-          if (Math.random() < .12){ c.fillStyle = pick(cols); c.fillRect(x - 6, yy - 9, 12, 7); } } }
-      const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(0,0,0,.45)'); g.addColorStop(.4, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); });
-    const stand = (tex, len, a, b, n) => { const t = tex.clone(); t.wrapS = T.RepeatWrapping; t.repeat.x = len / 32; t.needsUpdate = true; U.crowd.push(t);
-      const L = a.distanceTo(b), m = new T.Mesh(new T.PlaneGeometry(len, L), new T.MeshStandardMaterial({ map:t, emissiveMap:t, emissive:new T.Color('#ffffff'), emissiveIntensity:.55, roughness:.9 }));
-      m.position.copy(a).add(b).multiplyScalar(.5); m.lookAt(m.position.clone().add(n)); root.add(m); return m; };
-    const homeT = crowd(true), awayT = crowd(false);
-    stand(homeT, 140, new T.Vector3(0, 1.2, 39), new T.Vector3(0, 24, 66), new T.Vector3(0, .77, -.64));
-    stand(awayT, 140, new T.Vector3(0, 1.2, -39), new T.Vector3(0, 24, -66), new T.Vector3(0, .77, .64));
-    for (const s of [1, -1]){ const st = stand(s > 0 ? awayT : homeT, 82, new T.Vector3(s * 60, 1.2, 0), new T.Vector3(s * 86, 24, 0), new T.Vector3(-s * .64, .77, 0)); st.rotation.z = 0; }
-    const dark = mat('#1a1f2b', { roughness:.9 }), roofM = mat('#2a303c', { metalness:.3, roughness:.6 });
-    for (const s of [1, -1]){ root.add(mesh('box', dark, 140, 1.6, 1, 0, .8, s * 38.6)); root.add(mesh('box', roofM, 150, .9, 22, 0, 27, s * 64)); root.add(mesh('box', mat('#fff6d8', { emissive:new T.Color('#fff6d8'), emissiveIntensity:1.5 }), 140, .2, .5, 0, 26.4, s * 53.5));
-      root.add(mesh('box', dark, 1, 1.6, 80, s * 59.6, .8, 0)); root.add(mesh('box', roofM, 24, .9, 92, s * 76, 27, 0));
-      for (const z of [1, -1]) root.add(mesh('box', dark, 26, 26, 28, s * 78, 13, z * 56)); }
-    /* ışık kuleleri */
-    const glow = canvasTex(128, 128, (c, w, h) => { const g = c.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.2, 'rgba(255,248,220,.75)'); g.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); });
-    for (const sx of [1, -1]) for (const sz of [1, -1]){
-      const x = sx * 70, z = sz * 56; root.add(mesh('cyl', mat('#5a6270', { metalness:.6, roughness:.4 }), .7, 42, .7, x, 21, z));
-      const head = mesh('box', mat('#fffbe8', { emissive:new T.Color('#fffbe8'), emissiveIntensity:2.2 }), 8, 4.5, .6, x, 43, z); head.lookAt(0, 0, 0); root.add(head);
-      const sp = new T.Sprite(new T.SpriteMaterial({ map:glow, color:'#fff4d6', blending:T.AdditiveBlending, depthWrite:false, transparent:true, fog:false })); sp.position.set(x - sx * .8, 43, z - sz * .8); sp.scale.set(22, 22, 1); root.add(sp); }
-    /* dev ekran */
-    const scr = document.createElement('canvas'); scr.width = 512; scr.height = 192; const st = new T.CanvasTexture(scr); st.colorSpace = T.SRGBColorSpace;
-    const sm = new T.Mesh(new T.PlaneGeometry(22, 8.2), new T.MeshBasicMaterial({ map:st, toneMapped:false })); sm.position.set(86, 30, 0); sm.rotation.y = -Math.PI / 2; root.add(sm);
-    root.add(mesh('box', mat('#111111'), .6, 9, 23, 86.4, 30, 0)); U.screen = { c:scr.getContext('2d'), tex:st, key:'' };
-  } else {
-    /* antrenman tesisi: çit, ağaçlar, bina, tribüncük, koniler */
-    const fenceTex = canvasTex(64, 64, (c, w, h) => { c.clearRect(0, 0, w, h); c.strokeStyle = 'rgba(40,90,50,.9)'; c.lineWidth = 3; c.beginPath(); c.moveTo(0, 0); c.lineTo(w, h); c.moveTo(w, 0); c.lineTo(0, h); c.stroke(); });
-    fenceTex.wrapS = fenceTex.wrapT = T.RepeatWrapping;
-    const fM = new T.MeshStandardMaterial({ map:fenceTex, transparent:true, alphaTest:.3, side:T.DoubleSide }), postM = mat('#2f5a3a', { metalness:.4 });
-    const fence = (len, x, z, ry) => { const g = uvScale(new T.PlaneGeometry(len, 4), 1 / .5); const m = new T.Mesh(g, fM); m.position.set(x, 2, z); m.rotation.y = ry; root.add(m);
-      for (let i = -len / 2; i <= len / 2; i += 6){ const p = mesh('cyl', postM, .06, 4.1, .06, 0, 2.05, 0); p.position.set(x + Math.cos(ry) * i, 2.05, z - Math.sin(ry) * i); root.add(p); } };
-    fence(130, 0, 44, 0); fence(130, 0, -44, 0); fence(88, 65, 0, Math.PI / 2); fence(88, -65, 0, Math.PI / 2);
-    const trunk = mat('#6b4a2b'), leafs = [mat('#2f6b2a'), mat('#3d7d34'), mat('#285a24')];
-    for (let i = 0; i < 46; i++){ const a = i / 46 * Math.PI * 2, r = rand(78, 105), x = Math.cos(a) * r * 1.15, z = Math.sin(a) * r * .8, s = rand(.8, 1.4);
-      root.add(mesh('cyl', trunk, .35 * s, 3 * s, .35 * s, x, 1.5 * s, z)); const lf = pick(leafs);
-      root.add(mesh('sph', lf, 2.6 * s, 3 * s, 2.6 * s, x, 4.6 * s, z)); root.add(mesh('sph', lf, 1.9 * s, 2.2 * s, 1.9 * s, x + .8, 6.4 * s, z - .4)); }
-    const bld = new T.Group(); bld.add(mesh('box', mat('#eef1f5'), 34, 9, 12, 0, 4.5, 0)); bld.add(mesh('box', mat('#14306b'), 34.2, 1.2, 12.2, 0, 7.6, 0));
-    for (let i = -14; i <= 14; i += 4) bld.add(mesh('box', mat('#7fb3e8', { metalness:.3, roughness:.15 }), 2.4, 2.4, .1, i, 4.2, 6.05));
-    const signT = canvasTex(1024, 96, (c, w, h) => { c.fillStyle = '#14306b'; c.fillRect(0, 0, w, h); c.fillStyle = '#f2c230'; c.font = 'italic 900 56px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('ANOLECRAB ANTRENMAN TESİSİ', w / 2, h / 2 + 3, 980); });
-    const sign = new T.Mesh(new T.PlaneGeometry(30, 2.8), new T.MeshBasicMaterial({ map:signT })); sign.position.set(0, 10.6, 6.1); bld.add(sign);
-    bld.position.set(0, 0, -62); root.add(bld);
-    const bench = mat('#c0392b'), benchB = mat('#7a7f88', { metalness:.4 });
-    for (let i = 0; i < 4; i++){ root.add(mesh('box', benchB, 30, .5 + i * .6, 1.2, 10, (.5 + i * .6) / 2, 47 + i * 1.2)); root.add(mesh('box', bench, 30, .12, 1.0, 10, .56 + i * .6, 47 + i * 1.2)); }
-    const cone = mat('#ff7a1a', { roughness:.6 });
-    for (let i = 0; i < 9; i++) root.add(mesh('cone', cone, .18, .45, .18, -30 + i * 4, .225, -28 + (i % 2) * 2.5));
-    for (let i = 0; i < 6; i++) root.add(mesh('cone', cone, .18, .45, .18, 20 + i * 3, .225, 28));
-  }
-  R3.compact(root);
-  root.traverse(o => { if (o.isMesh && !o.material.transparent){ o.receiveShadow = true; } });
+    buildStadium(root, U, R3.world());
+  } else buildTesis(root, U, R3.world());
+  R3.flatten(root); R3.compact(root);
+  root.traverse(o => { if (o.isMesh && !o.material.transparent && !o.isInstancedMesh){ o.receiveShadow = true; } });
   return root;
 }
 
@@ -131,21 +98,61 @@ function f3Begin(G, dt){
   if (!F3SKY) F3SKY = { stad:f3Sky('#02040c', '#0a1430', '#1d2c56'), tesis:f3Sky('#3d8ae0', '#8ec5ff', '#e6f3ff') };
   scene.background = F3SKY[G.kind]; scene.fog = U.fog;
   const night = G.kind === 'stad', f = G.focus;
-  hemi.intensity = night ? .85 : 1.3; sun.intensity = night ? 2.5 : 2.7; fill.intensity = night ? 1.0 : .45;
+  hemi.intensity = night ? .62 : 1.05; sun.intensity = night ? 3.1 : 2.6; fill.intensity = night ? 1.25 : .45;
+  R3.post = night ? { th:.92, bloom:.62, sat:1.14, vig:.6, tint:[.96, 1, 1.06], lift:0 } : { th:1.15, bloom:.32, sat:1.16, vig:.38, tint:[1.04, 1.01, .96], lift:0 };
   sun.position.set(f.x - 16, 32, f.z + (night ? 20 : 14)); sun.target.position.set(f.x, 0, f.z); R3.shadowBox(26, 26, 90); fill.position.set(f.x + 25, 18, f.z - 22);
   const sk = G.shake || 0;
   cam.fov = G.fov || 42; cam.zoom = 1; cam.aspect = W / H; cam.updateProjectionMatrix();
   cam.position.set(G.camPos.x + rand(-1, 1) * sk * .02, G.camPos.y + rand(-1, 1) * sk * .02, G.camPos.z); cam.lookAt(G.camLook);
   for (const t of U.ads) t.offset.x = (G.t * .035) % 1;
   for (const t of U.crowd) t.offset.y = G.cheer ? Math.abs(Math.sin(G.t * 13)) * .006 : Math.sin(G.t * 2) * .0015;
+  stadTick(U, G, dt);
   for (const n of U.nets){ n.t += dt; const k = n.t < .6 ? Math.sin(n.t / .6 * Math.PI) * (1 - n.t / .6) : 0; n.back.position.x = 1.9 + k * .7; n.back.scale.set(1, 1 + k * .05, 1); }
   if (U.screen && G.screen){ const key = G.screen.join('|'); if (key !== U.screen.key){ U.screen.key = key; const c = U.screen.c; c.fillStyle = '#05070f'; c.fillRect(0, 0, 512, 192);
       c.fillStyle = '#14306b'; c.fillRect(0, 0, 512, 40); c.fillStyle = '#f2c230'; c.font = 'italic 900 26px ' + FONT; c.textAlign = 'center'; c.fillText('UON PMAC · ' + (G.screen[3] || ''), 256, 29);
-      c.font = '900 84px ' + FONT; c.fillStyle = '#ffffff'; c.fillText(G.screen[0], 110, 140); c.fillText(G.screen[2], 402, 140); c.fillStyle = '#f2c230'; c.fillText(G.screen[1], 256, 140); U.screen.tex.needsUpdate = true; } }
+      c.font = '900 84px ' + FONT; c.fillStyle = '#ffffff'; c.fillText(G.screen[0], 110, 140); c.fillText(G.screen[2], 402, 140); c.fillStyle = '#f2c230'; c.fillText(G.screen[1], 256, 140); U.screen.tex.needsUpdate = true;
+      if (U.screen.all) for (const o of U.screen.all) if (o.c !== c){ o.c.drawImage(c.canvas, 0, 0); o.tex.needsUpdate = true; } } }
   return W3;
 }
 function f3Net(G, s){ const root = R3.custom('w_' + G.kind, () => buildWorld(G.kind)); for (const n of root.userData.nets) if (n.s === s) n.t = 0; }
 
+/* ---------- gece: 4 projektörden gelen yumuşak gölgeler (PES/FIFA gece maçı görünümü) ---------- */
+function f3NightShadows(list){
+  const im = R3.custom('nshad', () => { const { T, canvasTex } = R3.world();
+    const tex = canvasTex(64, 128, (c, w, h) => { const g = c.createLinearGradient(0, h, 0, 0); g.addColorStop(0, 'rgba(0,0,0,.9)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.beginPath(); c.ellipse(w / 2, h / 2, w * .45, h * .5, 0, 0, 7); c.fill(); });
+    const geo = new T.PlaneGeometry(.55, 2.1); geo.rotateX(-Math.PI / 2); geo.translate(0, .015, -1.0);
+    const m = new T.InstancedMesh(geo, new T.MeshBasicMaterial({ map:tex, transparent:true, opacity:.2, depthWrite:false, toneMapped:false }), 26 * 4); m.frustumCulled = false; m.renderOrder = 1;
+    const g = new (R3.world().T.Group)(); g.add(m); return g; });
+  const { T } = R3.world(), M4 = new T.Matrix4(), Q = new T.Quaternion(), E = new T.Euler(), P = new T.Vector3(), S = new T.Vector3(1, 1, 1), m = im.children[0];
+  let n = 0;
+  for (const p of list){ if (p.down > 0) continue; for (let k = 0; k < 4; k++){ const a = Math.PI / 4 + k * Math.PI / 2 + Math.atan2(p.z, p.x) * .05; E.set(0, a, 0); Q.setFromEuler(E); P.set(p.x, 0, p.z); M4.compose(P, Q, S); m.setMatrixAt(n++, M4); } if (n >= 26 * 4) break; }
+  m.count = n; m.instanceMatrix.needsUpdate = true;
+}
+/* ---------- tekrar (replay) yayını katmanı ---------- */
+function drawReplayHud(c, real, slow, t){
+  const bar = 42; c.fillStyle = '#000000'; c.fillRect(0, 0, W, bar); c.fillRect(0, H - bar, W, bar);
+  const k = Math.min(1, real * 3); c.save(); c.globalAlpha = k;
+  c.fillStyle = 'rgba(179,18,46,.95)'; rr(c, 18, 52, 160, 38, 8); c.fill(); aracBadge(c, 40, 71, 13);
+  txt(c, 'TEKRAR', 104, 79, 20, '#ffffff', 'center', 'italic 900'); if (Math.floor(t * 2) % 2) { c.fillStyle = '#ff2e2e'; c.beginPath(); c.arc(166, 64, 5, 0, 7); c.fill(); }
+  if (slow) txt(c, '◀◀ YAVAŞ ÇEKİM', 942, 79, 14, '#ffffff', 'right', 'bold', 3);
+  txt(c, 'dokun: geç', 480, H - 14, 12, '#c8d3ff', 'center', 'normal'); c.restore();
+  if (real < .35){ const w = (1 - real / .35); c.fillStyle = 'rgba(20,48,107,' + w + ')'; c.fillRect(0, 0, W * w, H); aracBadge(c, 480, 270, 60 * w + 10); }
+}
+/* ---------- maç öncesi kadro kartları (PES tarzı) ---------- */
+function drawLineups(c, k, teams, names, training, t){
+  const a = Math.min(1, k * 4) * Math.min(1, (1 - k) * 6); if (a <= 0) return; c.save(); c.globalAlpha = a;
+  const g = c.createLinearGradient(0, 0, 0, 120); g.addColorStop(0, 'rgba(4,8,22,.9)'); g.addColorStop(1, 'rgba(4,8,22,0)'); c.fillStyle = g; c.fillRect(0, 0, W, 120);
+  txt(c, training ? 'ANOLECRAB ANTRENMAN TESİSİ · HAZIRLIK MAÇI' : 'UON PMAC STADYUMU', 480, 40, 24, '#f2c230', 'center', 'italic 900', 5);
+  txt(c, names[0] + '  vs  ' + names[1], 480, 74, 30, '#ffffff', 'center', '900', 6);
+  const col = (tm, x, head, color) => { c.fillStyle = 'rgba(6,10,26,.84)'; rr(c, x, 120, 230, 330, 14); c.fill(); c.fillStyle = color; c.fillRect(x, 120, 230, 6);
+    txt(c, head, x + 115, 152, 18, '#ffffff', 'center', '900');
+    tm.forEach((p, i) => { const y = 180 + i * 24; txt(c, String(p.num), x + 34, y, 15, color, 'right', '900'); txt(c, (p.nm || (p.look && p.look.nm) || p.role) + '', x + 44, y, 15, '#ffffff', 'left', 'bold', 0, 130);
+      txt(c, p.role === 'GK' ? 'KL' : p.role === 'DF' ? 'DF' : p.role === 'MF' ? 'OS' : 'FV', x + 212, y, 12, '#8fa0c8', 'right', 'bold'); }); };
+  const slide = (1 - Math.min(1, k * 5)) * 260;
+  col(teams[0], 24 - slide, names[0] + ' · 4-3-3', '#f2c230'); col(teams[1], 706 + slide, names[1] + ' · 4-3-3', '#ff6b6b');
+  if (k > .15) tapHint(c, 480, 500, true, 'dokun: geç ▶');
+  c.restore();
+}
 /* ---------- yer işaretleri ---------- */
 function f3Ring(id, x, z, col, r = .5, op = .9){
   const g = R3.custom(id, () => { const { T } = R3.world(); const m = new T.Mesh(new T.RingGeometry(.78, 1, 40), new T.MeshBasicMaterial({ color:col, transparent:true, opacity:op, depthWrite:false, side:T.DoubleSide })); m.rotation.x = -Math.PI / 2; m.renderOrder = 2; const g = new T.Group(); g.add(m); return g; });
@@ -395,6 +402,19 @@ function SetPiece3D(def){
     else camTo(S, S.camPos.x, S.camPos.y, S.camPos.z, lerp(GL, B.x, .35), Math.max(.8, B.y * .6), B.z * .6, Math.min(1, dt * 3));
     S.focus = { x:GL - 10, z:B.z * .5 }; void dl;
   };
+  const r2 = v => Math.round(v * 100) / 100;
+  S.mpSnap = () => ({ p:[r2(S.p.x), r2(S.p.z), r2(S.p.yaw), r2(S.p.sp || 0), S.p.atk ? r2(S.p.atk.t) : -1], K:[r2(S.K.x), r2(S.K.z), r2(S.K.y), r2(S.K.roll), S.K.st, S.K.hold ? 1 : 0],
+    B:[r2(S.B.x), r2(S.B.y), r2(S.B.z), r2(S.B.yaw), r2(S.B.rot)], st:S.state, ch:S.charging ? 1 : 0, pw:r2(S.power), aim:[r2(S.aim.tz), r2(S.aim.th)], res:S.results.slice(), g:S.goals, sh:S.shots,
+    cam:[r2(S.camPos.x), r2(S.camPos.y), r2(S.camPos.z), r2(S.camLook.x), r2(S.camLook.y), r2(S.camLook.z)], wall:S.wall ? [r2(S.wall.cx), r2(S.wall.cz), r2(S.wall.nx), r2(S.wall.nz), r2(S.wall.dx), r2(S.wall.dz), r2(S.wall.jump)] : 0,
+    tx:S.texts.map(t => [t.text, r2(t.x), r2(t.y), r2(t.z), t.col, t.size, r2(t.t)]), lost:S.lost ? r2(S.lostT) : -1, cheer:S.cheer ? 1 : 0, t:r2(S.t) });
+  S.mpApply = s => {
+    [S.p.x, S.p.z, S.p.yaw, S.p.sp] = s.p; S.p.atk = s.p[4] >= 0 ? { m:{ dur:.42, anim:'shoot' }, t:s.p[4] } : null;
+    [S.K.x, S.K.z, S.K.y, S.K.roll, S.K.st] = s.K; S.K.hold = !!s.K[5]; [S.B.x, S.B.y, S.B.z, S.B.yaw, S.B.rot] = s.B;
+    S.state = s.st; S.charging = !!s.ch; S.power = s.pw; S.aim.tz = s.aim[0]; S.aim.th = s.aim[1]; S.results = s.res; S.goals = s.g; S.shots = s.sh;
+    S.camPos.set(s.cam[0], s.cam[1], s.cam[2]); S.camLook.set(s.cam[3], s.cam[4], s.cam[5]);
+    if (s.wall){ S.wall = S.wall || {}; [S.wall.cx, S.wall.cz, S.wall.nx, S.wall.nz, S.wall.dx, S.wall.dz, S.wall.jump] = s.wall; } else S.wall = null;
+    S.texts = s.tx.map(t => ({ text:t[0], x:t[1], y:t[2], z:t[3], col:t[4], size:t[5], t:t[6] })); S.lost = s.lost >= 0; S.lostT = Math.max(0, s.lost); S.cheer = !!s.cheer; S.t = s.t; };
+  S.viewTick = dt => { S.p.animT += dt; S.K.animT += dt; };
   S.draw = c => {
     const dt = 1 / 60;
     if (!f3Begin(S, dt)){ c.fillStyle = '#000'; c.fillRect(0, 0, W, H); txt(c, '3B grafik desteklenmiyor', 480, 270, 24, '#fff', 'center'); return; }

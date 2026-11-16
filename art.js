@@ -47,6 +47,7 @@ const NAMES = { issem:'ISSEM', ufis:'UFİS' };
 
 /* ---------- ifade ---------- */
 function exprOf(f){
+  if (f.__ex) return f.__ex;
   if (f.dead || f.down > 0) return 'ko';
   if (f.dizzy > 0) return 'dizzy';
   if (f.e) return f.e;
@@ -122,6 +123,7 @@ function sideFace(c, hx, hy, look, ex, talk){
 
 /* ---------- pozlar ---------- */
 function getPose(f){
+  if (f.__P) return f.__P;
   const t = f.animT || 0;
   const P = { lean:3, bob:Math.sin(t * 3) * 1.2, fl:[.12, .02], bl:[-.12, -.2], fa:[.55, 2.5], ba:[.35, 2.3], lie:false, rot:0 };
   if (f.dead || f.down > 0 || f.pose === 'lie' || f.grabbedBy){ P.lie = true; P.bob = 0; P.fa = [1.9, 2.1]; P.ba = [2.5, 2.6]; P.fl = [.1, 0]; P.bl = [-.1, -.1]; return P; }

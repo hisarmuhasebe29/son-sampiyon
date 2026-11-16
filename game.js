@@ -8,8 +8,9 @@ const SKIP_BTN = { x: W - 112, y: 10, w: 100, h: 34, size: 16 };
 const newStats = () => ({ dmg:0, lvls:0, retries:0, tackles:0, ranks:[] });
 
 /* ---------- akış ---------- */
-function startChapter(ch, i = 0){ curCh = ch; curI = i; stats = newStats(); runNode(); }
+function startChapter(ch, i = 0){ if (MP.on && MP.role === 'guest') return; curCh = ch; curI = i; stats = newStats(); runNode(); }
 function runNode(){
+  if (MP.on){ mpRunNode(); return; }
   const C = CHAPTERS[curCh - 1];
   if (curI >= C.flow.length){ endChapter(); return; }
   SAVE.cur = { ch:curCh, i:curI }; persist();
@@ -19,8 +20,10 @@ function runNode(){
   else if (n.match){ cur = R3.init() ? Match3D(n.match) : Match(n.match); }
   else if (n.set){ cur = R3.init() ? SetPiece3D(n.set) : SetPiece(n.set); }
 }
-function next(){ curI++; runNode(); }
+function next(){ if (MP.on){ mpNext(); return; } curI++; runNode(); }
 function endChapter(){
+  if (MP.on && MP.role === 'guest') return;
+  if (MP.on && MP.peerStats){ const q = MP.peerStats; stats.retries += q.retries || 0; stats.dmg += q.dmg || 0; stats.lvls += q.lvls || 0; stats.tackles += q.tackles || 0; stats.ranks = stats.ranks.concat(q.ranks || []); MP.peerStats = null; }
   const avg = stats.lvls ? stats.dmg / stats.lvls : 0;
   const reasons = [];
   if (stats.retries > 0) reasons.push('−1 ★  Bir bölümde yenilip tekrar denedin (' + stats.retries + ' kez). İpucu: kırmızı yanan düşmana 🛡️ blok, şok dalgasına ⬆ zıpla.');
@@ -32,9 +35,10 @@ function endChapter(){
   SAVE.maxCh = Math.max(SAVE.maxCh, Math.min(10, curCh + 1));
   SAVE.cur = curCh < 10 ? { ch:curCh + 1, i:0 } : null; persist();
   showControls(null);
+  if (MP.on) netSend({ t:'end', r:1, ch:curCh, st, reasons, ranks:stats.ranks.slice() });
   cur = ChapterEnd(curCh, st, reasons, stats.ranks.slice(), coins);
 }
-function toCover(){ showControls(null); crowdAmb(false); hush(); cur = Cover(); }
+function toCover(){ if (MP.inRoom && !MP.leaving){ MP.leaving = true; mpLeave(); MP.leaving = false; } showControls(null); crowdAmb(false); hush(); cur = Cover(); }
 function fs(){ try { const d = document.documentElement; if (d.requestFullscreen && !document.fullscreenElement) d.requestFullscreen().catch(() => {});
   if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch(e){} }
 
@@ -106,7 +110,7 @@ function Intro(){
    ========================================================= */
 function Cover(){
   const K = { t:0, msg:'' }; playMusic('menu');
-  const bMain = { x:340, y:180, w:280, h:56, size:22 }, bMP = { x:340, y:242, w:280, h:46, size:19 }, bCh = { x:340, y:294, w:280, h:40, size:18 }, bDiff = { x:340, y:340, w:280, h:38, size:16 },
+  const bMain = { x:340, y:180, w:280, h:56, size:22 }, bMP = { x:340, y:242, w:280, h:46, size:19 }, bCh = { x:340, y:294, w:136, h:40, size:15 }, bSk = { x:484, y:294, w:136, h:40, size:15 }, bDiff = { x:340, y:340, w:280, h:38, size:16 },
     bMus = { x:340, y:384, w:136, h:40, size:15 }, bVox = { x:484, y:384, w:136, h:40, size:15 }, bUpd = { x:796, y:496, w:154, h:32, size:13 }, bPl = { x:796, y:452, w:154, h:38, size:15 };
   K.update = dt => { K.t += dt;
     if (!tap) return;
@@ -115,6 +119,7 @@ function Cover(){
     else if (inB(bMP, tap)){ SFX.click(); fs(); cur = Lobby(); }
     else if (K.chip && inB(K.chip, tap)){ SFX.click(); cur = ProfileScreen(); }
     else if (inB(bCh, tap)){ SFX.click(); cur = ChapterSelect(); }
+    else if (inB(bSk, tap)){ SFX.click(); fs(); if (!SAVE.player){ cur = Creator(() => { cur = SkillMenu(); }); return; } cur = SkillMenu(); }
     else if (inB(bDiff, tap)){ SAVE.diff = (SAVE.diff + 1) % 3; persist(); SFX.click(); }
     else if (inB(bMus, tap)){ SAVE.music = SAVE.music ? 0 : 1; persist(); SFX.click(); if (SAVE.music){ MUSIC.kind = null; playMusic('menu'); } else stopMusic(); }
     else if (inB(bVox, tap)){ SAVE.voice = SAVE.voice ? 0 : 1; persist(); SFX.click(); if (SAVE.voice){ unlockSpeech(); setTimeout(() => say('Dublaj açık.', 'Spiker'), 150); } else hush(); }
@@ -138,7 +143,7 @@ function Cover(){
     const s = SAVE.cur, cont = s && (s.ch > 1 || s.i > 0);
     button(c, bMain, cont ? '▶  TEK OYUNCULU · Bölüm ' + s.ch : '▶  TEK OYUNCULU', true, K.t);
     button(c, bMP, '👥  ÇOK OYUNCULU');
-    button(c, bCh, '📖  BÖLÜMLER');
+    button(c, bCh, '📖 BÖLÜMLER'); button(c, bSk, '🎯 ANTRENMAN');
     button(c, bDiff, 'Zorluk: ' + DIFF().name + '  ⟳');
     button(c, bMus, (SAVE.music ? '🎵 Müzik: Açık' : '🔇 Müzik: Kapalı'));
     button(c, bVox, (SAVE.voice ? '🗣 Dublaj: Açık' : '🤐 Dublaj: Kapalı'));
@@ -173,9 +178,12 @@ function ChapterSelect(){
 function ChapterEnd(n, st, reasons, ranks, coins){
   const E = { t:0 }; if (coins) setTimeout(() => SFX.coin(), 900); const bNext = { x:270, y:452, w:200, h:52 }, bMenu = { x:490, y:452, w:200, h:52, size:20 };
   SFX.win(); playMusic(n >= 10 ? 'final' : 'menu'); say('Bölüm ' + n + ' tamamlandı. ' + st + ' yıldız.', 'Spiker');
-  E.update = dt => { E.t += dt; if (!tap || E.t < 1.2) return;
+  E.update = dt => { E.t += dt;
+    if (MP.on){ if (MP.role === 'guest'){ if (tap && inB(bMenu, tap)) toCover(); else if (tap) netSend({ t:'tap', r:1 }); return; }
+      const rt = MP.remoteTaps.shift(); if (!tap && (rt || E.t > 10) && E.t > 1.2) tap = { x:bNext.x + 5, y:bNext.y + 5, key:true }; }
+    if (!tap || E.t < 1.2) return;
     if (inB(bMenu, tap)) toCover();
-    else if (inB(bNext, tap) || tap.key){ if (n >= 10) cur = Credits(); else startChapter(n + 1); } };
+    else if (inB(bNext, tap) || tap.key){ if (n >= 10){ if (MP.on){ netSend({ t:'credits', r:1 }); MP.credits = true; } cur = Credits(); } else startChapter(n + 1); } };
   E.draw = c => {
     bgSehir(c, E.t); c.fillStyle = 'rgba(0,0,0,.66)'; c.fillRect(0, 0, W, H);
     txt(c, 'BÖLÜM ' + n + ' TAMAMLANDI', 480, 70, 42, '#f2c230', 'center', 'italic 900', 6, 860);
@@ -261,7 +269,8 @@ function Cut(def){
     }
   }
   function nextLine(){
-    C.i++; if (C.i >= def.lines.length){ hush(); next(); return; }
+    C.i++; if (C.i >= def.lines.length){ hush(); if (!(MP.on && MP.role === 'guest')) next(); return; }
+    if (MP.on && MP.role === 'host') netSend({ t:'line', r:1, ch:curCh, i:curI, li:C.i });
     const ln = C.line = def.lines[C.i]; C.typed = 0; C.lt = 0; C.seqI = 0;
     for (const a of C.actors){ a.talking = false; a.e = a.e0; }
     if (ln.set) for (const id in ln.set) applyTarget(id, ln.set[id]);
@@ -285,7 +294,10 @@ function Cut(def){
     C.spoke = false; if (spoken) C.spoke = say(spoken, ln.big ? 'Spiker' : ln.call ? ln.who : (ln.who || 'narr'));
   }
   nextLine();
+  C.mpLine = li => { while (C.i < li && C.i < def.lines.length - 1){ const ln = C.line; if (ln && ln.seq) while (C.seqI < ln.seq.length){ const s = ln.seq[C.seqI++]; applyTarget(s[1], s[2]); } nextLine(); } };
   C.update = dt => {
+    if (MP.on){ if (MP.role === 'guest'){ if (tap){ netSend({ t:'tap', r:1, skip:inB(SKIP_BTN, tap) && !tap.key ? 1 : 0 }); tap = null; } }
+      else { const rt = MP.remoteTaps.shift(); if (rt && !tap) tap = rt.skip ? { x:SKIP_BTN.x + 4, y:SKIP_BTN.y + 4 } : { x:480, y:300, key:true }; } }
     C.t += dt; C.lt += dt; if (C.flash > 0) C.flash -= dt * 1.5; if (C.st.speakT > 0) C.st.speakT -= dt; if (C.st.offT != null) C.st.offT += dt;
     C.st.doorK = clamp(C.st.doorK + (C.st.door ? 1 : -1) * dt * 2.4, 0, 1);
     C.cam.x = lerp(C.cam.x, C.cam.tx, Math.min(1, dt * 2.2)); C.zoom.z = lerp(C.zoom.z, C.zoom.tz, Math.min(1, dt * 1.6));
@@ -448,7 +460,9 @@ function loop(now){
       FX.zoom = FX.tsT > 0 ? FX.zoom : lerp(FX.zoom, 1, Math.min(1, rdt * 4)); if (FX.flash > 0) FX.flash -= rdt * 1.2;
       const dt = rdt * FX.ts;
       gameTime += dt;
+      if (MP.lostT > 0 && tap && inB(MP_QUIT, tap)){ mpLeave('Çok oyunculu oyundan çıkıldı.'); tap = null; }
       if (hitstop > 0) hitstop -= rdt; else cur.update(dt);
+      if (k === 0) mpTick(rdt);
       shake *= Math.pow(.004, rdt); if (shake < .3) shake = 0;
       if (k === 0) tap = null;
     }
@@ -456,7 +470,7 @@ function loop(now){
   tap = null;
   ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
-  R3.begin(); cur.draw(ctx); R3.end();
+  R3.begin(); cur.draw(ctx); R3.end(); mpOverlay(ctx);
   requestAnimationFrame(loop);
 }
 stats = newStats();

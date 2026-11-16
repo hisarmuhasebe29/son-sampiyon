@@ -15,9 +15,30 @@ const R3 = (() => {
   const MATS = new Map(), NUMTEX = new Map();
   function mat(col, o){ const k = col + (o ? JSON.stringify(o) : ''); let m = MATS.get(k);
     if (!m){ m = new T.MeshStandardMaterial(Object.assign({ color:new T.Color(col), roughness:.6, metalness:.04 }, o || {})); MATS.set(k, m); } return m; }
+  /* kas profilli uzuv: (yarıçap, y) noktaları alttan üste; önde/arkada şişkinlik */
+  const bump = (y, c, w) => Math.exp(-((y - c) / w) * ((y - c) / w));
+  function shaped(prof, seg, front, back, zf){
+    const g = new T.LatheGeometry(prof.map(([r, y]) => new T.Vector2(r, y)), seg), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++){ let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      x *= 1 + (x > 0 ? front(y) : back(y)) * Math.min(1, Math.abs(x) * 1.4); if (zf) z *= zf(y, x); p.setXYZ(i, x, y, z); }
+    g.computeVertexNormals(); return g; }
   const GEO = { sph:new T.SphereGeometry(1, 22, 16), box:new T.BoxGeometry(1, 1, 1), cyl:new T.CylinderGeometry(1, 1, 1, 18), cone:new T.ConeGeometry(1, 1, 14),
-    cap:new T.SphereGeometry(1, 22, 12, 0, Math.PI * 2, 0, Math.PI * .56), torso:(() => { const pts = [[.74, -.5], [.78, -.38], [.86, -.15], [.97, .12], [1.0, .3], [.93, .42], [.72, .49], [.35, .5]].map(([x, y]) => new T.Vector2(x, y)); return new T.LatheGeometry(pts, 22); })(), limb:new T.CylinderGeometry(1, .82, 1, 16), skirt:new T.CylinderGeometry(.86, 1, 1, 20, 1, true),
+    cap:new T.SphereGeometry(1, 22, 12, 0, Math.PI * 2, 0, Math.PI * .56), limb:new T.CylinderGeometry(1, .82, 1, 16), skirt:new T.CylinderGeometry(.86, 1, 1, 20, 1, true),
     ring:new T.TorusGeometry(1, .08, 8, 32), brim:new T.CylinderGeometry(1, 1, 1, 24) };
+  /* atletik gövde: önde göğüs, arkada kürek kemikleri, omuzda genişleme, belde incelme (x = derinlik, z = genişlik) */
+  GEO.torso = shaped([[.8, -.5], [.82, -.38], [.85, -.2], [.91, 0], [.98, .17], [1, .3], [.96, .4], [.8, .47], [.48, .505], [.2, .515]], 26,
+    y => .13 * bump(y, .2, .14) - .03 * bump(y, -.3, .2), y => .07 * bump(y, .27, .13) + .05 * bump(y, -.42, .1),
+    y => 1 + .2 * Math.min(1, Math.max(0, (y - .08) / .3)) - .1 * bump(y, -.25, .2));
+  GEO.hips = shaped([[.8, -.5], [.92, -.35], [.98, -.1], [1, .15], [.95, .4], [.9, .5]], 22, y => .02, y => .16 * bump(y, -.1, .25), y => 1.32);
+  GEO.thigh = shaped([[.64, -.5], [.69, -.42], [.8, -.27], [.92, -.08], [1, .12], [.99, .3], [.94, .44], [.9, .5]], 18, y => .14 * bump(y, .02, .24), y => .09 * bump(y, .28, .2));
+  GEO.calf = shaped([[.56, -.5], [.58, -.38], [.66, -.2], [.82, .02], [.96, .2], [1, .3], [.9, .44], [.8, .5]], 18, y => -.06 * bump(y, 0, .3), y => .26 * bump(y, .22, .17));
+  GEO.uarm = shaped([[.78, -.5], [.84, -.32], [.95, -.08], [1, .1], [.99, .28], [.93, .42], [.86, .5]], 16, y => .12 * bump(y, -.02, .2), y => .09 * bump(y, .12, .24));
+  GEO.farm = shaped([[.62, -.5], [.66, -.36], [.8, -.1], [.97, .2], [1, .3], [.93, .44], [.84, .5]], 16, y => .06 * bump(y, .25, .2), y => .04 * bump(y, .2, .2));
+  GEO.neck = shaped([[1, -.5], [.9, -.3], [.86, 0], [.88, .5]], 16, y => -.08, y => .1 * bump(y, -.4, .2));
+  GEO.trap = shaped([[1, -.5], [.9, -.1], [.6, .3], [.3, .5]], 22, y => -.2, y => .05, y => 1.8);
+  GEO.sleeve = new T.CylinderGeometry(.9, 1, 1, 18, 1, true); GEO.shortsLeg = new T.CylinderGeometry(.9, 1, 1, 18, 1, true);
+  GEO.boot = (() => { const g = new T.SphereGeometry(1, 20, 12), p = g.attributes.position; for (let i = 0; i < p.count; i++){ let x = p.getX(i), y = p.getY(i);
+      if (y < -.3) y = -.3 - (y + .3) * .25; if (x < 0) { x *= .7; y = Math.max(y, -.32); } p.setXY(i, x, y); } g.computeVertexNormals(); return g; })();
   function mesh(geo, m, sx, sy, sz, x = 0, y = 0, z = 0){ const o = new T.Mesh(GEO[geo] || geo, m); o.scale.set(sx, sy, sz); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = false; return o; }
   const G = () => new T.Group();
   function canvasTex(w, h, draw){ const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; return t; }
@@ -77,57 +98,89 @@ const R3 = (() => {
   function limb(parent, len, r, m, jointM){ parent.add(mesh('limb', m, r, len, r, 0, -len / 2, 0)); if (jointM) parent.add(mesh('sph', jointM, r * 1.05, r * 1.05, r * 1.05)); }
   function fist(parent, look, gloves){
     const sk = gloves ? mat('#f5f5f5') : mat(look.skin);
-    parent.add(mesh('box', sk, .062, .07, .07, .006, -.032, 0));
-    for (let i = 0; i < 4; i++){ const f = mesh('cyl', sk, .0135, .05, .0135, .034, -.012 - i * .017, -.016 + i * .011); f.rotation.x = Math.PI / 2; f.rotation.z = .2; parent.add(f);
-      parent.add(mesh('sph', sk, .015, .015, .015, .04, -.012 - i * .017, .012)); }
-    const th = mesh('cyl', sk, .014, .045, .014, .02, -.01, -.03); th.rotation.z = -.6; parent.add(th);
+    parent.add(mesh('sph', sk, .036, .046, .038, .008, -.03, 0));
+    for (let i = 0; i < 4; i++){ parent.add(mesh('sph', sk, .016, .014, .012, .03, -.012 - i * .014, -.013 + i * .009)); parent.add(mesh('sph', sk, .013, .012, .011, .036, -.026 - i * .014, -.006 + i * .009)); }
+    const th = mesh('cyl', sk, .012, .042, .012, .022, -.012, -.03); th.rotation.z = -.6; parent.add(th);
     if (gloves) parent.add(mesh('box', mat('#27ae60'), .07, .02, .075, 0, .002, 0));
+  }
+  /* kumaş dokusu (tek gri doku, renk malzemeden gelir) */
+  let WEAVE = null; const FAB = new Map();
+  function fabric(col){ let m = FAB.get(col); if (m) return m;
+    if (!WEAVE){ WEAVE = canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#f4f4f4'; c.fillRect(0, 0, w, h);
+        for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2){ const v = 222 + ((x + y) % 4 ? 18 : 0) + Math.random() * 14; c.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')'; c.fillRect(x, y, 2, 2); }
+        c.fillStyle = 'rgba(0,0,0,.05)'; for (let x = 0; x < w; x += 8) c.fillRect(x, 0, 1, h); });
+      WEAVE.wrapS = WEAVE.wrapT = T.RepeatWrapping; WEAVE.repeat.set(6, 4); WEAVE.colorSpace = T.SRGBColorSpace; }
+    m = new T.MeshStandardMaterial({ color:new T.Color(col), map:WEAVE, roughness:.78, metalness:0, sheen:0 }); FAB.set(col, m); return m; }
+  function decal(tex, w, h){ return new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshStandardMaterial({ map:tex, transparent:true, alphaTest:.35, roughness:.75, polygonOffset:true, polygonOffsetFactor:-2 })); }
+  function backTex(look){ const key = 'b|' + look.num + '|' + (look.nm || '') + '|' + look.stripe + '|' + look.shirt; let tx = NUMTEX.get(key);
+    if (!tx){ tx = canvasTex(256, 256, (c, w, h) => { c.clearRect(0, 0, w, h); c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+        const fg = look.stripe || '#ffffff', ol = shade(look.shirt, .55);
+        if (look.nm){ c.font = '900 34px ' + FONT; c.lineWidth = 6; c.strokeStyle = ol; c.strokeText(look.nm.toLocaleUpperCase('tr-TR'), w / 2, 40, 230); c.fillStyle = fg; c.fillText(look.nm.toLocaleUpperCase('tr-TR'), w / 2, 40, 230); }
+        c.font = '900 150px ' + FONT; c.lineWidth = 12; c.strokeStyle = ol; c.strokeText(look.num, w / 2, 152); c.fillStyle = fg; c.fillText(look.num, w / 2, 152); }); NUMTEX.set(key, tx); }
+    return tx; }
+  function crestTex(look){ const key = 'c|' + look.stripe + '|' + look.shirt + '|' + look.num; let tx = NUMTEX.get(key);
+    if (!tx){ tx = canvasTex(128, 128, (c, w, h) => { c.clearRect(0, 0, w, h); c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillStyle = look.stripe || '#ffffff'; c.beginPath(); c.moveTo(20, 18); c.lineTo(58, 10); c.lineTo(58, 70); c.quadraticCurveTo(39, 92, 20, 70); c.closePath(); c.fill();
+        c.fillStyle = shade(look.shirt, .6); c.font = '900 38px ' + FONT; c.fillText('A', 39, 44);
+        c.fillStyle = look.stripe || '#ffffff'; c.font = '900 46px ' + FONT; c.fillText(look.num, 96, 46); }); NUMTEX.set(key, tx); }
+    return tx; }
+  function boot(parent, look, shoes){
+    parent.add(mesh('boot', shoes, .1, .045, .045, .05, -.016, 0));
+    parent.add(mesh('box', mat('#151515', { roughness:.8 }), .19, .016, .084, .043, -.054, 0));
+    if (look.sh){ const stud = mat('#d9d9d9', { metalness:.6, roughness:.3 }); for (const [x, z] of [[.11, .025], [.11, -.025], [.06, .028], [.06, -.028], [-.02, .022], [-.02, -.022]]) parent.add(mesh('cyl', stud, .009, .014, .009, x, -.066, z));
+      parent.add(mesh('box', mat(look.stripe || '#ffffff'), .07, .012, .1, .04, -.01, 0)); }
   }
   function buildRig(look){
     const R = { look, root:G(), legs:[], arms:[] };
-    const wt = look.wt || 1, hg = look.hgt || 1;
-    const skin = mat(look.skin), shirt = mat(look.shirt), shorts = mat(look.shorts), socks = mat(look.socks), shoes = mat(look.shoes, { roughness:.35 });
+    const wt = look.wt || 1, hg = look.hgt || 1, ath = look.sh || look.athl;
+    const skin = mat(look.skin), shirt = look.sh ? fabric(look.shirt) : mat(look.shirt), shorts = look.sh ? fabric(look.shorts) : mat(look.shorts), socks = look.sh ? fabric(look.socks) : mat(look.socks), shoes = mat(look.shoes, { roughness:.32, metalness:.08 });
     const hips = R.hips = G(); R.body = G(); R.root.add(R.body); R.body.add(hips);
-    hips.add(mesh('cyl', shorts, .14 * wt, .17, .1 * wt, 0, .03, 0));
+    hips.add(mesh('hips', shorts, .118 * wt, .17, .118 * wt, 0, .03, 0));
     for (const side of [1, -1]){
-      const leg = G(); leg.position.set(0, 0, side * .078 * wt); hips.add(leg);
-      if (look.sh){ leg.add(mesh('cyl', shorts, .077 * wt, .15, .077 * wt, 0, -.07, 0)); leg.add(mesh('cyl', skin, .058 * wt, .15, .058 * wt, 0, -.2, 0)); }
-      else limb(leg, .28, .066 * wt, shorts);
+      const leg = G(); leg.position.set(0, 0, side * .09 * wt); hips.add(leg);
+      if (look.sh){ leg.add(mesh('thigh', skin, .08 * wt, .28, .084 * wt, 0, -.14, 0)); leg.add(mesh('shortsLeg', shorts, .093 * wt, .19, .097 * wt, 0, -.075, 0)); }
+      else leg.add(mesh('thigh', shorts, .078 * wt, .29, .08 * wt, 0, -.14, 0));
       const knee = G(); knee.position.y = -.28; leg.add(knee); knee.add(mesh('sph', look.sh ? skin : shorts, .058 * wt, .058 * wt, .058 * wt));
-      limb(knee, .27, .054 * wt, look.robe ? shorts : socks);
-      if (look.sh) knee.add(mesh('cyl', mat(look.stripe || look.socks), .057 * wt, .025, .057 * wt, 0, -.06, 0));
+      knee.add(mesh('calf', look.robe ? shorts : socks, .062 * wt, .27, .062 * wt, 0, -.135, 0));
+      if (look.sh){ knee.add(mesh('cyl', mat(look.stripe || look.socks), .065 * wt, .028, .065 * wt, 0, -.055, 0)); knee.add(mesh('cyl', socks, .067 * wt, .03, .067 * wt, 0, -.025, 0)); }
       const ank = G(); ank.position.y = -.27; knee.add(ank);
-      ank.add(mesh('box', shoes, .17, .062, .086, .045, -.022, 0)); ank.add(mesh('box', mat('#1a1a1a', { roughness:.8 }), .175, .018, .09, .045, -.058, 0));
-      if (look.sh) ank.add(mesh('box', mat('#ffffff'), .06, .01, .088, .06, -.005, 0));
+      boot(ank, look, shoes);
       R.legs.push({ leg, knee, ank });
     }
     const spine = R.spine = G(); spine.position.y = .02; hips.add(spine);
-    const torso = mesh('torso', shirt, .19 * wt, .43, .125 * wt, 0, .215, 0); spine.add(torso);
+    const D = (ath ? .13 : .145) * wt, Wd = (ath ? .182 : .17) * wt;     // gövde derinliği / yarı genişliği
+    const torso = mesh('torso', shirt, D, .43, Wd, 0, .215, 0); spine.add(torso);
     if (look.robe){ const sk = mesh('skirt', shirt, .175 * wt, .3, .13 * wt, 0, -.12, 0); spine.add(sk); }
-    if (look.stripe) spine.add(mesh('torso', mat(look.stripe), .182 * wt * 1.01, .06, .12 * wt * 1.02, 0, .22, 0));
-    if (look.belt) spine.add(mesh('cyl', mat(look.belt), .152 * wt, .05, .105 * wt, 0, .02, 0));
-    if (look.tie){ spine.add(mesh('box', mat('#e8e8e8'), .02, .16, .06, .118 * wt, .33, 0)); spine.add(mesh('box', mat(look.tie), .02, .22, .03, .125 * wt, .28, 0)); }
-    if (look.suit) spine.add(mesh('box', mat(shade(look.shirt, .8)), .02, .3, .02, .121 * wt, .26, .05));
-    spine.add(mesh('cyl', skin, .052, .1, .05, 0, .46, 0));
-    if (look.sh && look.num){ const key = look.num + '|' + look.stripe + '|' + look.shirt; let tx = NUMTEX.get(key);
-      if (!tx){ tx = canvasTex(128, 128, (c, w, h) => { c.clearRect(0, 0, w, h); c.font = '900 88px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 8; c.strokeStyle = shade(look.shirt, .6); c.strokeText(look.num, w / 2, h / 2 + 6); c.fillStyle = look.stripe || '#ffffff'; c.fillText(look.num, w / 2, h / 2 + 6); }); NUMTEX.set(key, tx); }
-      const pl = new T.Mesh(new T.PlaneGeometry(.2, .2), new T.MeshStandardMaterial({ map:tx, transparent:true, alphaTest:.4, roughness:.7 })); pl.position.set(-.188 * wt, .27, 0); pl.rotation.y = -Math.PI / 2; spine.add(pl); }
-    const head = R.head = buildHead(look); head.position.set(.01, .6, 0); head.scale.setScalar(1.14); spine.add(head);
+    if (look.stripe && !look.sh) spine.add(mesh('torso', mat(look.stripe), D * 1.02, .06, Wd * 1.02, 0, .22, 0));
+    if (look.sh){ const st = mat(look.stripe || '#ffffff');
+      const col = mesh('ring', st, .062, .062, .062, 0, .445, 0); col.rotation.x = Math.PI / 2; col.scale.set(.06, .066, .55); spine.add(col);
+      spine.add(mesh('box', st, .004, .26, .012, 0, .25, Wd * 1.06)); spine.add(mesh('box', st, .004, .26, .012, 0, .25, -Wd * 1.06)); }
+    if (look.belt) spine.add(mesh('cyl', mat(look.belt), D * 1.02, .05, Wd * .9, 0, .02, 0));
+    if (look.tie){ spine.add(mesh('box', mat('#e8e8e8'), .02, .16, .06, D * .95, .33, 0)); spine.add(mesh('box', mat(look.tie), .02, .22, .03, D * 1.0, .28, 0)); }
+    if (look.suit) spine.add(mesh('box', mat(shade(look.shirt, .8)), .02, .3, .02, D * .97, .26, .05));
+    spine.add(mesh('trap', look.sh || look.suit || look.robe ? shirt : skin, .075 * wt, .06, .1 * wt, -.008, .42, 0));
+    spine.add(mesh('neck', skin, .05, .11, .052, 0, .47, 0));
+    if (look.sh && look.num){
+      const bk = decal(backTex(look), .26, .26); bk.position.set(-D * 1.07, .24, 0); bk.rotation.y = -Math.PI / 2; spine.add(bk);
+      const cr = decal(crestTex(look), .12, .12); cr.position.set(D * 1.13, .33, -Wd * .02); cr.rotation.y = Math.PI / 2; spine.add(cr); }
+    const head = R.head = buildHead(look); head.position.set(.012, .62, 0); head.scale.setScalar(look.sh ? .94 : 1.08); spine.add(head);
     for (const side of [1, -1]){
-      const sh = G(); sh.position.set(0, .4, side * .2 * wt); spine.add(sh);
-      sh.add(mesh('sph', shirt, .066 * wt, .066 * wt, .066 * wt));
-      limb(sh, .23, (look.robe ? .066 : .054) * wt, shirt);
-      const el = G(); el.position.y = -.23; sh.add(el); el.add(mesh('sph', look.suit ? shirt : skin, .048 * wt, .048 * wt, .048 * wt));
-      limb(el, .21, .044 * wt, look.suit ? shirt : skin);
+      const sh = G(); sh.position.set(-.005, .38, side * (Wd + .002)); spine.add(sh);
+      sh.add(mesh('sph', shirt, .056 * wt, .052 * wt, .058 * wt, 0, -.028, side * .002));
+      if (look.sh && look.ls) sh.add(mesh('uarm', shirt, .056 * wt, .23, .058 * wt, 0, -.115, 0));
+      else if (look.sh){ sh.add(mesh('sleeve', shirt, .061 * wt, .13, .062 * wt, 0, -.06, 0)); sh.add(mesh('cyl', mat(look.stripe || look.shirt), .061 * wt, .014, .062 * wt, 0, -.123, 0)); sh.add(mesh('uarm', skin, .05 * wt, .23, .052 * wt, 0, -.115, 0)); }
+      else sh.add(mesh('uarm', look.robe ? shirt : shirt, (look.robe ? .066 : .055) * wt, .23, (look.robe ? .066 : .056) * wt, 0, -.115, 0));
+      const el = G(); el.position.y = -.23; sh.add(el); el.add(mesh('sph', look.suit ? shirt : skin, .045 * wt, .045 * wt, .045 * wt));
+      el.add(mesh('farm', look.suit || look.ls ? shirt : skin, (look.ls ? .048 : .044) * wt, .21, (look.ls ? .05 : .046) * wt, 0, -.105, 0)); if (look.ls) el.add(mesh('cyl', mat(look.stripe || look.shirt), .036 * wt, .02, .038 * wt, 0, -.2, 0));
       const hand = G(); hand.position.y = -.22; el.add(hand); fist(hand, look, look.gloves);
       const holdG = G(); holdG.position.set(.02, -.04, 0); hand.add(holdG);
       if (look.shield && side === 1){ hand.add(mesh('box', mat('#a8c4e8', { transparent:true, opacity:.65, metalness:.3, roughness:.2 }), .03, .62, .2, .08, .1, 0)); }
-      R.arms.push({ sh, el, hand, holdG });
+      R.arms.push({ sh, el, hand, holdG, side });
     }
     R.carryG = G(); R.carryG.position.y = 1.45; R.root.add(R.carryG);
     R.root.scale.set(1, hg, 1);
     const groups = []; R.root.traverse(o => { if (o.isGroup) groups.push(o); }); groups.forEach(compact);
-    R.root.traverse(o => { if (o.isMesh) o.castShadow = !o.userData.dyn; });
+    R.root.traverse(o => { if (o.isMesh) o.castShadow = !o.userData.dyn && !o.material.transparent; });
     return R;
   }
   /* ---------- aynı malzemeli parçaları tek geometride birleştir (çizim çağrısı azaltma) ---------- */
@@ -140,8 +193,15 @@ const R3 = (() => {
   }
   function compact(g){
     const by = new Map();
-    for (const ch of g.children){ if (!ch.isMesh || ch.userData.dyn || ch.material.transparent) continue; ch.updateMatrix(); const k = ch.material.uuid; if (!by.has(k)) by.set(k, { m:ch.material, list:[] }); by.get(k).list.push(ch); }
+    for (const ch of g.children){ if (!ch.isMesh || ch.isInstancedMesh || ch.userData.dyn || ch.userData.keep || ch.material.transparent || ch.material.isShaderMaterial) continue; ch.updateMatrix(); const k = ch.material.uuid; if (!by.has(k)) by.set(k, { m:ch.material, list:[] }); by.get(k).list.push(ch); }
     for (const { m, list } of by.values()){ if (list.length < 2) continue; const geos = list.map(o => o.geometry.clone().applyMatrix4(o.matrix)); for (const o of list) g.remove(o); g.add(new T.Mesh(mergeGeos(geos), m)); }
+  }
+  /* iç içe grupları köke indir (birleştirme için): dünya matrisini çocuğa göm */
+  function flatten(root){
+    root.updateMatrixWorld(true); const inv = new T.Matrix4().copy(root.matrixWorld).invert(), list = [];
+    root.traverse(o => { if (o.isMesh && o.parent !== root && !o.isInstancedMesh && !o.userData.keep && !o.userData.dyn && !o.material.transparent && !(o.parent.userData && o.parent.userData.keep)) list.push(o); });
+    for (const o of list){ const m = new T.Matrix4().multiplyMatrices(inv, o.matrixWorld); o.parent.remove(o); m.decompose(o.position, o.quaternion, o.scale); root.add(o); }
+    const empty = []; root.traverse(o => { if (o.isGroup && o !== root && !o.children.length) empty.push(o); }); for (const g of empty) g.parent && g.parent.remove(g);
   }
   /* ---------- eldeki eşyalar ---------- */
   const ITEM = {};
@@ -191,10 +251,12 @@ const R3 = (() => {
     const L = R.legs, A = R.arms;
     const setLeg = (l, a) => { l.leg.rotation.z = a[0]; l.knee.rotation.z = a[1] - a[0]; l.ank.rotation.z = -a[1]; };
     const sp = P.spread || 0;
-    const setArm = (r, a) => { r.sh.rotation.z = a[0]; r.el.rotation.z = a[1] - a[0]; r.hand.rotation.z = 0; r.sh.rotation.x = r === A[0] ? -sp : sp; };
+    const ab = .1, setArm = (r, a) => { r.sh.rotation.z = a[0]; r.el.rotation.z = a[1] - a[0]; r.hand.rotation.z = 0; r.sh.rotation.x = r === A[0] ? -(sp + ab) : sp + ab; };
     setLeg(L[near], P.fl); setLeg(L[far], P.bl); setArm(A[near], P.fa); setArm(A[far], P.ba);
     R.hips.position.y = (56 - P.bob) / 100;
     R.spine.rotation.z = -Math.atan2(P.lean, 41);
+    const tw = P.lie || P.rot ? 0 : clamp(((P.fa[0] || 0) - (P.ba[0] || 0)) * (near ? -1 : 1), -1.6, 1.6);   // kol salınımına göre gövde/kalça dönmesi
+    R.spine.rotation.y = tw * .07; R.hips.rotation.y = -tw * .045; R.head.rotation.y = -tw * .05;
     R.body.rotation.set(0, 0, 0); R.body.position.set(0, 0, 0);
     if (P.lie){ R.body.rotation.z = Math.PI / 2; R.body.position.y = .12; }
     else if (P.rot){ R.body.rotation.z = -P.rot; R.body.position.y = .55; R.hips.position.y -= .55; }
@@ -267,7 +329,7 @@ const R3 = (() => {
     renderer.outputColorSpace = T.SRGBColorSpace; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
     scene = new T.Scene();
-    cam = new T.PerspectiveCamera(30, W / H, .1, 400); scene.add(cam);
+    cam = new T.PerspectiveCamera(30, W / H, .1, 900); scene.add(cam);
     hemi = new T.HemisphereLight(0xe8eeff, 0x4a4030, 1.45); scene.add(hemi);
     sun = new T.DirectionalLight(0xfff2dd, 2.3); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.0006;
     const sc = sun.shadow.camera; sc.left = -9; sc.right = 9; sc.top = 6; sc.bottom = -6; sc.near = .5; sc.far = 60; scene.add(sun); scene.add(sun.target);
@@ -283,7 +345,7 @@ const R3 = (() => {
     shadowPlane = new T.Mesh(new T.PlaneGeometry(400, 12), new T.ShadowMaterial({ opacity:.38 })); shadowPlane.rotation.x = -Math.PI / 2; shadowPlane.receiveShadow = true; scene.add(shadowPlane);
     ready = true; resize3(); return true;
   }
-  function resize3(){ if (!ready) return; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75)); renderer.setSize(W * scale, H * scale, false); g3.style.width = (W * scale) + 'px'; g3.style.height = (H * scale) + 'px'; }
+  function resize3(){ if (!ready) return; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, R3.lowRes ? 1 : 1.75)); renderer.setSize(W * scale, H * scale, false); g3.style.width = (W * scale) + 'px'; g3.style.height = (H * scale) + 'px'; }
   addEventListener('resize', () => setTimeout(resize3, 50));
   const D = 2.7 / Math.tan(15 * Math.PI / 180);
   /* yan görünüm: kamera sabit, 1 birim = 100 ekran pikseli → karakterler 2D ekran koordinatına birebir oturur
@@ -330,10 +392,54 @@ const R3 = (() => {
   const _v = new T.Vector3();
   function project(x, y, z){ _v.set(x, y, z).project(cam); return { x:(_v.x + 1) / 2 * W, y:(1 - _v.y) / 2 * H, behind:_v.z > 1 }; }
   function free(){ if (!init()) return false; mode = 'free'; drew = true; g3.style.display = 'block'; bgPlane.visible = false; shadowPlane.visible = false; cam.zoom = 1; R3.lift = 0; H3on = false; return true; }
-  function render(){ if (!ready) return; for (const [id, o] of pool) if (!used.has(id)) o.root.visible = false; renderer.render(scene, cam); rendered = true; }
+  /* ---------- son işlem: parlama (bloom) + renk + vinyet — sadece futbolda; yavaş telefonda kendini kapatır ---------- */
+  let PP = null;
+  const PP_VS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+  function ppMat(fs, uni){ return new T.ShaderMaterial({ vertexShader:PP_VS, fragmentShader:fs, uniforms:uni, depthTest:false, depthWrite:false, toneMapped:false }); }
+  function postSetup(w, h){
+    if (PP && PP.w === w && PP.h === h) return PP;
+    if (PP){ PP.rt.dispose(); PP.h2.dispose(); PP.q1.dispose(); PP.q2.dispose(); }
+    const o = { type:T.HalfFloatType, depthBuffer:false };
+    const rt = new T.WebGLRenderTarget(w, h, { type:T.HalfFloatType, samples:renderer.capabilities.isWebGL2 ? 4 : 0 });
+    const h2 = new T.WebGLRenderTarget(w >> 1, h >> 1, o), q1 = new T.WebGLRenderTarget(w >> 2, h >> 2, o), q2 = new T.WebGLRenderTarget(w >> 2, h >> 2, o);
+    const old = PP; PP = { w, h, rt, h2, q1, q2, sc:old ? old.sc : new T.Scene(), oc:old ? old.oc : new T.OrthographicCamera(-1, 1, 1, -1, 0, 1), quad:old ? old.quad : new T.Mesh(new T.PlaneGeometry(2, 2)), M:old ? old.M : null, slow:old ? old.slow : 0, off:old ? old.off : false };
+    if (!old){ PP.sc.add(PP.quad); PP.quad.frustumCulled = false;
+      PP.M = {
+        bright:ppMat('uniform sampler2D t; uniform vec2 px; uniform float th; varying vec2 vUv; void main(){ vec3 c = (texture2D(t, vUv + px * vec2(-1., -1.)).rgb + texture2D(t, vUv + px * vec2(1., -1.)).rgb + texture2D(t, vUv + px * vec2(-1., 1.)).rgb + texture2D(t, vUv + px * vec2(1., 1.)).rgb) * .25; float l = max(c.r, max(c.g, c.b)); float k = smoothstep(th, th * 1.6, l); gl_FragColor = vec4(c * k, 1.); }', { t:{ value:null }, px:{ value:new T.Vector2() }, th:{ value:.95 } }),
+        down:ppMat('uniform sampler2D t; uniform vec2 px; varying vec2 vUv; void main(){ gl_FragColor = vec4((texture2D(t, vUv + px * vec2(-1., -1.)).rgb + texture2D(t, vUv + px * vec2(1., -1.)).rgb + texture2D(t, vUv + px * vec2(-1., 1.)).rgb + texture2D(t, vUv + px * vec2(1., 1.)).rgb) * .25, 1.); }', { t:{ value:null }, px:{ value:new T.Vector2() } }),
+        blur:ppMat('uniform sampler2D t; uniform vec2 dir; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb * .2270; c += (texture2D(t, vUv + dir * 1.3846).rgb + texture2D(t, vUv - dir * 1.3846).rgb) * .3162; c += (texture2D(t, vUv + dir * 3.2308).rgb + texture2D(t, vUv - dir * 3.2308).rgb) * .0703; gl_FragColor = vec4(c, 1.); }', { t:{ value:null }, dir:{ value:new T.Vector2() } }),
+        comp:new T.ShaderMaterial({ vertexShader:PP_VS, depthTest:false, depthWrite:false, toneMapped:true,
+          uniforms:{ tCol:{ value:null }, tB:{ value:null }, tH:{ value:null }, bloom:{ value:.55 }, sat:{ value:1.12 }, vig:{ value:.55 }, tint:{ value:new T.Vector3(1, 1, 1) }, lift:{ value:.0 } },
+          fragmentShader:`uniform sampler2D tCol, tB, tH; uniform float bloom, sat, vig, lift; uniform vec3 tint; varying vec2 vUv;
+            void main(){ vec3 c = texture2D(tCol, vUv).rgb; vec3 b = texture2D(tB, vUv).rgb + texture2D(tH, vUv).rgb * .35;
+              c += b * bloom; float l = dot(c, vec3(.2126, .7152, .0722)); c = mix(vec3(l), c, sat) * tint + lift;
+              gl_FragColor = vec4(c, 1.);
+              #include <tonemapping_fragment>
+              #include <colorspace_fragment>
+              vec2 d = vUv - .5; gl_FragColor.rgb *= 1. - dot(d, d) * vig; }` }) };
+    }
+    return PP;
+  }
+  function pass(m, src, dst){ PP.quad.material = m; if (m.uniforms.t) m.uniforms.t.value = src; renderer.setRenderTarget(dst); renderer.render(PP.sc, PP.oc); }
+  let lastT = 0, slowEma = 16;
+  function render(){ if (!ready) return; for (const [id, o] of pool) if (!used.has(id)) o.root.visible = false;
+    const now = performance.now(), fdt = lastT ? now - lastT : 16; lastT = now; slowEma += (Math.min(fdt, 120) - slowEma) * .05;
+    const want = mode === 'free' && R3.post && !(PP && PP.off) && renderer.capabilities.isWebGL2;
+    if (!want){ if (slowEma > 46 && !R3.lowRes){ R3.slowT = (R3.slowT || 0) + fdt; if (R3.slowT > 4500){ R3.lowRes = true; resize3(); } } else R3.slowT = 0;
+      renderer.setRenderTarget(null); renderer.render(scene, cam); rendered = true; return; }
+    const sz = renderer.getDrawingBufferSize(new T.Vector2()); postSetup(Math.max(4, sz.x), Math.max(4, sz.y));
+    if (slowEma > 40){ PP.slow += fdt; if (PP.slow > 3500){ PP.off = true; } } else PP.slow = Math.max(0, PP.slow - fdt * .5);
+    renderer.setRenderTarget(PP.rt); renderer.clear(); renderer.render(scene, cam);
+    const M = PP.M, P = R3.post;
+    M.bright.uniforms.px.value.set(1 / PP.w, 1 / PP.h); M.bright.uniforms.th.value = P.th || .95; pass(M.bright, PP.rt.texture, PP.h2);
+    M.down.uniforms.px.value.set(1 / (PP.w >> 1), 1 / (PP.h >> 1)); pass(M.down, PP.h2.texture, PP.q1);
+    for (let k = 0; k < 2; k++){ M.blur.uniforms.dir.value.set(1 / (PP.w >> 2), 0); pass(M.blur, PP.q1.texture, PP.q2); M.blur.uniforms.dir.value.set(0, 1 / (PP.h >> 2)); pass(M.blur, PP.q2.texture, PP.q1); }
+    const C = M.comp.uniforms; C.tCol.value = PP.rt.texture; C.tB.value = PP.q1.texture; C.tH.value = PP.h2.texture; C.bloom.value = P.bloom != null ? P.bloom : .55; C.sat.value = P.sat || 1.1; C.vig.value = P.vig != null ? P.vig : .5;
+    C.tint.value.set(...(P.tint || [1, 1, 1])); C.lift.value = P.lift || 0;
+    PP.quad.material = M.comp; renderer.setRenderTarget(null); renderer.render(PP.sc, PP.oc); rendered = true; }
   const ids = new Map(); let zc = 0;
   function autoId(look){ const sig = look.__sig || (look.__sig = Math.random().toString(36)); const n = (ids.get(sig) || 0) + 1; ids.set(sig, n); return sig + ':' + n; }
-  function begin(){ used.clear(); ids.clear(); zc = 0; drew = false; rendered = false; bgUsed = false; filt = ''; H3on = false; }
+  function begin(){ used.clear(); ids.clear(); zc = 0; drew = false; rendered = false; bgUsed = false; filt = ''; H3on = false; R3.post = null; }
   function end(){
     if (!bgUsed) bgc.style.display = 'none';
     if (!ready) return;
@@ -343,5 +449,5 @@ const R3 = (() => {
     H3on = false;
   }
   function world(){ return { scene, cam, T, mat, mesh, GEO, canvasTex, sun, hemi, fill, renderer }; }
-  return { init, side, free, shadowBox, compact, bgFrom, filter, ground, autoId, char, charW, objS, objW, platform, custom, project, render, begin, end, world, lift:0, ok:() => ready };
+  return { init, side, free, shadowBox, compact, flatten, bgFrom, filter, ground, autoId, char, charW, objS, objW, platform, custom, project, render, begin, end, world, lift:0, ok:() => ready };
 })();

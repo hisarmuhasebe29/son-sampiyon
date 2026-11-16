@@ -131,12 +131,3 @@ function profileChip(c, x, y){
   return { x, y, w:220, h:50 };
 }
 
-/* çok oyunculu ekranı (mp.js yüklenmemişse geçici bilgi ekranı) */
-if (typeof Lobby === 'undefined') window.Lobby = function(){
-  const S = { t:0 }; const bBack = { x:16, y:12, w:110, h:38, size:16 };
-  S.update = dt => { S.t += dt; if (tap && (inB(bBack, tap) || S.t > .4)) { if (inB(bBack, tap)){ SFX.back(); toCover(); } } };
-  S.draw = c => { c.fillStyle = '#0b1020'; c.fillRect(0, 0, W, H); button(c, bBack, '◀ Geri');
-    txt(c, '👥 ÇOK OYUNCULU', 480, 200, 40, '#f2c230', 'center', 'italic 900', 5);
-    txt(c, 'Oda kurma ve arkadaşınla birlikte oynama bir sonraki sürümde geliyor.', 480, 260, 20, '#ffffff', 'center', 'normal', 0, 860); };
-  return S;
-};

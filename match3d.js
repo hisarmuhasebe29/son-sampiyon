@@ -10,6 +10,21 @@ const ME = 9;                                                // oyuncunun kendi 
 const TACTICS = [['kontra', '⚡', 'Kontra'], ['pres', '🔥', 'Pres'], ['kapan', '🛡️', 'Kapan'], ['tiki', '🔁', 'Tiki-taka']];
 const FB_ATT = { shoot:['⚽', 'ŞUT'], pass:['➡️', 'PAS'], thru:['⤴️', 'ARA PAS'], lob:['🌙', 'ORTA'], dash:['💨', 'SPRİNT'] };
 const FB_DEF = { shoot:['🦶', 'MÜDAHALE'], pass:['🔄', 'DEĞİŞTİR'], thru:['🔥', 'BASKI'], lob:['🛝', 'KAYARAK'], dash:['💨', 'SPRİNT'] };
+/* her futbolcuya ayrı görünüm: ten, saç, boy, kilo, sırtta isim + numara (takım koduna göre hep aynı) */
+const SQ_NAMES = [['Yılmaz', 'Kaya', 'Demir', 'Şahin', 'Çelik', 'Aydın', 'Öztürk', 'Arslan', 'Doğan', 'Kılıç', 'Koç', 'Kurt', 'Polat', 'Erdem'],
+  ['Silva', 'Costa', 'Moreno', 'Duran', 'Berg', 'Novak', 'Petit', 'Rossi', 'Lind', 'Okafor', 'Mendes', 'Varga', 'Ito', 'Kane']];
+function squadLook(base, t, i, num, code, gk){
+  let s = 0; for (const ch of code + ':' + t + ':' + i) s = (s * 31 + ch.charCodeAt(0)) >>> 0;
+  const R = () => { s = (s + 0x6D2B79F5) >>> 0; let x = Math.imul(s ^ (s >>> 15), 1 | s); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+  const P = a => a[Math.floor(R() * a.length)];
+  const skin = P(['#f1c9a5', '#e8b98f', '#d8a47f', '#c48d68', '#a86f4c', '#8d5a3b', '#6b4329', '#4f3020']);
+  const dark = parseInt(skin.slice(1, 3), 16) < 0xb0;
+  const hair = dark ? P(['#111111', '#1a1410', '#2a1a10']) : P(['#111111', '#3a2414', '#5a3a1a', '#8a5a2a', '#c9a35a', '#2a1a10']);
+  const hs = P(dark ? ['curly', 'short', 'bald', 'curly', 'spiky', 'bun'] : ['short', 'spiky', 'short', 'long', 'bun', 'mohawk', 'curly', 'bald']);
+  const names = SQ_NAMES[t], nm = names[(i + (code.charCodeAt(0) || 0)) % names.length];
+  return Object.assign({}, base, { skin, hair, hs, face:P(['oval', 'round', 'square', 'oval']), beard:R() < .3 ? hair : null, bs:R() < .5 ? 'stubble' : 'goatee',
+    hgt:(gk ? 1.04 : .95) + R() * .09, wt:.92 + R() * .2, num:String(num), nm, ls:gk ? 1 : 0, __sig:null });
+}
 function fbLabels(set){ for (const k in set){ const [i, t] = set[k]; setBtnHTML(k, '<b>' + i + '</b><i>' + t + '</i>'); } }
 
 function Match3D(def){
@@ -29,10 +44,13 @@ function Match3D(def){
   if (!Match3D.away) Match3D.away = [Object.assign({}, LOOK.rival, { shirt:'#f4f4f4', stripe:'#c0392b', shorts:'#c0392b', socks:'#f4f4f4', __sig:null }), Object.assign({}, LOOK.rival2, { shirt:'#f4f4f4', stripe:'#c0392b', shorts:'#c0392b', socks:'#f4f4f4', __sig:null })];
   const rivA = clash ? Match3D.away[0] : LOOK.rival, rivB = clash ? Match3D.away[1] : LOOK.rival2;
   const looks = [[LOOK.keeper, mateA, mateB], [LOOK.keeper2, rivA, rivB]];
+  const sqKey = kk + '|' + clash + '|' + (def.teams || []).join(',');
+  if (!Match3D.sq || Match3D.sq.k !== sqKey) Match3D.sq = { k:sqKey, L:[[], []] };
   for (let t = 0; t < 2; t++) FORM.forEach(([role, fx, fz], i) => {
-    const look = t === 0 && i === ME ? LOOK.issem : role === 'GK' ? looks[t][0] : looks[t][1 + (i % 2)];
+    const num0 = t === 0 ? ([1, 2, 4, 5, 3, 6, 8, 14, 7, 9, 11][i] === prof.num ? 99 - i : [1, 2, 4, 5, 3, 6, 8, 14, 7, 9, 11][i]) : [1, 2, 4, 5, 3, 6, 8, 10, 7, 9, 11][i];
+    const look = t === 0 && i === ME ? LOOK.issem : (Match3D.sq.L[t][i] || (Match3D.sq.L[t][i] = squadLook(role === 'GK' ? looks[t][0] : looks[t][1 + (i % 2)], t, i, num0, (def.teams || ['ANL', 'RAK'])[t], role === 'GK')));
     const p = { t, i, role, fx, fz, look, x:0, z:0, y:0, vx:0, vz:0, yaw:t ? Math.PI : 0, animT:Math.random() * 3, sp:0, down:0, slideT:0, kick:0, burst:0, burstCd:0,
-      num:t === 0 && i === ME ? prof.num : t === 0 ? [1, 2, 4, 5, 3, 6, 8, 14, 7, 9, 11, 17, 23][i] === prof.num ? 99 - i : [1, 2, 4, 5, 3, 6, 8, 14, 7, 9, 11][i] : [1, 2, 4, 5, 3, 6, 8, 10, 7, 9, 11][i], wind:0, tackleCd:0, base:role === 'FW' ? 6.1 : role === 'MF' ? 5.8 : 5.5 };
+      num:t === 0 && i === ME ? prof.num : num0, nm:look.nm, wind:0, tackleCd:0, base:role === 'FW' ? 6.1 : role === 'MF' ? 5.8 : 5.5 };
     if (role === 'GK') Object.assign(p, newKeeper(t === 0 ? -1 : 1));
     teams[t].push(p); });
   const all = [...teams[0], ...teams[1]], me = teams[0][ME];
@@ -41,6 +59,9 @@ function Match3D(def){
   const dirOf = t => t === 0 ? 1 : -1;
   const spd = p => (p === me ? P_SPEED() : p.base * (p.t === 1 ? (training ? .86 : .93) * D.aggr : 1)) * (p.t === 0 && p !== me ? .97 : 1);
   function say2(t){ M.msg = t; M.msgT = 1.6; }
+  function comm(t, force){ if (!force && M.commT > 1.2) return; M.comm = t; M.commT = 3; say(t, 'Spiker'); }
+  M.intro = { t:0, dur:training ? 3.6 : 6.2 }; showControls(null); M.rec = []; M.recT = 0; M.replay = null; M.commT = 0;
+  setTimeout(() => { if (cur === M && M.intro) comm(training ? 'Anolecrab tesislerinde hazırlık maçı başlıyor!' : pick(['Uon Pmac Stadyumu tıklım tıklım dolu! Büyük maç başlıyor!', 'Hoş geldiniz! Tribünler coşkulu, maç birazdan başlıyor!']), true); }, 600);
   function placeKickoff(team){
     for (const tt of teams) for (const p of tt){ const d = dirOf(p.t); if (p.role === 'GK'){ Object.assign(p, newKeeper(p.g)); continue; }
       p.x = d * Math.min(p.t === team ? -1.5 : -9.6, p.fx * 46 * .55 - 2); p.z = p.fz * .9; p.vx = p.vz = 0; p.down = 0; p.slideT = 0; p.wind = 0; p.yaw = p.t ? Math.PI : 0; }
@@ -101,9 +122,9 @@ function Match3D(def){
     const K = teams[ours ? 1 : 0][0];
     if (ev === 'goal'){ M.state = 'goal'; M.stT = ours ? 3.6 : 2.4; f3Net(M, Sh.side); M.inNet = Sh.side; SFX.net(); M.shake = 9;
       if (ours){ M.goals++; M.score[0]++; SFX.goal(); SFX.airhorn(); crowdLevel(.38); vib([80, 60, 200]); M.cheer = true; wtext(M, 'GOOOOL!', GL - 3, 3.4, B.z * .4, '#f2c230', 88);
-        say(M.shooter === me ? nm(pick(['Gol! Gol! Issem!', 'Muhteşem bir gol! Issem!'])) : pick(['Gol! Harika bir takım golü!', 'Ağlar havalandı!']), 'Spiker'); confetti(M, 120);
+        comm(M.shooter === me ? nm(pick(['GOOOL! Gol! Issem!', 'Muhteşem bir gol! Issem fileleri havalandırıyor!', 'İnanılmaz! Issem köşeye bıraktı!'])) : pick(['Gol! Harika bir takım golü!', 'Ağlar havalandı! Gol!']), true); confetti(M, 120); M.cheerSide = 0; M.goalIdx = M.rec.length;
         M.scorer = M.shooter; M.cx = clamp(M.shooter.x + 3, -40, GL - 6); M.cz = clamp(M.shooter.z, -20, 20); M.ct = 0; }
-      else { M.score[1]++; SFX.boo(); wtext(M, 'RAKİP GOL ATTI!', -GL + 3, 3.2, B.z * .4, '#ff6b6b', 50); say('Rakip gol attı!', 'Spiker'); crowdLevel(.06); }
+      else { M.score[1]++; SFX.boo(); wtext(M, 'RAKİP GOL ATTI!', -GL + 3, 3.2, B.z * .4, '#ff6b6b', 50); comm(pick(['Rakip gol attı! Tribünler sessiz.', 'Eyvah! Rakip skoru değiştirdi.']), true); crowdLevel(.06); M.cheer = true; M.cheerSide = 1; M.goalIdx = M.rec.length; M.scorerThem = M.shooter; }
       return; }
     M.state = 'play'; M.inNet = 0; SFX.ooh(); let msg = 'AUT!';
     if (ev === 'catch'){ B.vx = B.vy = B.vz = 0; K.hold = true; give(K); K.holdT = .35; SFX.gloveCatch(); if (ours) SFX.ooh(); else SFX.applause(); msg = 'KALECİ YAKALADI!'; }
@@ -112,7 +133,7 @@ function Match3D(def){
     else { msg = ev === 'over' ? 'ÜSTTEN AUT!' : 'AUT!'; goalKick(ours ? 1 : 0); }
     wtext(M, msg, Sh.side * (GL - 2), 3.2, B.z * .5, '#ffffff', 44);
     if (!ours && (ev === 'catch' || ev === 'parry')) wtext(M, 'KURTARIŞ!', -GL + 4, 2.6, 0, '#7dff9a', 34);
-    say(ev === 'catch' || ev === 'parry' ? pick(['Kurtarış!', 'Kaleci gol vermiyor!']) : ev === 'post' || ev === 'bar' ? 'Direkten döndü!' : pick(['Az farkla dışarıda.', 'Aut.']), 'Spiker');
+    comm(ev === 'catch' || ev === 'parry' ? pick(['Kurtarış! Kaleci gol vermiyor!', 'Müthiş refleks!', 'Kaleci son anda çeldi!']) : ev === 'post' || ev === 'bar' ? pick(['Direkten döndü!', 'Ah! Direk!']) : pick(['Az farkla dışarıda.', 'Aut. Fırsat kaçtı.', 'Top auta gidiyor.']), true);
   }
   function goalKick(team){ SFX.shortWhistle(); const K = teams[team][0]; K.z = 0; K.x = K.g * (GL - 2); B.x = K.x - K.g * .5; B.z = 0; B.vx = B.vy = B.vz = 0; give(K); K.holdT = .5; say2('AUT ATIŞI'); SFX.whistle(); }
   /* ---------- taç / korner ---------- */
@@ -126,16 +147,32 @@ function Match3D(def){
   function restartAt(team, x, z, what){
     B.x = x; B.z = z; B.y = BR; B.vx = B.vy = B.vz = 0; B.flight = null;
     let best = null, bd = 1e9; for (const p of teams[team]) if (p.role !== 'GK'){ const d = Math.hypot(p.x - x, p.z - z); if (d < bd){ bd = d; best = p; } }
-    best.x = x - Math.sign(z) * 0 - dirOf(team) * .4; best.z = z - Math.sign(z) * .5; give(best); best.holdT = .9; say2(what); SFX.shortWhistle(); if (what === 'KORNER' && team === 0) SFX.anticip(); say(what === 'KORNER' ? 'Korner.' : 'Taç.', 'Spiker');
+    best.x = x - Math.sign(z) * 0 - dirOf(team) * .4; best.z = z - Math.sign(z) * .5; give(best); best.holdT = .9; say2(what); SFX.shortWhistle(); if (what === 'KORNER' && team === 0) SFX.anticip(); comm(what === 'KORNER' ? pick(['Korner.', 'Köşe vuruşu kazanıldı.']) : 'Taç.');
   }
   /* ---------- güncelle ---------- */
   M.update = dt => {
     if (M.pauseM){ if (tap){ if (inB({ x:330, y:200, w:300, h:54 }, tap)){ M.pauseM = false; ctrlUI(); } else if (inB({ x:330, y:266, w:300, h:50 }, tap)) restartM(); else if (inB({ x:330, y:328, w:300, h:50 }, tap)){ crowdAmb(false); toCover(); } } return; }
     if (tap && (inB(PAUSE_BTN, tap) || tap.pause) && !M.lost){ M.pauseM = true; showControls(null); return; }
+    if (M.intro){ M.intro.t += dt; M.t += dt; const I = M.intro, k = Math.min(1, I.t / I.dur), a = Math.PI * (.62 + k * .78), e = easeOut(Math.min(1, k / .82)), r = lerp(58, 30, Math.sqrt(e)), y = lerp(training ? 45 : 95, 10, e);
+      if (k < .82) camTo(M, Math.cos(a) * r, y, Math.sin(a) * r * .8, lerp(0, -4, k), 0, 0, 1); else camTo(M, -22, 8, 0, 0, 0, 0, Math.min(1, dt * 3));
+      M.excite = .55; if (I.t > I.dur || (tap && I.t > .5)){ M.intro = null; M.excite = null; ctrlUI(); SFX.whistle(); comm(pick(['Ve hakem düdüğü çaldı, maç başladı!', 'Santra yapıldı, top oyunda!']), true); } tap = null; return; }
+    if (M.replay){ const R = M.replay; M.t += dt; R.t += dt * (R.t > R.slowAt ? .42 : .85) ; R.real += dt;
+      const fi = Math.floor(R.t / .05), f = R.frames[Math.min(fi, R.frames.length - 1)];
+      if (f){ M.mpApply(f); M.score = R.score.slice(); M.clock = R.clock; M.hintT = 0;
+        const bx = B.x, bz = B.z, sd = R.side, k = Math.min(1, dt * 4);
+        if (R.cam === 'behind') camTo(M, sd * (GL + 9), 3.2, bz * .35, bx, Math.max(.6, B.y), bz, k);
+        else if (R.cam === 'side') camTo(M, bx - sd * 4, 4.2, bz + (bz > 0 ? -16 : 16), bx + sd * 2, .8, bz, k);
+        else camTo(M, bx - sd * 7, 1.6, bz * .8 - 2.5, bx + sd * 3, .6, bz, k); }
+      if (fi >= R.frames.length || (tap && R.real > .6)){ M.replay = null; M.cheer = false; M.inNet = 0; tap = null; ctrlUI();
+        if (training && M.goals >= def.need){ M.state = 'won'; M.stT = 2.2; SFX.longWhistle(); confetti(M, 80); } else placeKickoff(R.ours ? 1 : 0);
+        M.camPos.set(-22, 8, 0); M.camLook.set(0, 0, 0); }
+      return; }
     if (tap && !M.lost) TACTICS.forEach(([k], i) => { if (inB({ x:376 + i * 74, y:8, w:68, h:42 }, tap)){ M.tactic = M.tactic === k ? null : k; M.tacT = 2; SFX.click(); say2(M.tactic ? TACTICS[i][2].toUpperCase() + '!' : 'NORMAL TAKTİK'); } });
     M.t += dt; if (M.hintT > 0) M.hintT -= dt; if (M.msgT > 0) M.msgT -= dt; M.shake *= Math.pow(.02, dt); if (switchLock > 0) switchLock -= dt;
     for (const t of M.texts) t.t += dt; M.texts = M.texts.filter(t => t.t < 1.8);
     if (M.lost){ M.lostT += dt; if (tap && M.lostT > .8) restartM(); return; }
+    if (M.state === 'play' || M.state === 'shot' || M.state === 'goal'){ M.recT -= dt; if (M.recT <= 0){ M.recT = .05; M.rec.push(M.mpSnap()); if (M.rec.length > 170){ M.rec.shift(); if (M.goalIdx) M.goalIdx--; } } }
+    if (M.commT > 0) M.commT -= dt;
     const live = M.state === 'play' || M.state === 'kick';
     if (def.time && live){ M.clock = Math.min(90, M.clock + dt * (90 - (def.startMin || 0)) / def.time);
       if (M.clock >= 90){ SFX.longWhistle(); if (M.goals >= def.need && M.score[0] > M.score[1]){ M.state = 'won'; M.stT = 2.4; confetti(M, 80); } else lose(M.score[0] > M.score[1] ? 'Yeterli gol yok!' : 'Maç bitti!'); return; } }
@@ -150,7 +187,13 @@ function Match3D(def){
       if (k < Sh.kev){ const q = shotPos(Sh, k); B.x = q.x; B.y = q.y; B.z = q.z; B.yaw = yawTo(Sh.tx - Sh.x0, Sh.tz - Sh.z0); B.rot -= dt * 40; } else shotEvent();
       for (const p of all) if (p.role !== 'GK'){ p.vx *= .9; p.vz *= .9; p.sp = Math.hypot(p.vx, p.vz); p.x += p.vx * dt; p.z += p.vz * dt; } }
     else if (M.state === 'goal'){ M.stT -= dt; M.ct = (M.ct || 0) + dt; ballPhys(B, dt, M.inNet); if (M.stT < 1.2){ crowdLevel(.15); M.cheer = false; }
-      if (M.stT <= 0){ const ours = M.inNet > 0; M.inNet = 0;
+      const ours0 = M.inNet > 0, team = teams[ours0 ? 0 : 1], cx = ours0 ? M.cx : (M.scorerThem ? M.scorerThem.x : -GL + 12), cz = ours0 ? M.cz : (M.scorerThem ? M.scorerThem.z : 0);
+      team.forEach((p, i) => { if (p.role === 'GK' || p === (ours0 ? M.scorer : M.scorerThem)) return; const tx = cx + Math.cos(i * 1.3) * 1.8, tz = cz + Math.sin(i * 1.3) * 1.8, dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
+        if (d > .6 && d < 40){ const s = Math.min(7, d * 1.5); p.vx = dx / d * s; p.vz = dz / d * s; p.x += p.vx * dt; p.z += p.vz * dt; p.sp = s; p.yaw = yawTo(dx, dz); } else { p.sp = 0; } });
+      if (M.stT <= 0){ const ours = M.inNet > 0;
+        const gi = M.goalIdx != null ? M.goalIdx : M.rec.length, from = Math.max(0, gi - 80), frames = M.rec.slice(from, Math.min(M.rec.length, gi + 18));
+        if (frames.length > 30){ M.replay = { frames, t:0, real:0, slowAt:Math.max(0, (gi - from - 26) * .05), side:ours ? 1 : -1, ours, cam:pick(['behind', 'side', 'low']), score:M.score.slice(), clock:M.clock }; M.rec = []; M.goalIdx = null; showControls(null); SFX.whoosh ? SFX.whoosh() : SFX.dash(); if (Math.random() < .6) comm(pick(['Bir kez daha izleyelim...', 'Tekrar görüntülere bakalım.', 'Şu güzelliğe bakın!']), true); return; }
+        M.inNet = 0;
         if (training && M.goals >= def.need){ M.state = 'won'; M.stT = 2.2; SFX.longWhistle(); confetti(M, 80); } else placeKickoff(ours ? 1 : 0); } }
     else if (M.state === 'won'){ M.stT -= dt; if (M.stT <= 0){ stats.lvls++; stats.dmg += Math.min(1, M.tackles * .12); stats.tackles += M.tackles; crowdAmb(false); next(); return; } }
     if (B.owner && B.owner.role === 'GK' && M.state === 'play'){ const K = B.owner; B.x = K.x - K.g * .45; B.y = K.y + 1.1; B.z = K.z; }
@@ -286,17 +329,37 @@ function Match3D(def){
     if ((press && Math.random() < .7) || Math.random() < .2){ const q = bestMate(p, -1, 0, Math.random() < .4); if (q) kickBall(p, q.x + q.vx * .3, q.z + q.vz * .3, Math.hypot(q.x - p.x, q.z - p.z) > 26 ? 'lob' : 'ground', q); }
   }
 
+  /* ---------- çok oyunculu: anlık görüntü gönder / uygula ---------- */
+  const r2 = v => Math.round(v * 100) / 100;
+  M.mpSnap = () => ({ tm:all.map(p => [r2(p.x), r2(p.z), r2(p.yaw), r2(p.sp), r2(Math.max(0, p.kick)), r2(Math.max(0, p.down)), r2(Math.max(0, p.slideT)), r2(Math.max(0, p.wind)), r2(Math.max(0, p.burst)),
+      p.role === 'GK' ? [p.st, r2(p.y), r2(p.roll), p.hold ? 1 : 0, r2(p.kt || 0)] : 0]),
+    B:[r2(B.x), r2(B.y), r2(B.z), r2(B.yaw), r2(B.rot)], sc:M.score.slice(), cl:r2(M.clock), st:M.state, g:M.goals, ci:all.indexOf(ctrl), pr:passRecv ? all.indexOf(passRecv) : -1,
+    ch:M.charging ? 1 : 0, pw:r2(M.power), aim:[r2(M.aim.tz), r2(M.aim.th)], cam:[r2(M.camPos.x), r2(M.camPos.y), r2(M.camPos.z), r2(M.camLook.x), r2(M.camLook.y), r2(M.camLook.z)],
+    msg:M.msgT > 0 ? [M.msg, r2(M.msgT)] : 0, tac:M.tactic, ch2:M.cheer ? 1 : 0, nt:M.inNet || 0, sco:M.scorer ? all.indexOf(M.scorer) : -1, cx:[r2(M.cx || 0), r2(M.cz || 0), r2(M.ct || 0)],
+    tx:M.texts.map(t => [t.text, r2(t.x), r2(t.y), r2(t.z), t.col, t.size, r2(t.t)]), lost:M.lost ? [M.loseMsg, r2(M.lostT)] : 0, sh:r2(M.shake), stT:r2(M.stT || 0), rp:M.replay ? [M.replay.cam, r2(M.replay.real), M.replay.t > M.replay.slowAt ? 1 : 0] : 0, it:M.intro ? r2(M.intro.t / M.intro.dur) : -1, cm:M.commT > 0 ? [M.comm, r2(M.commT)] : 0 });
+  M.mpApply = s => {
+    s.tm.forEach((a, i) => { const p = all[i]; if (!p) return; p.x = a[0]; p.z = a[1]; p.yaw = a[2]; p.sp = a[3]; p.kick = a[4]; p.down = a[5]; p.slideT = a[6]; p.wind = a[7]; p.burst = a[8];
+      if (a[9]){ p.st = a[9][0]; p.y = a[9][1]; p.roll = a[9][2]; p.hold = !!a[9][3]; p.kt = a[9][4]; } });
+    [B.x, B.y, B.z, B.yaw, B.rot] = s.B; M.score = s.sc; M.clock = s.cl; M.state = s.st; M.goals = s.g; if (all[s.ci]) ctrl = all[s.ci]; passRecv = s.pr >= 0 ? all[s.pr] : null;
+    M.charging = !!s.ch; M.power = s.pw; M.aim.tz = s.aim[0]; M.aim.th = s.aim[1]; M.camPos.set(s.cam[0], s.cam[1], s.cam[2]); M.camLook.set(s.cam[3], s.cam[4], s.cam[5]);
+    if (s.msg){ M.msg = s.msg[0]; M.msgT = s.msg[1]; } else M.msgT = 0; M.tactic = s.tac; M.cheer = !!s.ch2; M.inNet = s.nt; M.scorer = s.sco >= 0 ? all[s.sco] : null; [M.cx, M.cz, M.ct] = s.cx;
+    M.texts = s.tx.map(t => ({ text:t[0], x:t[1], y:t[2], z:t[3], col:t[4], size:t[5], t:t[6] })); M.lost = !!s.lost; if (s.lost){ M.loseMsg = s.lost[0]; M.lostT = s.lost[1]; } M.shake = s.sh; M.stT = s.stT;
+    M.hintT = 0; if (!M.replay) M.intro = null; M.rpView = s.rp || null; M.itView = s.it != null ? s.it : -1; if (s.cm){ M.comm = s.cm[0]; M.commT = s.cm[1]; } else M.commT = 0; };
+  M.viewTick = dt => { M.t += dt; for (const p of all) p.animT += dt; };
   /* ---------- çizim ---------- */
   M.draw = c => {
     const dt = 1 / 60, teamsN = def.teams || ['ANL', 'RKP'];
     M.screen = [teamsN[0], M.score[0] + '-' + M.score[1], teamsN[1], def.time ? Math.floor(M.clock) + "'" : 'HAZIRLIK'];
+    const cine = !!(M.intro || M.replay || M.rpView || (M.itView != null && M.itView >= 0));
     if (!f3Begin(M, dt)){ c.fillStyle = '#000'; c.fillRect(0, 0, W, H); txt(c, '3B grafik desteklenmiyor', 480, 270, 24, '#fff', 'center'); return; }
     for (const p of all){
       const id = (p.t ? 'a' : 'h') + p.i;
       if (p.role === 'GK'){ drawKeeper(p, M.state === 'goal' && M.inNet === -p.g ? 'sad' : 'angry', id, p.look); continue; }
       let P; const celebrating = M.state === 'goal' && M.inNet > 0;
       if (celebrating && p === M.scorer) P = celebPose(M, p, M.ct);
-      else if (celebrating && p.t === 0 && Math.hypot(p.x - M.cx, p.z - M.cz) < 12) P = getPose({ animT:p.animT, pose:'cheer' });
+      else if (celebrating && p.t === 0 && Math.hypot(p.x - M.cx, p.z - M.cz) < 12) P = p.sp > .8 ? getPose({ animT:p.animT, vx:p.sp * 100, run:true }) : getPose({ animT:p.animT, pose:'cheer' });
+      else if (M.state === 'goal' && M.inNet < 0 && p.t === 1) P = p.sp > .8 ? getPose({ animT:p.animT, vx:p.sp * 100, run:true }) : getPose({ animT:p.animT, pose:'cheer' });
+      else if (M.state === 'goal' && M.inNet < 0 && p.t === 0 && p.sp < .5) P = getPose({ animT:p.animT, pose:'sad' });
       else if (M.state === 'won') P = getPose({ animT:p.animT, pose:p.t === 0 ? 'cheer' : 'sad' });
       else if (p.down > 0) P = getPose({ pose:'lie' });
       else if (p.slideT > 0) P = getPose({ slide:1 });
@@ -312,33 +375,41 @@ function Match3D(def){
     }
     if (training) R3.charW('fl', LOOK.leo, getPose({ animT:M.t, pose:'arms' }), clamp(B.x, -40, 40), 0, -36.5, yawTo(0, 1), 1, M.goals ? 'happy' : 'neutral');
     f3Ball(B);
+    M.kitH = [prof.shirt, prof.stripe]; M.kitA = [rivA.shirt, rivA.stripe];
+    if (!M.intro && !M.replay){ const want = M.state === 'goal' ? .2 : .16 + .55 * clamp((B.x - 12) / 36, 0, 1); M.excite = want; M.allowWave = M.state === 'play' && B.x < 0 && !training; }
+    if (!training) f3NightShadows(all);
     const live = M.state === 'play' || M.state === 'kick';
-    if (live){ f3Ring('ringP', ctrl.x, ctrl.z, '#f2c230', .62 + Math.sin(M.t * 6) * .04);
+    if (live && !cine){ f3Ring('ringP', ctrl.x, ctrl.z, '#f2c230', .62 + Math.sin(M.t * 6) * .04);
       if (B.owner === ctrl && !M.charging){ const [ux, uz] = inDir(ctrl); const q = bestMate(ctrl, ux, uz, false); if (q) f3Ring('ringT', q.x, q.z, '#ffffff', .5, .55); }
       if (passRecv && B.flight && passRecv.t === 0) f3Ring('ringR', passRecv.runTo ? passRecv.runTo.x : passRecv.x, passRecv.runTo ? passRecv.runTo.z : passRecv.z, '#7dff9a', .7, .6);
       if (B.owner && B.owner.t === 1) f3Ring('ringC', B.owner.x, B.owner.z, '#ff3b3b', .75, .9); }
-    if (M.charging){ const tl = Math.hypot(GL - B.x, M.aim.tz - B.z), ay = yawTo(GL - B.x, M.aim.tz - B.z);
+    if (M.charging && !cine){ const tl = Math.hypot(GL - B.x, M.aim.tz - B.z), ay = yawTo(GL - B.x, M.aim.tz - B.z);
       f3Arrow(B.x, B.z, ay, 1.2 + M.power * Math.min(9, tl * .45), M.power > .85 ? '#ff4a3a' : '#f2c230');
       const err = (1 - PST('sut')) * .5 + tl * .011 + Math.max(0, M.power - .85) * 3.2; f3Reticle(M.aim.th + Math.max(0, M.power - .85) * 2, M.aim.tz, .32 + err * .9, M.power > .85 ? '#ff4a3a' : '#f2c230'); }
     R3.render();
     // 2B üst katman
-    if (live) nameTag(c, ctrl.x, 2.25, ctrl.z, ctrl === me ? PNAME : (ctrl.role === 'DF' ? 'Defans' : ctrl.role === 'MF' ? 'Orta saha' : 'Forvet'), ctrl.num);
+    if (live && !cine) nameTag(c, ctrl.x, 2.25, ctrl.z, ctrl === me ? PNAME : (ctrl.role === 'DF' ? 'Defans' : ctrl.role === 'MF' ? 'Orta saha' : 'Forvet'), ctrl.num);
     drawWTexts(c, M); drawConf(c, M, dt);
     scoreBug(c, teamsN, M.score, def.time ? Math.floor(M.clock) + "'" : 'HAZ.');
-    if (def.obj) pill(c, nm(def.obj), 14, 62, 15, 'rgba(0,0,0,.6)', '#f2c230', { align:'left', maxW:340 });
-    txt(c, 'Gol: ' + M.goals + ' / ' + def.need + (def.time ? ' · önde bitir!' : ''), 22, 100, 16, '#ffffff', 'left', 'bold', 4);
+    if (def.obj && !cine) pill(c, nm(def.obj), 14, 62, 15, 'rgba(0,0,0,.6)', '#f2c230', { align:'left', maxW:340 });
+    if (!cine) txt(c, 'Gol: ' + M.goals + ' / ' + def.need + (def.time ? ' · önde bitir!' : ''), 22, 100, 16, '#ffffff', 'left', 'bold', 4);
     // hızlı taktikler (üst)
-    TACTICS.forEach(([k, ic, name], i) => { const x = 376 + i * 74, on = M.tactic === k; c.fillStyle = on ? 'rgba(242,194,48,.92)' : 'rgba(8,12,30,.72)'; rr(c, x, 8, 68, 42, 21); c.fill();
+    if (!cine) TACTICS.forEach(([k, ic, name], i) => { const x = 376 + i * 74, on = M.tactic === k; c.fillStyle = on ? 'rgba(242,194,48,.92)' : 'rgba(8,12,30,.72)'; rr(c, x, 8, 68, 42, 21); c.fill();
       c.strokeStyle = on ? '#fff3b0' : ['#5aa0ff', '#ff6b6b', '#2ecc71', '#c39bff'][i]; c.lineWidth = 2; c.stroke();
       txt(c, ic, x + 34, 27, 15, '#ffffff', 'center'); txt(c, name.toUpperCase(), x + 34, 44, 9, on ? '#14306b' : '#ffffff', 'center', '900', 0, 62); });
-    radar(c, [...teams[1].map(p => ({ x:p.x, z:p.z, col:p.role === 'GK' ? '#f39c12' : '#e74c3c', r:2.4 })), ...teams[0].map(p => ({ x:p.x, z:p.z, col:p.role === 'GK' ? '#2ecc71' : prof.shirt === '#111111' ? '#9aa0a8' : prof.shirt, r:2.4 })),
+    if (!cine) radar(c, [...teams[1].map(p => ({ x:p.x, z:p.z, col:p.role === 'GK' ? '#f39c12' : '#e74c3c', r:2.4 })), ...teams[0].map(p => ({ x:p.x, z:p.z, col:p.role === 'GK' ? '#2ecc71' : prof.shirt === '#111111' ? '#9aa0a8' : prof.shirt, r:2.4 })),
       { x:ctrl.x, z:ctrl.z, col:'#f2c230', me:1, r:3.6 }, { x:B.x, z:B.z, col:'#ffffff', r:2 }]);
-    if (M.hintT > 0){ c.globalAlpha = Math.min(1, M.hintT); pill(c, M.hint, 480, 136, 14, 'rgba(20,48,107,.92)', '#ffffff', { maxW:900 }); c.globalAlpha = 1; }
+    if (M.hintT > 0 && !cine){ c.globalAlpha = Math.min(1, M.hintT); pill(c, M.hint, 480, 136, 14, 'rgba(20,48,107,.92)', '#ffffff', { maxW:900 }); c.globalAlpha = 1; }
     if (M.msgT > 0){ c.globalAlpha = Math.min(1, M.msgT * 2); txt(c, M.msg, 480, 172, 26, '#ffffff', 'center', 'italic 900', 6); c.globalAlpha = 1; }
-    if (M.charging) powerHud(c, M.power, 'GÜÇ — bırakınca vurur · joystick: hedef');
-    if (M.state === 'kick') txt(c, M.clock < 1 ? (training ? 'Hazırlık maçı başlıyor' : 'Maç başlıyor') : 'Santra', 480, 240, 40, '#ffffff', 'center', 'italic 900', 6);
+    if (M.charging && !cine) powerHud(c, M.power, 'GÜÇ — bırakınca vurur · joystick: hedef');
+    if (M.state === 'kick' && !cine) txt(c, M.clock < 1 ? (training ? 'Hazırlık maçı başlıyor' : 'Maç başlıyor') : 'Santra', 480, 240, 40, '#ffffff', 'center', 'italic 900', 6);
     pauseBtn(c);
     if (M.state === 'won'){ c.fillStyle = 'rgba(0,0,0,.28)'; c.fillRect(0, 0, W, H); txt(c, training ? 'HAZIRLIK MAÇI TAMAM!' : 'MAÇ BİTTİ — KAZANDIK!', 480, 260, 54, '#f2c230', 'center', 'italic 900', 8, 900); txt(c, 'Skor: ' + M.score[0] + ' - ' + M.score[1], 480, 306, 26, '#ffffff', 'center', 'bold', 5); }
+    if (M.commT > 0 && M.comm){ c.globalAlpha = Math.min(1, M.commT * 1.5); pill(c, '🎙 ' + nm(M.comm), 450, cine ? 470 : 522, 14, 'rgba(6,10,26,.82)', '#ffffff', { maxW:430 }); c.globalAlpha = 1; }
+    const rp = M.replay ? [M.replay.cam, M.replay.real, M.replay.t > M.replay.slowAt ? 1 : 0] : M.rpView;
+    if (rp) drawReplayHud(c, rp[1], rp[2], M.t);
+    const it = M.intro ? M.intro.t / M.intro.dur : M.itView;
+    if (it != null && it >= 0) drawLineups(c, it, teams, teamsN, training, M.t);
     if (M.pauseM) drawPause(c);
     if (M.lost){ c.fillStyle = 'rgba(0,0,0,.75)'; c.fillRect(0, 0, W, H); txt(c, M.loseMsg.toUpperCase(), 480, 230, 52, '#ff6b6b', 'center', '900');
       txt(c, 'Skor: ' + M.score[0] + ' - ' + M.score[1] + ' · ' + def.need + ' gol atıp önde bitirmeliyiz. Tekrar!', 480, 280, 20, '#ffffff', 'center', 'normal', 0, 900); tapHint(c, 480, 340, M.lostT > .8, 'Tekrar dene ▶'); }

@@ -88,6 +88,9 @@ const LEVELS = {
     preset:[['lider', 620, { face:-1 }]], hint:'⇄ ile ikisini de kullanın! Süper bar dolunca ⭐!',
     barks:[ { at:5, who:'Lider', t:'İkiniz de benim oyunumdaki piyonlarsınız!', e:'smirk' }, { at:22, who:'Issem', t:'Arkadaşlarım için, Ufis!' }, { at:40, who:'Ufis', t:'Ustam için!' } ] },
 };
+/* yeni düşman HÜCUMCU (koşarak omuz atar) — orta bölümlerden itibaren dalgalara karışır */
+for (const [k, wi] of [['arkaSokak', 0], ['fabrikaIc', 1], ['karargahGiris', 1], ['karargahKacis', 0]]){ const w = LEVELS[k] && LEVELS[k].waves && LEVELS[k].waves[wi]; if (w) w.list.push(['charger', w.list.length % 2 ? -1 : 1]); }
+
 /* merdiven basamakları: stairs:[[x, üstY, basamak, yön]] → basamak platformlarına dönüşür (yürüyerek çıkılır) */
 for (const k in LEVELS){ const L = LEVELS[k]; for (const st of L.stairs || []){ const [x, top, n, dir] = st, h = (GROUND - top) / n, w = 38;
   L.platforms = L.platforms || []; for (let i = 0; i < n; i++){ const x1 = dir > 0 ? x + i * w : x - (i + 1) * w; L.platforms.push({ x1, x2:x1 + w + (i === n - 1 ? 0 : 0), y:Math.round(GROUND - (i + 1) * h), ladder:false, step:true }); } } }

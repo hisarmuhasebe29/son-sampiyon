@@ -3,7 +3,7 @@
    SON ŞAMPİYON — ARAÇ   ·   core.js
    ekran · yardımcılar · kayıt · ses · müzik · dublaj · kontroller
    ========================================================= */
-const VERSION = 'v.08';
+const VERSION = 'v.10';
 const W = 960, H = 540, GROUND = 470;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scale = 1, dpr = 1, paused = false;
@@ -66,6 +66,8 @@ const ICON_SVG = {
   shield:'<path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/>',
   wind:'<path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/>',
   ball:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5l4 2.8-1.5 4.6h-5L8 10.3z"/><path d="M12 7.5V3.2M16 10.3l4.2-1.4M14.5 14.9l2.6 3.6M9.5 14.9L6.9 18.5M8 10.3L3.8 8.9"/>',
+  glove:'<path d="M7 21h10v-4l2-5V7.5a1.5 1.5 0 0 0-3 0V11V5a1.5 1.5 0 0 0-3 0v6V4.5a1.5 1.5 0 0 0-3 0V11V6a1.5 1.5 0 0 0-3 0v8l-1.5-2a1.5 1.5 0 0 0-2.4 1.8L7 17.5z"/><path d="M7 17h10"/>',
+  medal:'<circle cx="12" cy="15" r="6"/><path d="M8.5 10 6 2h4l2 5 2-5h4l-2.5 8"/><path d="m12 12.5.9 1.8 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/>',
   hand:'<path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4a1.5 1.5 0 0 1 3 0v7M14 10V5.5a1.5 1.5 0 0 1 3 0V12M17 11a1.5 1.5 0 0 1 3 0v3c0 4-3 7-7 7h-1c-3 0-5-2-6.5-4L3 13.5a1.6 1.6 0 0 1 2.5-2L8 14"/>',
   star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
   swap:'<path d="M4 8h15l-3.5-3.5M20 16H5l3.5 3.5"/>',
@@ -111,7 +113,7 @@ const ICON_SVG = {
 const EMOJI2ICON = { '👊':'fist', '🦵':'kick', '🦶':'boot', '🛡':'shield', '💨':'wind', '⚽':'ball', '✋':'hand', '⭐':'star', '★':'star', '⇄':'swap', '➡':'arrow',
   '⤴':'thru', '🌙':'lob', '⬆':'up', '⬇':'down', '🔥':'fire', '⚡':'bolt', '🔁':'loop', '🔄':'loop', '❤':'heart', '👤':'user', '🎲':'dice', '🎯':'target',
   '🚪':'door', '🪟':'window', '🪜':'ladder', '⚠':'warn', '⏱':'timer', '🚨':'siren', '🔊':'speaker', '📱':'phone', '📖':'book', '🎵':'music', '🔇':'mute',
-  '🗣':'voice', '🤐':'novoice', '🔒':'lock', '⏭':'skip', '📹':'camera', '🛝':'slide', '🥋':'gi', '💻':'laptop', '📍':'pin', '✉':'mail', '⟳':'refresh', '↺':'refresh', '🪙':'coin', '👥':'users', '🌐':'globe', '👁':'eye' };
+  '🗣':'voice', '🤐':'novoice', '🔒':'lock', '⏭':'skip', '📹':'camera', '🛝':'slide', '🥋':'gi', '💻':'laptop', '📍':'pin', '✉':'mail', '⟳':'refresh', '↺':'refresh', '🪙':'coin', '👥':'users', '🌐':'globe', '👁':'eye', '🧤':'glove', '🏅':'medal', '🥇':'medal' };
 const ICON_RE = new RegExp('(' + Object.keys(EMOJI2ICON).join('|') + ')\\ufe0f?', 'gu');
 const ICON_IMG = {};
 function iconImg(name, col, sw = 2.2){
