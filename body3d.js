@@ -92,6 +92,17 @@ const BODY = (() => {
     const tri = []; for (let i = 0; i < idx.length; i += 3) if (keep[idx[i]] && keep[idx[i + 1]] && keep[idx[i + 2]]) tri.push(idx[i], idx[i + 1], idx[i + 2]);
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(tri); g.computeVertexNormals(); sphereSeam(g, 44, 32); g.userData.own = 1; return g;
   }
+  /* sakal: çene/yanaklara oturan kabuk (ağız açık kalır) — kafa geometrisinden türetilir */
+  function beardGeo(src, thick){
+    const sp = src.attributes.position, sn = src.attributes.normal, idx = src.index.array, pos = [], keep = new Uint8Array(sp.count);
+    for (let i = 0; i < sp.count; i++){ const x = sp.getX(i) / .1, y = sp.getY(i) / .118, z = sp.getZ(i) / .079;
+      const mouth = x > .55 && Math.abs(z) < .34 && y > -.66 && y < -.3, top = -.12 - (x > .5 ? .2 * (1 - Math.min(1, Math.abs(z) / .5)) : 0);
+      keep[i] = y < top + .05 && x > -.35 && !mouth ? 1 : 0;
+      const fade = sstep(top + .05, top - .14, y) * sstep(-.35, -.05, x), t = thick * fade * (1 + Math.max(0, -y - .7) * .9) - .001;
+      pos.push(sp.getX(i) + sn.getX(i) * t, sp.getY(i) + sn.getY(i) * t, sp.getZ(i) + sn.getZ(i) * t); }
+    const tri = []; for (let i = 0; i < idx.length; i += 3) if (keep[idx[i]] && keep[idx[i + 1]] && keep[idx[i + 2]]) tri.push(idx[i], idx[i + 1], idx[i + 2]);
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(tri); g.computeVertexNormals(); g.userData.own = 1; return g;
+  }
   function buildFace(look, headBone, mat, mesh){
     const H = new T.Group(); H.position.set(.008, .1, 0); headBone.add(H);
     const hg = headGeo(look); const head = new T.Mesh(hg, new T.MeshStandardMaterial({ vertexColors:true, map:faceTex(look), roughness:.5, metalness:0 })); head.castShadow = true; H.add(head);
@@ -112,7 +123,8 @@ const BODY = (() => {
     const hm = new T.MeshStandardMaterial({ color:look.hair || '#222222', roughness:.82, metalness:.02 });
     const style = look.hs || 'short';
     if (['short', 'curly', 'spiky', 'long', 'bun', 'mohawk'].includes(style)){ const h = new T.Mesh(hairGeo(look, hg, style), hm); h.castShadow = true; H.add(h);
-      if (style === 'bun'){ H.add(mesh('sph', hm, .034, .034, .034, -.075, .085, 0)); }
+      if (style === 'bun' && look.knot){ H.add(mesh('sph', hm, .03, .036, .03, -.012, .128, 0)); H.add(mesh('cyl', mat(look.belt || '#1a1a1a'), .016, .012, .016, -.012, .108, 0)); }   // ustanın tepe topuzu
+      else if (style === 'bun'){ H.add(mesh('sph', hm, .034, .034, .034, -.075, .085, 0)); }
       if (style === 'long'){ H.add(mesh('box', hm, .03, .1, .13, -.08, -.06, 0)); } }
     else if (style === 'beanie'){ const bm = mat(look.beanie || '#2a2a2a', { roughness:.95 }); H.add(mesh('cap', bm, .11, .128, .09, -.006, .012, 0)); H.add(mesh('cyl', mat(shade(look.beanie || '#2a2a2a', .78), { roughness:.95 }), .109, .036, .089, -.006, .045, 0)); }
     else if (style === 'cap'){ H.add(mesh('cap', mat(look.cap), .108, .12, .086, -.005, .02, 0)); H.add(mesh('box', mat(look.cap), .08, .008, .1, .1, .045, 0)); }
@@ -123,7 +135,11 @@ const BODY = (() => {
     if (look.beard && look.bs && look.bs !== 'stubble'){ const bm = mat(look.beard, { roughness:.9 });
       if (look.bs === 'goatee') H.add(mesh('sph', bm, .022, .026, .024, .09, -.088, 0));
       else if (look.bs === 'full') H.add(mesh('sph', bm, .085, .055, .072, .02, -.065, 0));
-      else if (look.bs === 'long'){ const b = mesh('cone', bm, .06, .16, .06, .05, -.15, 0); b.rotation.z = Math.PI; H.add(b); H.add(mesh('sph', bm, .08, .045, .075, .03, -.07, 0)); } }
+      else if (look.bs === 'long'){ const sh = new T.Mesh(beardGeo(hg, .011), bm); sh.castShadow = true; H.add(sh);          // çene + yanak sakalı (ağız açık)
+        const drop = mesh('sph', bm, .046, .088, .06, .058, -.148, 0); drop.rotation.z = .28; drop.castShadow = true; H.add(drop);            // çeneden göğse inen sakal
+        const tip = new T.Mesh(new T.ConeGeometry(1, 1, 14), bm); tip.scale.set(.03, .085, .04); tip.rotation.z = Math.PI + .3; tip.position.set(.04, -.235, 0); tip.castShadow = true; H.add(tip);   // sivri uç
+        for (const z of [.021, -.021]){ const m = mesh('sph', bm, .011, .0085, .026, .097, -.049, z * .9); m.rotation.set(z > 0 ? .5 : -.5, 0, -.35); H.add(m); }   // sarkık bıyık
+        H.add(mesh('sph', bm, .012, .0075, .026, .1, -.04, 0)); } }
     if (look.shades){ const lm = mat('#0b0d12', { metalness:.6, roughness:.08 }); for (const z of [.03, -.03]) H.add(mesh('box', lm, .006, .022, .038, .1, .014, z)); H.add(mesh('box', lm, .006, .006, .03, .102, .022, 0)); for (const z of [.074, -.074]){ const ar = mesh('box', lm, .07, .005, .004, .062, .018, z); H.add(ar); } }
     if (look.glasses) for (const z of [.028, -.028]) H.add(mesh('box', mat('#0a0a0a', { metalness:.5, roughness:.1 }), .004, .016, .03, .1, .014, z));
     R3.compact(H); return H;
@@ -411,9 +427,10 @@ const BODY = (() => {
         if (y < 1.12){ out.push([iPel, 1 - a]); if (a) out.push([iSp, a]); } else if (y < 1.32){ out.push([iSp, 1 - bb]); if (bb) out.push([iCh, bb]); } else out.push([iCh, 1]);
         if (y < .97){ const hk = sstep(.97, .86, y) * .5 * sstep(.03, .1, Math.abs(z)); if (hk) out.push([iHip[z > 0 ? 0 : 1], hk]); }
         return out; };
-      const k = (ath ? 1 : 1.06) * wt;
-      const prof = [[.87, .1, .05, .07], [.9, .15, .09, .126], [.95, .162, .093, .133], [.99, .164, .095, .124], [1.06, .148, .09, .09], [1.14, .15, .098, .092], [1.22, .162, .111, .1], [1.3, .172, .123, .106],
+      const k = (ath ? 1 : 1.06) * wt, man = look.manly ? 1 : 0;
+      const prof0 = [[.87, .1, .05, .07], [.9, .15, .09, .126], [.95, .162, .093, .133], [.99, .164, .095, .124], [1.06, .148, .09, .09], [1.14, .15, .098, .092], [1.22, .162, .111, .1], [1.3, .172, .123, .106],
         [1.37, .184, .117, .107], [1.41, .185, .103, .1], [1.44, .158, .088, .082], [1.47, .112, .074, .07], [1.495, .078, .058, .058], [1.515, .062, .05, .05]];
+      const prof = man ? prof0.map(([y, s, fr, b]) => { const h = y < 1.03 ? .92 : y > 1.28 && y < 1.43 ? 1.05 : 1; return [y, s * h, fr * (y > 1.25 && y < 1.43 ? 1.04 : 1), b * (y < 1.03 ? .9 : 1)]; }) : prof0;
       const O = look.of, TL = O ? { tee:1.05, hoodie:1.11, jacket:1.09, leather:1.08, suit:1.065, uniform:1.06, vest:1.15, track:1.08, gi:1.11, tank:1.03 }[O.top] || 1.05 : 1;
       const region = O ? (y => y > 1.45 && O.top === 'tank' ? { col:C.skin, m:1 } : y > 1.0 ? { col:C.shirt, m:0, loose:(O.top === 'vest' && y > 1.44 ? 1.05 : TL) + (y < 1.08 ? .02 : 0) } : { col:C.shorts, m:0, loose:O.bot === 'gi' ? 1.1 : 1.045 })
         : look.robe ? (y => ({ col:C.shirt, m:0, loose:1.05 })) : look.sh ? (y => y > 1.0 ? { col:C.shirt, m:0, loose:y < 1.08 ? 1.075 : 1.045 } : { col:C.shorts, m:0, loose:1.04 }) : (y => y > .99 ? { col:C.shirt, m:0, loose:1.03 } : { col:C.shorts, m:0, loose:1.02 });
@@ -536,10 +553,10 @@ function fbMove(p, dt, o){ p.gph = (p.gph || Math.random() * 6) + dt * Math.PI *
    ========================================================= */
 (function outfits(){
   const set = (k, of, extra) => { if (LOOK[k]) Object.assign(LOOK[k], of ? { of } : {}, extra || {}); };
-  set('ufis', { top:'gi', tc:'#f3efe6', tc2:'#d6cdbb', bot:'gi', bc:'#efe9dc', belt:'#1a1a1a', shoe:'dress', sc:'#1a1a1a' });
-  set('ufisGenc', { top:'gi', tc:'#f3efe6', tc2:'#d6cdbb', bot:'gi', bc:'#efe9dc', belt:'#8a1c1c', shoe:'dress', sc:'#1a1a1a' });
+  ufis3(LOOK.ufis);
+  set('ufisGenc', { top:'gi', tc:'#f3efe6', tc2:'#d6cdbb', bot:'gi', bc:'#efe9dc', belt:'#8a1c1c', shoe:'dress', sc:'#1a1a1a' }, { knot:1, manly:1, wt:1.08 });
   set('narak', { top:'gi', tc:'#5c0f16', tc2:'#36070b', bot:'gi', bc:'#1a1a1a', belt:'#0d0d0d', shoe:'dress', sc:'#111111' });
-  set('usta', null, { robeLong:true });
+  set('usta', null, { robeLong:true, manly:1 });
   set('coach', { top:'track', tc:'#2a2f3a', tc2:'#f2c230', bot:'track', bc:'#2a2f3a', bc2:'#f2c230', shoe:'sneaker', sc:'#111111', sc2:'#f2c230' });
   set('leo', { top:'track', tc:'#1e6b4a', tc2:'#ffffff', bot:'track', bc:'#1b2a24', bc2:'#ffffff', shoe:'sneaker', sc:'#f4f4f4', sc2:'#1e6b4a' });
   set('lider', { top:'suit', tc:'#141414', tc2:'#f4f4f4', tie:'#b3122e', pat:'pin', bot:'pants', bc:'#141414', shoe:'dress', sc:'#050505' });
@@ -576,3 +593,7 @@ function enemyLook(type, uid){
   let sd = (v + 1) * 977 + type.charCodeAt(0) * 131; const r = () => (sd = (sd * 9301 + 49297) % 233280) / 233280, pk = a => a[Math.floor(r() * a.length)];
   const L = Object.assign({}, base, V.make(r, pk)); delete L.__sig; if (L.of && L.of.pat === 'camo' && L.of.bot === 'cargo') L.of = Object.assign({}, L.of); ELC[key] = L; return L;
 }
+/* Ufis (usta) 3B'de: dövüş kıyafeti (gi + kuşak), tepe topuzu, uzun sakal, erkeksi omuz/kalça — oyuncu rengini değiştirse de korunur */
+function ufis3(L){ if (!L) return L; const sh = L.shirt || '#f3efe6', lt = c => { try { return shade(c, .87); } catch(e){ return c; } };
+  L.of = { top:'gi', tc:sh, tc2:lt(sh), bot:'gi', bc:sh, belt:L.belt || '#1a1a1a', shoe:'dress', sc:'#1a1a1a' };
+  if (L.hs === 'bun') L.knot = 1; L.manly = 1; L.wt = Math.max(1.04, (L.wt || 1) * 1.08); return L; }

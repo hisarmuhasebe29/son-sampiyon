@@ -67,11 +67,11 @@
 <script>
   window.__boot = function(){ if (window.__booted) return; window.__booted = true;
     const files = ['core', 'art', 'render3d', 'body3d', 'fight', 'fightx', 'match', 'foot3d', 'stadium3d', 'arena3d', 'cut3d', 'fight3d', 'match3d', 'skills3d', 'creator', 'profile', 'mp', 'story', 'game'];
-    (function load(i){ if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '.js?v=13'; s.onload = () => load(i + 1); document.body.appendChild(s); })(0); };
+    (function load(i){ if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '.js?v=14'; s.onload = () => load(i + 1); document.body.appendChild(s); })(0); };
   setTimeout(window.__boot, 8000);                     /* 3B kütüphanesi hiç yüklenemezse oyun 2B açılır */
 </script>
 <script type="module">
-  import('./three.module.min.js?v=13').then(T => { window.THREE = T; }).catch(() => {}).finally(() => window.__boot());
+  import('./three.module.min.js?v=14').then(T => { window.THREE = T; }).catch(() => {}).finally(() => window.__boot());
 </script>
 <script nomodule>window.__boot();</script>
 </body>

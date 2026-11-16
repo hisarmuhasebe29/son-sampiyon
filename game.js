@@ -130,7 +130,8 @@ function Cover(){
     bgBright(b, K.t);
     const fade = b.createLinearGradient(0, 0, 0, H); fade.addColorStop(0, 'rgba(255,255,255,0)'); fade.addColorStop(.75, 'rgba(255,255,255,0)'); fade.addColorStop(1, 'rgba(230,238,246,.6)'); b.fillStyle = fade; b.fillRect(0, 0, W, H);
     // kahramanlar: Issem önde sevinç çığlığı, Ufis arkada dövüş duruşu
-    const Pi = getPose({ animT:K.t, pose:'cheer' }); Pi.fa = [2.0 + Math.sin(K.t * 2) * .05, 2.6]; Pi.ba = [.9, 2.3]; Pi.lean = -6;
+    const Pi = getPose({ animT:K.t, pose:'stand' }), w = Math.sin(K.t * 1.7), w2 = Math.sin(K.t * 1.7 + 1.1);      // yumuşak, ivmeli zafer duruşu (zıplama yok)
+    Pi.fa = [2.0 + w * .14, 2.6 + w * .1]; Pi.ba = [.9 + w2 * .1, 2.25 + w2 * .08]; Pi.lean = -4 + w * 1.5; Pi.bob = 1 + w2 * 1.2; Pi.fl = [.08, .02]; Pi.bl = [-.08, -.04];
     const rs = typeof buildRealRig === 'function' && H3on;              // gerçekçi gövde daha uzun: kapakta biraz küçült / indir
     drawHuman(c, 210, rs ? 610 : 560, LOOK.issem, Pi, 1, rs ? 2.25 : 2.75, 1, null, 'shout');
     drawHuman(c, 785, rs ? 600 : 548, LOOK.ufis, getPose({ animT:K.t + 1, pose:'guard' }), -1, rs ? 2.05 : 2.45, 1, null, 'angry');

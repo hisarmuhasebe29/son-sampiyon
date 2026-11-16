@@ -343,8 +343,8 @@ function Match3D(def){
         let q = null, bs = -1e9; for (const m of teams[t]){ if (m.role === 'GK' || m.down > 0) continue; const d = Math.hypot(m.x - K.x, m.z - K.z); if (d > 38) continue;
           let open = 0; for (const o of opp){ const od = Math.hypot(o.x - m.x, o.z - m.z); if (od < 6) open -= (6 - od) * 2; } const sc = open - d * .08 + (m.role === 'MF' ? 1.5 : 0); if (sc > bs){ bs = sc; q = m; } }
         q = q || teams[t][2]; B.x = K.x + dirOf(t) * .8; B.y = 1.2; const d = Math.hypot(q.x - K.x, q.z - K.z);
-        kickBall(K, q.x + q.vx * .3, q.z + q.vz * .3, d > 22 ? 'lob' : 'ground', q); K.kick = .4; say2(d > 22 ? 'KALECİ UZUN ATTI' : 'KALECİ HIZLI ATTI'); } return; }
-    if (K.rushCd > 0) K.rushCd -= dt;
+        kickBall(K, q.x + q.vx * .3, q.z + q.vz * .3, d > 22 ? 'lob' : 'ground', q); K.kick = .4; K.relT = 1.2; say2(d > 22 ? 'KALECİ UZUN ATTI' : 'KALECİ HIZLI ATTI'); } return; }
+    if (K.rushCd > 0) K.rushCd -= dt; if (K.relT > 0) K.relT -= dt;
     if (K.st !== 'ready' || (M.state !== 'play' && M.state !== 'kick')){ K.yaw = null; return; }
     // açı kapatma: kale ortası → top doğrultusunda, topun uzaklığına göre öne çıkar (top bizdeyse libero gibi daha da çıkar)
     const gx = K.g * GL, dx = B.x - gx, dz = B.z, bd = Math.hypot(dx, dz) || 1, ux = dx / bd, uz = dz / bd, own = B.owner;
@@ -366,7 +366,7 @@ function Match3D(def){
     K.x += K.kvx * dt; K.z += K.kvz * dt;
     { const fy = yawTo(B.x - K.x, B.z - K.z), base = K.g > 0 ? Math.PI : 0; let d = fy - base; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; K.yaw = base + clamp(d, -1.25, 1.25); }
     const kb = Math.hypot(K.x - B.x, K.z - B.z);
-    if (!B.owner && kb < 1.7 && B.y < 2.3 && Math.abs(B.x) > GL - 18){ give(K); K.holdT = .35; SFX.gloveCatch ? SFX.gloveCatch() : SFX.punch(); say2('KALECİ ALDI'); K.rushCd = 1.5; }
+    if (!B.owner && kb < 1.7 && B.y < 2.3 && Math.abs(B.x) > GL - 18 && !(K.relT > 0) && !(B.flight && B.flight.by && B.flight.by.t === K.t)){ give(K); K.holdT = .35; SFX.gloveCatch ? SFX.gloveCatch() : SFX.punch(); say2('KALECİ ALDI'); K.rushCd = 1.5; }
     const o = B.owner; if (o && o.t !== K.t && Math.hypot(K.x - o.x, K.z - o.z) < 1.4){ K.rushCd = 2.2;
       if (Math.random() < (K.rushing ? .62 : .45) * DIFF().keeper){ give(K); K.holdT = .4; SFX.gloveCatch ? SFX.gloveCatch() : SFX.punch(); say2('KALECİ KAPTI!'); comm(pick(['Kaleci çıktı ve aldı!', 'Kaleci ayağından topu kaptı!']), true); }
       else { K.st = 'dive'; K.kt = 0; K.dd = .25; K.z0 = K.z; K.tz = K.z + (o.z > K.z ? 1 : -1) * 2; K.ty = .3; SFX.dive && SFX.dive(); say2('KALECİ AYAKLARA YATTI!'); } }

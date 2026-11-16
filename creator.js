@@ -194,5 +194,6 @@ const UOPT = { hs:[['bun', 'Topuz'], ['long', 'Uzun'], ['short', 'Kısa'], ['cur
 function applyUfis(u = ufisProfile()){
   LOOK.ufis = { skin:u.skin, hair:u.hair, hs:u.hs, beard:u.bs ? u.beard : null, bs:u.bs || null, brow:u.hair, shirt:u.shirt, shorts:u.shorts, socks:u.shorts, shoes:u.shoes, robe:true, belt:u.belt, eye:u.eye, face:u.face,
     hgt:u.hgt / 176, wt:.82 + (u.wt - 55) / 45 * .42 };
+  if (typeof ufis3 === 'function') ufis3(LOOK.ufis);          // 3B: gi, topuz, sakal, erkeksi yapı
 }
 applyPlayer(); applyUfis();
