@@ -111,7 +111,7 @@ function Intro(){
 function Cover(){
   const K = { t:0, msg:'' }; playMusic('menu');
   const bMain = { x:340, y:180, w:280, h:56, size:22 }, bMP = { x:340, y:242, w:280, h:46, size:19 }, bCh = { x:340, y:294, w:136, h:40, size:15 }, bSk = { x:484, y:294, w:136, h:40, size:15 }, bDiff = { x:340, y:340, w:280, h:38, size:16 },
-    bMus = { x:340, y:384, w:136, h:40, size:15 }, bVox = { x:484, y:384, w:136, h:40, size:15 }, bUpd = { x:796, y:496, w:154, h:32, size:13 }, bPl = { x:796, y:452, w:154, h:38, size:15 };
+    bMus = { x:340, y:384, w:136, h:40, size:15 }, bVib = { x:340, y:430, w:280, h:36, size:15 }, bVox = { x:484, y:384, w:136, h:40, size:15 }, bUpd = { x:796, y:496, w:154, h:32, size:13 }, bPl = { x:796, y:452, w:154, h:38, size:15 };
   K.update = dt => { K.t += dt;
     if (!tap) return;
     if (inB(bMain, tap) || tap.key){ SFX.whistle(); fs(); const s = SAVE.cur; if (!SAVE.player){ cur = Creator(() => startChapter(1)); return; } if (s && (s.ch > 1 || s.i > 0)) startChapter(s.ch, s.i); else startChapter(1); }
@@ -121,6 +121,7 @@ function Cover(){
     else if (inB(bCh, tap)){ SFX.click(); cur = ChapterSelect(); }
     else if (inB(bSk, tap)){ SFX.click(); fs(); if (!SAVE.player){ cur = Creator(() => { cur = SkillMenu(); }); return; } cur = SkillMenu(); }
     else if (inB(bDiff, tap)){ SAVE.diff = (SAVE.diff + 1) % 3; persist(); SFX.click(); }
+    else if (inB(bVib, tap)){ SAVE.vib = SAVE.vib === false ? true : false; persist(); SFX.click(); if (SAVE.vib) vib([60, 40, 60]); }
     else if (inB(bMus, tap)){ SAVE.music = SAVE.music ? 0 : 1; persist(); SFX.click(); if (SAVE.music){ MUSIC.kind = null; playMusic('menu'); } else stopMusic(); }
     else if (inB(bVox, tap)){ SAVE.voice = SAVE.voice ? 0 : 1; persist(); SFX.click(); if (SAVE.voice){ unlockSpeech(); setTimeout(() => say('Dublaj açık.', 'Spiker'), 150); } else hush(); }
     else if (inB(bUpd, tap)){ SFX.click(); UPDATE_MSG = 'Kontrol ediliyor…'; checkVersion(true); }
@@ -148,6 +149,7 @@ function Cover(){
     button(c, bCh, '📖 BÖLÜMLER'); button(c, bSk, '🎯 ANTRENMAN');
     button(c, bDiff, 'Zorluk: ' + DIFF().name + '  ⟳');
     button(c, bMus, (SAVE.music ? '🎵 Müzik: Açık' : '🔇 Müzik: Kapalı'));
+    button(c, bVib, SAVE.vib === false ? '📴 Titreşim: Kapalı' : '📳 Titreşim: Açık');
     button(c, bVox, (SAVE.voice ? '🗣 Dublaj: Açık' : '🤐 Dublaj: Kapalı'));
     if (SAVE.voice && VOICE_OK === false) txt(c, 'Bu telefonda Türkçe ses bulunamadı — yazı sesi çalar. (Ayarlar › Metin okuma › Türkçe ses indir)', 480, 438, 12, '#ffcc66', 'center', 'bold', 3, 600);
     button(c, bUpd, '⟳ Güncelle · ' + VERSION);
@@ -193,9 +195,10 @@ function ChapterEnd(n, st, reasons, ranks, coins){
     for (let j = 0; j < 3; j++){ const k = clamp((E.t - .4 - j * .3) / .3, 0, 1); const sc = k < 1 ? k * 1.3 : 1;
       c.save(); c.translate(400 + j * 80, 158); c.scale(sc, sc); c.fillStyle = j < st ? '#f2c230' : 'rgba(255,255,255,.18)'; drawStar(c, 0, 0, 28); c.restore();
       if (k > 0 && k < .2 && j < st && !E['s' + j]){ E['s' + j] = true; tone(880 + j * 220, .15, 'triangle', .12); } }
-    if (ranks.length) txt(c, 'Dereceler: ' + ranks.join(' · '), 480, 212, 17, '#9ad7ff', 'center', 'bold', 0, 800);
-    if (coins && E.t > .9){ const k = Math.min(1, (E.t - .9) * 3); c.globalAlpha = k; pill(c, '+' + coins + ' 🪙 oyun parası kazandın!  (toplam ' + prof().coins + ')', 780, 158, 15, 'rgba(242,194,48,.95)', '#14306b'); c.globalAlpha = 1; }
-    let y = 244;
+    if (ranks.length) txt(c, 'Dereceler: ' + ranks.join(' · '), 480, 238, 17, '#9ad7ff', 'center', 'bold', 0, 800);
+    if (!coins && st < 3 && E.t > .9) pill(c, '🪙 Para için bölümü 3 yıldızla bitir (zorlukta daha çok)', 480, 206, 14, 'rgba(8,12,30,.85)', '#f2c230');
+    if (coins && E.t > .9){ const k = Math.min(1, (E.t - .9) * 3); c.globalAlpha = k; pill(c, '+' + coins + ' 🪙 kazandın (' + DIFF().name + ' · 3 yıldız)  · toplam ' + prof().coins, 480, 206, 15, 'rgba(242,194,48,.95)', '#14306b'); c.globalAlpha = 1; }
+    let y = 268;
     if (st === 3) { txt(c, 'Kusursuz! Hiç yenilmeden ve az hasarla bitirdin.', 480, y, 18, '#7dff9a', 'center', 'bold', 0, 860); y += 30; }
     else { txt(c, 'Neden ' + st + ' yıldız?', 480, y, 18, '#ffcc66', 'center', 'bold'); y += 26;
       c.font = fnt(15, 'normal'); for (const r of reasons) for (const l of wrap(c, r, 820)){ txt(c, l, 480, y, 15, '#ffffff', 'center', 'normal'); y += 21; } y += 6; }
@@ -479,6 +482,6 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 stats = newStats();
-cur = Intro();
+cur = Splash();                                  // "Başlamak için dokunun" → dokununca ses açılır, ARAÇ patlama sesi duyulur
 requestAnimationFrame(loop);
 window.__sim = sec => { for (let i = 0; i < sec * 60; i++){ if (window.__bot) window.__bot(); gameTime += 1 / 60; if (hitstop > 0) hitstop -= 1 / 60; else cur.update(1 / 60); tap = null; } };

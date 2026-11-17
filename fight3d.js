@@ -62,6 +62,8 @@ function fight3dCam(L, rdt){
     const tz = lerp(pz, Math.max(Z3(L.zMin) - .4, pz - 3), C.eb * .6);
     C.tPos = [px, Math.max(py, 0) + 6.1 + C.eb * .5, tz + 4.7]; C.tLook = [px, Math.max(py, 0) + .55, tz - .25]; C.tFov = 46;
   }
+  { const fl = L.fly && L.fly.st !== 'out' && Math.abs(L.fly.x - p.x) < 700 ? 1 : 0; C.flyK = (C.flyK || 0) + (fl - (C.flyK || 0)) * Math.min(1, rdt * 1.5);   // uçan düşman kadraja girsin
+    if (C.flyK > .01){ const q = C.flyK * (C.mode === 'arka' ? .6 : 1); C.tLook[1] += 1.05 * q; C.tPos[1] += .5 * q; C.tFov += 9 * q; } }
   const k = C.pos ? Math.min(1, rdt * (C.mode === 'arka' ? 5.5 : 4)) : 1;
   if (!C.pos){ C.pos = C.tPos.slice(); C.look = C.tLook.slice(); C.fov = C.tFov; }
   for (let i = 0; i < 3; i++){ C.pos[i] += (C.tPos[i] - C.pos[i]) * k; C.look[i] += (C.tLook[i] - C.look[i]) * Math.min(1, k * 1.4); }
@@ -253,7 +255,10 @@ function drawFighter3(L, f, id, isE, rdt){
   const sink = f.dead ? sstep3(1.2, 1.8, f.deadT || 0) * .3 : 0;
   const hold = fHold(f, true), sc = f.look.scale || 1;
   const s3 = f.look.scale3 ? f.look.scale3 / (f.look.scale || 1) : 1;      // 3B'de iri adamlar daha geniş, aşırı uzun değil
-  const R = R3.charW(id, f.look, P, X3(f.x), Y3(f.y) + B.lift - sink, Z3(f.z), (f.yaw || 0) + B.y, s3, exprOf(f), false, hold, { tint });
+  const curb = L.curbZ != null && f.z < L.curbZ - 6 ? .12 : 0;          // kaldırımdayken ayaklar kaldırımın üstünde
+  { const ddt = Math.max(rdt || .016, 1e-3), v = f.__S3 ? f.__V3 : f, sp = Math.hypot(v.vx || 0, v.vz || 0) * PX, yr = f.__py == null ? 0 : angDiff(f.yaw || 0, f.__py) / ddt; f.__py = f.yaw || 0;   // Impact tarzı: koşarken dönüşe yatış
+    const ok = !f.dead && !(v.down > 0) && v.onGround !== false && !f.atk, tb = ok ? clamp(-yr * sp * .02, -.16, .16) : 0; f.__bk = (f.__bk || 0) + (tb - (f.__bk || 0)) * Math.min(1, ddt * 7); }
+  const R = R3.charW(id, f.look, P, X3(f.x), Y3(f.y) + B.lift - sink + curb, Z3(f.z), (f.yaw || 0) + B.y, s3, exprOf(f), false, hold, { tint, rx:B.z ? 0 : f.__bk || 0 });
   R.body.rotation.set(B.x, 0, B.z); if (Math.abs(B.z) > .3) R.body.position.y = Math.abs(Math.sin(B.z)) * .12 * sc;
   return R;
 }
@@ -287,6 +292,40 @@ function drawProps3(L){
 
 /* ---------- ekran katmanı: dünya noktasını ekrana yansıt ---------- */
 const prj = (x, y, z) => R3.project(X3(x), Y3(y), Z3(z));
+
+/* uçan düşman: gövde, jet alevi, yerdeki kırmızı hedef, gözden yere dikey lazer, yanık izleri */
+const FLY_POSE = (t, st) => { const P = getPose({ animT:t, pose:'stand' }); P.bob = 0; P.lean = st === 'move' ? 10 : 2;
+  P.fl = [.18 + Math.sin(t * 2.6) * .05, .35]; P.bl = [-.08 + Math.sin(t * 2.6 + 1) * .05, .45];
+  if (st === 'aim' || st === 'fire'){ P.fa = [.9, .5]; P.ba = [.9, .5]; } else { P.fa = [-.35, .25]; P.ba = [-.3, .3]; } return P; };
+function drawFly3(L){
+  const f = L.fly, { T } = R3.world();
+  for (const [i, s] of (L.scorch || []).entries()){ if (s.t > 7) continue; const m = R3.custom('fsc' + i, () => { const q = new T.Mesh(new T.CircleGeometry(.32, 24), new T.MeshBasicMaterial({ color:'#120806', transparent:true, depthWrite:false })); q.rotation.x = -Math.PI / 2; q.userData.keep = 1; return q; });
+    m.position.set(X3(s.x), .025 + i * .001, Z3(s.z)); m.material.opacity = .55 * (1 - s.t / 7); }
+  if (!f) return;
+  const R = R3.charW('fly3', FLY_LOOK, FLY_POSE(f.animT, f.st), X3(f.x), Y3(f.y), Z3(f.z), f.yaw, 1, 'angry', false, null, { rz:-f.tilt, tint:f.flash > 0 ? '#ffffff' : null });
+  const fl = R.chest && R.chest.userData.flames; if (fl) for (const q of fl){ const k = .8 + Math.random() * .5 + (f.st === 'move' || f.st === 'out' || f.st === 'in' ? .6 : 0); q.scale.set(.03 * k, .09 * k * 1.3, .03 * k); }
+  const hv = R.head && R.head.userData && R.head.userData.visor; if (hv && !(f.flash > 0)) hv.material.color.set(f.st === 'aim' ? (Math.sin(gameTime * 30) > 0 ? '#ffffff' : '#ff2a2a') : '#ff2a2a');
+  // gölge (havada olduğunu anlamak için)
+  const sh = R3.custom('flySh', () => { const q = new T.Mesh(new T.CircleGeometry(.4, 24), new T.MeshBasicMaterial({ color:'#000000', transparent:true, opacity:.35, depthWrite:false })); q.rotation.x = -Math.PI / 2; q.userData.keep = 1; return q; });
+  sh.position.set(X3(f.x), .03, Z3(f.z)); sh.material.opacity = f.st === 'out' ? .1 : .32;
+  // kırmızı hedef
+  if (f.st === 'aim'){ const k = clamp(f.t / f.aimT, 0, 1);
+    const tg = R3.custom('flyT', () => { const g = new T.Group(); const mk = (r0, r1, op) => { const q = new T.Mesh(new T.RingGeometry(r0, r1, 48), new T.MeshBasicMaterial({ color:'#ff2020', transparent:true, opacity:op, depthWrite:false, side:T.DoubleSide, toneMapped:false })); q.rotation.x = -Math.PI / 2; g.add(q); return q; };
+      mk(.42, .5, .9); mk(.18, .23, .9); const d = new T.Mesh(new T.CircleGeometry(.5, 40), new T.MeshBasicMaterial({ color:'#ff1010', transparent:true, opacity:.25, depthWrite:false, toneMapped:false })); d.rotation.x = -Math.PI / 2; g.add(d);
+      for (const a of [0, Math.PI / 2]){ const b = new T.Mesh(new T.PlaneGeometry(1.2, .04), new T.MeshBasicMaterial({ color:'#ff2020', transparent:true, opacity:.8, depthWrite:false, toneMapped:false })); b.rotation.set(-Math.PI / 2, 0, a); g.add(b); }
+      g.userData.keep = 1; return g; });
+    tg.position.set(X3(f.x), .035, Z3(f.z)); tg.scale.setScalar(1.5 - k * .6); tg.rotation.y = gameTime * 2.5; const bl = .55 + .45 * Math.abs(Math.sin(gameTime * (8 + k * 18)));
+    tg.children.forEach((q, i) => q.material.opacity = (i === 2 ? .18 + k * .25 : .9) * bl); }
+  // lazer: iki gözden yere
+  if (f.st === 'fire' && R.head){ R.root.updateMatrixWorld(true); const fade = f.t < .45 ? 1 : clamp(1 - (f.t - .45) / .15, 0, 1);
+    for (const z of [.035, -.035]){ const e = R.head.localToWorld(new T.Vector3(.1, .113, z)), g = new T.Vector3(X3(f.x) + z * 2, .02, Z3(f.z)), d = g.clone().sub(e), len = d.length();
+      const bm = R3.custom('flyL' + (z > 0 ? 1 : 2), () => { const grp = new T.Group(); const core = new T.Mesh(new T.CylinderGeometry(1, 1, 1, 10, 1, true), new T.MeshBasicMaterial({ color:'#ffffff', toneMapped:false }));
+        const glow = new T.Mesh(new T.CylinderGeometry(1, 1, 1, 12, 1, true), new T.MeshBasicMaterial({ color:'#ff2a1a', transparent:true, opacity:.55, blending:T.AdditiveBlending, depthWrite:false, toneMapped:false })); glow.scale.set(3.2, 1, 3.2);
+        core.position.y = .5; glow.position.y = .5; grp.add(core, glow); grp.userData.keep = 1; return grp; });
+      bm.position.copy(e); bm.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), d.clone().normalize()); const w = (.022 + Math.random() * .01) * fade; bm.scale.set(w, len, w); }
+    const hit = R3.custom('flyHit', () => { const q = new T.Mesh(new T.SphereGeometry(1, 16, 10), new T.MeshBasicMaterial({ color:'#ff7a3a', transparent:true, blending:T.AdditiveBlending, depthWrite:false, toneMapped:false })); q.userData.keep = 1; return q; });
+    hit.position.set(X3(f.x), .05, Z3(f.z)); hit.scale.set(.32 + Math.random() * .1, .1, .32 + Math.random() * .1); hit.material.opacity = .85 * fade; }
+}
 function overlay3(c, L){
   const t = gameTime;
   // parçacıklar
@@ -305,6 +344,8 @@ function overlay3(c, L){
   c.globalAlpha = 1;
   // düşman can çubukları, sersem yıldızları, uyarılar
   const pl = L.p;
+  if (L.fly && L.fly.st !== 'out'){ const f = L.fly, P = prj(f.x, f.y - 200, f.z); if (!P.behind){ c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(P.x - 30, P.y, 60, 7); c.fillStyle = '#ff3b30'; c.fillRect(P.x - 30, P.y, 60 * Math.max(0, f.hp) / f.maxhp, 7);
+      if (f.st === 'aim'){ const G = prj(f.x, GROUND, f.z); if (!G.behind && Math.sin(t * 16) > -.2) txt(c, '⚠ KAÇ!', G.x, G.y - 16, 18, '#ff4a3a', 'center', 'bold', 4); } } }
   for (const e of L.ents){ if (e.dummy || e.ent || (e.__S3 ? e.__V3 : e).hide3) continue; const sc = e.look.scale || 1, P = prj(e.x, e.y - 196 * sc, e.z); if (P.behind) continue;
     if (!e.dead && !e.T.boss && e.hp < e.maxhp && e.down <= 0){ c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(P.x - 24, P.y, 48, 6); c.fillStyle = '#ff5252'; c.fillRect(P.x - 24, P.y, 48 * Math.max(0, e.hp) / e.maxhp, 6); }
     if (e.dizzy > 0 && !e.dead){ const H2 = prj(e.x, e.y - 186 * sc, e.z); dizzyStars(c, H2.x, H2.y, t, 4, 18); }
@@ -370,6 +411,7 @@ function drawLevel3D(c, L){
     if (e.dummy){ const r = R3.objW('dm' + e.uid, 'dummy', X3(e.x), 0, Z3(e.z), 0); const wv = e.wobV || { x:1, z:0 }, a = e.dead ? e.fall * (e.fallDir || 1) : e.wob * .06; r.rotation.set(-wv.z * a, 0, -wv.x * a); continue; }
     if ((e.__S3 ? e.__V3 : e).hide3) continue;
     drawFighter3(L, e, 'e3' + e.uid, true, rdt); }
+  drawFly3(L);
   const camP = R3.world().cam.position;
   (L.crowd3 || []).forEach((q, i) => { if (Math.hypot(X3(q.x) - camP.x, Z3(q.z) - camP.z) < 2.2) return; const hype = L.combo >= 3 && L.comboT > 0; const P = getPose({ animT:L.time * (hype ? 1.4 : 1) + q.seed, pose:hype ? 'cheer' : q.pose });
     R3.charW('cw' + i, q.look, P, X3(q.x), 0, Z3(q.z), q.yaw + Math.sin(L.time * .3 + q.seed) * .3, 1, hype ? 'happy' : 'shock'); });

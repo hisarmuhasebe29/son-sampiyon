@@ -3,7 +3,7 @@
    SON ŞAMPİYON — ARAÇ   ·   core.js
    ekran · yardımcılar · kayıt · ses · müzik · dublaj · kontroller
    ========================================================= */
-const VERSION = 'v.14';
+const VERSION = 'v.15';
 const W = 960, H = 540, GROUND = 470;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scale = 1, dpr = 1, paused = false;
@@ -185,7 +185,10 @@ let AC = null, MASTER = null, SFXG = null, MUSG = null;
 const SILENT = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
 let UNLOCKED = false;
 function audioInit(){
-  if (!UNLOCKED){ UNLOCKED = true; try { const a = new Audio(SILENT); a.volume = .01; a.play().catch(() => {}); } catch(e){} }
+  if (!UNLOCKED){ UNLOCKED = true; try { const a = new Audio(SILENT); a.volume = .01; a.play().catch(() => {}); } catch(e){}
+    /* müzik için 3 kalıcı ses öğesi ilk dokunuşta açılır: sonradan (dokunuş olmadan, ör. çok oyunculuda diğer oyuncunun sahnesi başlarken) de çalabilsinler */
+    try { for (let i = 0; i < 3; i++){ const e = new Audio(SILENT); e.volume = 0; MPOOL.push(e); const p = e.play(); if (p && p.then) p.then(() => e.pause()).catch(() => {}); } } catch(e){} }
+  if (MUSIC.blocked && MUSIC.el){ const el = MUSIC.el; MUSIC.blocked = false; const p = el.play(); if (p && p.then) p.then(() => fadeEl(el, musicVol(), 900)).catch(() => {}); }
   try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch(e){}
   if (!AC){ try { AC = new (window.AudioContext || window.webkitAudioContext)();
     const comp = AC.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 6; comp.connect(AC.destination);
@@ -273,7 +276,10 @@ const SFX = {
   land(){ noise(.06, .2, 0, 0, 600); },
   swap(){ swoosh(.25, .25); tone(500, .12, 'triangle', .1, 400); },
   dash(){ swoosh(.3, .3); },
-  whoosh(){ swoosh(.55, .22); tone(320, .5, 'sine', .06, -220); },      // bölüm geçişi (iris kapanırken)
+  whoosh(){ swoosh(.55, .22); tone(320, .5, 'sine', .06, -220); },
+  laserCharge(){ tone(180, .95, 'sawtooth', .035, 1100); tone(360, .95, 'sine', .03, 1500); },      // uçan düşman: lazer dolarken
+  laser(){ tone(1500, .55, 'square', .045, -1100); tone(95, .5, 'sawtooth', .07, -40); noise(.45, .12, 0, 900); },
+  jet(){ noise(.5, .06, 0, 300, 2500); },      // bölüm geçişi (iris kapanırken)
   slide(){ noise(.35, .25, 0, 200, 1500); },
   slam(){ boom(0, .6); },
   alarm(){ for (let i = 0; i < 4; i++){ tone(880, .18, 'square', .06, 0, i * .4); tone(620, .18, 'square', .06, 0, i * .4 + .2); } },
@@ -346,7 +352,10 @@ function refWhistle(parts){ let t = 0; for (const d of parts){ if (!AC) return;
   o.type = 'sine'; o.frequency.value = 2950; o2.type = 'sine'; o2.frequency.value = 3010; lfo.frequency.value = 28; lg.gain.value = 140;
   lfo.connect(lg); lg.connect(o.frequency); env(g, t0, .09, .01, d); o.connect(g); o2.connect(g); g.connect(SFXG);
   [o, o2, lfo].forEach(x => { x.start(t0); x.stop(t0 + d + .05); }); t += d + .12; } }
-function vib(p){ try { navigator.vibrate && navigator.vibrate(p); } catch(e){} }
+function vib(p){ if (SAVE.vib === false) return; try { navigator.vibrate && navigator.vibrate(p); } catch(e){} }     // ana menüden açılıp kapatılır
+/* düğme bekleme halkası: frac 0→1 dolar, dolunca tekrar basılabilir */
+function btnCool(k, frac){ const b = document.querySelector('.btn[data-k="' + k + '"]'); if (!b) return; const on = frac < .999;
+  if (on){ b.classList.add('cd'); b.style.setProperty('--cd', Math.max(0, frac).toFixed(3)); } else if (b.classList.contains('cd')){ b.classList.remove('cd'); b.classList.add('ready1'); setTimeout(() => b.classList.remove('ready1'), 350); } }
 
 /* ---------- tribün ambiyansı (maçlar) ---------- */
 let CROWD_NODE = null;
@@ -368,7 +377,7 @@ const MUSIC = { kind:null, el:null, synth:null, duck:1, timer:null };
 const MFILES = { menu:'menu.mp3', story:'menu.mp3', fight:'dovus.mp3', football:'futbol.mp3', final:'final.mp3' };
 const MVOL = { menu:.55, story:.2, fight:.42, football:.38, final:.6 };
 function musicVol(){ return (MVOL[MUSIC.kind] || .5) * MUSIC.duck; }
-const AUDS = new Set();                      // oluşturulan tüm müzik öğeleri (arka planda hepsi durdurulur)
+const AUDS = new Set(), MPOOL = [];                      // oluşturulan tüm müzik öğeleri (arka planda hepsi durdurulur)
 let HIDDEN = !!document.hidden;
 function fadeEl(el, to, ms, done){
   clearInterval(el._fi); const from = el.volume, t0 = Date.now();
@@ -376,7 +385,8 @@ function fadeEl(el, to, ms, done){
   if (HIDDEN || ms <= 0){ try { el.volume = Math.max(0, Math.min(1, to)); } catch(e){} fin(); return; }
   el._fi = setInterval(() => { const k = Math.min(1, (Date.now() - t0) / ms); try { el.volume = Math.max(0, Math.min(1, from + (to - from) * k)); } catch(e){} if (k >= 1) fin(); }, 30);
 }
-function killEl(el){ try { clearInterval(el._fi); el.pause(); el.removeAttribute('src'); el.load(); } catch(e){} AUDS.delete(el); }
+function killEl(el){ try { clearInterval(el._fi); el.pause(); if (!MPOOL.includes(el)){ el.removeAttribute('src'); el.load(); } } catch(e){} AUDS.delete(el); }
+function musicEl(src){ const e = MPOOL.find(q => q !== MUSIC.el && (q.paused || q.volume < .02)); if (e){ try { clearInterval(e._fi); e.pause(); } catch(_){} e.src = src; return e; } return new Audio(src); }
 function playMusic(kind){
   if (!SAVE.music){ stopMusic(); return; }
   if (MUSIC.kind === kind) return;
@@ -384,11 +394,11 @@ function playMusic(kind){
   if (MUSIC.el && prevKind && MFILES[prevKind] === MFILES[kind]){ MUSIC.kind = kind; fadeEl(MUSIC.el, musicVol(), 600); return; }   // aynı parça: sadece ses seviyesi
   if (MUSIC.el){ const old = MUSIC.el; fadeEl(old, 0, 700, () => killEl(old)); MUSIC.el = null; }
   stopSynth(); MUSIC.kind = kind;
-  const el = new Audio(MFILES[kind]); el.loop = true; el.volume = 0; MUSIC.el = el; AUDS.add(el);
+  const el = musicEl(MFILES[kind]); el.loop = true; el.volume = 0; MUSIC.el = el; AUDS.add(el); MUSIC.blocked = false;
   if (HIDDEN) return;                                          // arka plandaysa çalma; öne gelince başlar
   const fallback = () => { if (MUSIC.kind === kind && MUSIC.el === el){ MUSIC.el = null; startSynth(kind); } };
   el.addEventListener('error', fallback);
-  const p = el.play(); if (p && p.then) p.then(() => { if (HIDDEN || MUSIC.el !== el){ try { el.pause(); } catch(e){} return; } fadeEl(el, musicVol(), 900); }).catch(e => { if (e && e.name === 'NotAllowedError') return; fallback(); }); else fadeEl(el, musicVol(), 900);
+  const p = el.play(); if (p && p.then) p.then(() => { if (HIDDEN || MUSIC.el !== el){ try { el.pause(); } catch(e){} return; } fadeEl(el, musicVol(), 900); }).catch(e => { if (e && e.name === 'NotAllowedError'){ MUSIC.blocked = true; return; } fallback(); }); else fadeEl(el, musicVol(), 900);
 }
 function stopMusic(){ MUSIC.kind = null; if (MUSIC.el){ const old = MUSIC.el; fadeEl(old, 0, 400, () => killEl(old)); MUSIC.el = null; } stopSynth(); }
 /* uygulama arka plana alınınca / kapatılınca TÜM sesler durur; öne gelince kaldığı yerden devam */
@@ -586,6 +596,7 @@ const MODES = {
 };
 const UI = document.getElementById('ui');
 function showControls(mode, opt = {}){
+  document.querySelectorAll('.btn.cd').forEach(b => b.classList.remove('cd'));
   UI.style.display = mode ? 'block' : 'none';
   for (const k in keys) keys[k] = 0; JOY.x = JOY.y = 0; knobEl.style.transform = ''; JOY.noJump = mode === 'fight3';
   if (!mode) return;

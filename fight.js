@@ -127,7 +127,7 @@ function knockDown(L, e, dir, kb){
 }
 function killEnemy(L, e, dir){
   const dv = dirV(dir);
-  e.dead = true; e.vy = -380; e.vx = dv.x * 280; e.vz = dv.z * 280; e.onGround = false; e.flying = true; e.fallV = dv; SFX.ko(); vib(60);
+  e.dead = true; e.vy = -380; e.vx = dv.x * 280; e.vz = dv.z * 280; e.onGround = false; e.flying = true; e.fallV = dv; SFX.ko(); vib(e.T && e.T.boss ? [120, 60, 320] : 60);
   const boss = e.T.boss; L.score += boss ? 1500 : 120;
   floatText(L, e.x, e.y - 140, boss ? 'K.O.!' : 'KO!', '#ff6b6b', boss ? 52 : 30, e.z);
   if (e.weapon) dropWeapon(L, e);
@@ -172,6 +172,8 @@ function physics(L, f, dt, surf){
   if (f.onGround && f.dropT <= 0){                       // basamaklar: yürüyerek çık / in
     for (const s of surf){ if (s.step && s !== f.plat && f.x >= s.x1 - 2 && f.x <= s.x2 + 2 && inZ(s, f, m) && Math.abs(f.y - s.y) <= 36 && (s.y < f.y - 1 || (f.plat && f.plat.step && (f.x < f.plat.x1 || f.x > f.plat.x2 || !inZ(f.plat, f, m))))){ f.y = s.y; f.plat = s; break; } } }
   if (f.onGround && f.plat && (f.x < f.plat.x1 - m || f.x > f.plat.x2 + m || !inZ(f.plat, f, m) || (f.plat.obj && (f.plat.obj.broken || f.plat.obj.held)))){ f.onGround = false; f.plat = null; }
+  if (f.onGround && !f.plat && f.y < GROUND - 1 && !f.climb && !f.climbG && !f.ent){   // havada yürüme olmasın: altında zemin yoksa düşer
+    const s = surf.find(s => f.x >= s.x1 - m && f.x <= s.x2 + m && inZ(s, f, m) && Math.abs(f.y - s.y) < 3); if (s) f.plat = s; else f.onGround = false; }
   if (!f.onGround) f.vy += 2300 * dt;
   f.y += f.vy * dt;
   if (f.vy >= 0 && f.dropT <= 0){
@@ -187,11 +189,11 @@ function solidPush(L, f, surf, r = 22){
     hit = s; if (ox < oz){ f.x += f.x < (s.x1 + s.x2) / 2 ? -ox : ox; } else { f.z += f.z < (s.z1 + s.z2) / 2 ? -oz : oz; } }
   return hit;
 }
-function bound3(L, f, r = 22){ if (!L.d3) return false; const z0 = f.z; f.z = clamp(f.z, L.zMin + r, L.zMax - r); return f.z !== z0; }
+function bound3(L, f, r = 22){ if (!L.d3) return false; const z0 = f.z; f.z = clamp(f.z, (L.zLo != null ? L.zLo : L.zMin) + r, L.zMax - r); return f.z !== z0; }
 function landed(L, f){ if (f.flying || f.vy > 600){ spawnParts(L, f.x, f.y - 4, 'rgba(200,190,170,.8)', 8, 'dust', 160, f.z); SFX.land(); } f.flying = false; }
 
 /* ---------- eşyalar ---------- */
-function breakObj(L, o, dir = 1){
+function breakObj(L, o, dir = 1){ vib(14);
   if (o.broken) return; o.broken = true; const D = OBJ[o.t]; (SFX[D.sfx] || SFX.wood)(); shake = Math.max(shake, 4);
   spawnParts(L, o.x, o.y - o.h / 2, D.col, 16, o.t === 'sise' ? 'glass' : 'chip', 300, o.z); o.brokeT = 0;
   if (L.d3 && o.t !== 'sise'){ const dv = dirV(dir), n = o.t === 'dolap' ? 8 : o.t === 'koli' ? 5 : 7; L.debris = L.debris || [];      // 3B kırık parçalar
@@ -214,6 +216,85 @@ function throwThing(L, p, kind, extra){
   const y0 = p.y - 120, F = fwdOf(p);
   L.proj.push(Object.assign({ x:p.x + F.x * 20, z:p.z + F.z * 20, y:y0, vx:F.x * 720, vz:F.z * 720, vy:-120, life:1.4, owner:'p', spin:0, hit:new Set() }, extra, { kind }));
   SFX.throwIt(); p.atk = { m:{ dur:.3, a:1, b:0, anim:'throw' }, t:0, hit:new Set() };
+}
+
+
+/* ---------- uçan düşman "KIZIL VİZÖR": hiç yere inmez, havada süzülür, durduğu yerin tam altına göz lazeri atar.
+   Önce yerde kırmızı hedef çıkar, sonra lazer — her saldırıdan sonra havada başka yere geçer.
+   Yalnız açık hava dövüşlerinde (sokak, arka sokak, fabrika bahçesi, stat) arada bir gelir. Sadece ZIPLAYIP vurarak,
+   fırlatılan eşyayla ya da topla vurulur. ---------- */
+const FLY_OUT = { street:1, alley:1, yard:1, pitch:1 };
+const FLY_LOOK = { skin:'#c99472', hair:'#111111', hs:'helmet', shirt:'#3b465e', stripe:'#ff3b30', shorts:'#262d3d', socks:'#262d3d', shoes:'#0d0d0d', visor:'#ff2a2a', jet:true };
+const FLY_Y = GROUND - 145;
+function flyAllowed(L){ return L.d3 && !L.def.custom && !L.bossE && typeof arenaKind === 'function' && !!FLY_OUT[arenaKind(L.def)]; }
+function flyPlayers(L){ return (L.duo ? [L.p, L.rp] : [L.p]).filter(F => F && !F.dead && !F.hideG); }
+function flySpawn(L){
+  const P = flyPlayers(L)[0]; if (!P || L.fly) return; const side = Math.random() < .5 ? -1 : 1, D = DIFF();
+  const hp = Math.round(46 * D.hp);
+  L.fly = { uid:'fly', x:P.x + side * 520, z:(L.zMin + L.zMax) / 2, y:GROUND - 900, sx:P.x + side * 520, sz:0, tx:P.x + side * 160, tz:P.z || 0, yaw:side > 0 ? Math.PI : 0,
+    hp, maxhp:hp, st:'in', t:0, dur:1.5, animT:0, flash:0, inv:0, side, tilt:0, aimT:1.2, hitSet:null };
+  L.flySeen = (L.flySeen || 0) + 1; SFX.jet(); vib([30, 30, 30]);
+  L.hint = 'Havada KIZIL VİZÖR! Yerdeki kırmızı hedeften kaç — ZIPLA ve vur, ya da bir şey fırlat!'; L.hintT = 5;
+  floatText(L, P.x, P.y - 190, 'KIZIL VİZÖR!', '#ff4a3a', 30, P.z);
+}
+function flyNewSpot(L, f){
+  const P = flyPlayers(L); if (!P.length){ f.st = 'out'; f.t = 0; return; }
+  const tg = P[Math.floor(Math.random() * P.length)], lead = .35;
+  f.sx = f.x; f.sz = f.z;
+  f.tx = clamp(tg.x + (tg.vx || 0) * lead + rand(-50, 50), (L.lockL || 0) + 60, (L.lockR || (L.def.width || W)) - 60);
+  f.tz = clamp((tg.z || 0) + (tg.vz || 0) * lead + rand(-40, 40), (L.zLo != null ? L.zLo : L.zMin) + 40, L.zMax - 40);
+  f.st = 'move'; f.t = 0; f.dur = clamp(Math.hypot(f.tx - f.x, f.tz - f.z) / 560, .45, 1.3); f.tgt = tg;
+}
+function flyTick(L, dt){
+  if (L.flyPend != null){ L.flyPend -= dt; if (L.flyPend <= 0){ L.flyPend = null; if (flyAllowed(L) && L.active) flySpawn(L); } }
+  const f = L.fly; if (!f) return;
+  const D = DIFF(); f.t += dt; f.animT += dt; if (f.flash > 0) f.flash -= dt; if (f.inv > 0) f.inv -= dt;
+  const bob = Math.sin(f.animT * 2.6) * 9, hov = FLY_Y + bob;
+  if (f.st !== 'out' && (L.done || L.lost || !L.active || !flyPlayers(L).length)){ f.st = 'out'; f.t = 0; }
+  const face = (x, z) => { const a = Math.atan2(-(z - f.z), x - f.x); let d = a - f.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); f.yaw += d * Math.min(1, dt * 6); };
+  const P0 = flyPlayers(L)[0];
+  if (f.st === 'in'){ const k = Math.min(1, f.t / f.dur), e = k * k * (3 - 2 * k); f.x = lerp(f.sx, f.tx, e); f.z = lerp(f.sz, f.tz, e); f.y = lerp(GROUND - 900, hov, e); f.tilt = (1 - k) * .5;
+    if (k >= 1){ f.st = 'rest'; f.t = 0; f.dur = rand(.4, .8); } }
+  else if (f.st === 'rest'){ f.y = hov; f.tilt *= Math.pow(.05, dt); if (P0) face(P0.x, P0.z); if (f.t >= f.dur) { flyNewSpot(L, f); SFX.jet(); } }
+  else if (f.st === 'move'){ const k = Math.min(1, f.t / f.dur), e = k * k * (3 - 2 * k); const px = f.x, pz = f.z; f.x = lerp(f.sx, f.tx, e); f.z = lerp(f.sz, f.tz, e); f.y = hov;
+    const vx = (f.x - px) / Math.max(dt, 1e-3), vz = (f.z - pz) / Math.max(dt, 1e-3); if (Math.hypot(vx, vz) > 30) face(f.x + vx, f.z + vz); f.tilt = clamp(Math.hypot(vx, vz) / 900, 0, .45);
+    if (k >= 1){ f.st = 'aim'; f.t = 0; f.aimT = clamp(1.25 / D.aggr, .85, 1.6); f.tilt = 0; SFX.laserCharge(); } }
+  else if (f.st === 'aim'){ f.y = hov; f.tilt *= Math.pow(.05, dt);
+    const tg = f.tgt && !f.tgt.dead ? f.tgt : P0; if (tg && f.t < f.aimT * .55){ const dx = tg.x - f.x, dz = (tg.z || 0) - f.z, d = Math.hypot(dx, dz), v = Math.min(d, 95 * D.aggr * dt); if (d > 1){ f.x += dx / d * v; f.z += dz / d * v; } }
+    if (tg) face(tg.x, tg.z);
+    if (f.t >= f.aimT){ f.st = 'fire'; f.t = 0; f.hitSet = new Set(); SFX.laser(); shake = Math.max(shake, 5); vib(25); } }
+  else if (f.st === 'fire'){ f.y = hov - 6;
+    if (f.t < .45){ for (const F of flyPlayers(L)){ if (f.hitSet.has(F) || pdist(F, f) > 48) continue; f.hitSet.add(F);
+        const sp = L.p; L.p = F; hurtPlayer(L, 12, { x:f.x, z:f.z }, { unblockable:true, down:true, src:null }); L.p = sp; floatText(L, F.x, F.y - 160, 'LAZER!', '#ff4a3a', 24, F.z); }
+      if (Math.random() < dt * 30) spawnParts(L, f.x + rand(-14, 14), GROUND - 4, Math.random() < .5 ? '#ff6a3a' : '#ffd27a', 2, 'spark', 240, f.z + rand(-14, 14));
+      hitObjsNear(L, f.x, f.z, 34, GROUND - 10, 30 * dt, { x:1, z:0 });
+      (L.scorch = L.scorch || []).length < 14 && f.t < dt * 1.5 && L.scorch.push({ x:f.x, z:f.z, t:0 }); }
+    if (f.t >= .6){ f.st = 'rest'; f.t = 0; f.dur = rand(1.0, 1.9) / D.aggr; } }
+  else if (f.st === 'out'){ f.y -= (f.hp <= 0 ? 380 : 520) * dt * Math.min(1, f.t * 2 + .3); f.x += f.side * 260 * dt; f.tilt = .35; f.yaw = f.side > 0 ? 0 : Math.PI;
+    if (f.t > 2.4){ L.fly = null; } }
+  if (L.scorch) for (const s of L.scorch) s.t += dt;
+}
+/* zıplayarak vurma (yerdeki yumruk/tekme yetişmez) */
+function flyMelee(L, p, a){
+  const f = L.fly; if (!f || f.st === 'out' || f.st === 'in' || f.inv > 0 || a.hit.has(f) || p.onGround) return;
+  const R = relTo(p, f); if (R.along > -24 && R.along < a.m.range + 40 && R.side < 64 && Math.abs(f.y - p.y) < 150){ a.hit.add(f); flyHurt(L, f, (a.m.dmg || 10) * 1.15, fwdOf(p), p); }
+}
+function flyHurt(L, f, dmg, dir, by){
+  f.hp -= dmg; f.flash = .2; f.inv = .25; SFX.punchHeavy(); vib(45); shake = Math.max(shake, 6);
+  spawnParts(L, f.x, f.y - 90, '#ffd27a', 12, 'spark', 320, f.z); floatText(L, f.x, f.y - 190, f.hp > 0 ? 'İSABET!' : 'DÜŞTÜ… KAÇIYOR!', '#ffcf3a', 24, f.z);
+  L.score = (L.score || 0) + (f.hp > 0 ? 40 : 300); if (typeof styleAdd === 'function') styleAdd(L, f.hp > 0 ? 35 : 120);
+  if (f.hp <= 0){ f.st = 'out'; f.t = 0; f.side = dir && dir.x < 0 ? -1 : 1; SFX.ko(); vib([90, 50, 200]); L.flyDown = true; return; }
+  if (f.st === 'aim' || f.st === 'fire'){ f.st = 'rest'; f.t = 0; f.dur = .5; }   // vurulunca lazer bozulur, kaçıp yer değiştirir
+  f.x += (dir ? dir.x : 0) * 40; f.z += (dir ? dir.z : 0) * 40;
+}
+/* fırlatılan eşya / top: uçan düşmana yönelir (yukarı doğru gider) */
+function flyProj(L, b, dt){
+  const f = L.fly; if (!f || f.st === 'out' || f.st === 'in' || b.owner !== 'p' || b.dead) return;
+  const dx = f.x - b.x, dz = f.z - (b.z || 0), dh = Math.hypot(dx, dz), sp = Math.hypot(b.vx, b.vz || 0) || 1;
+  const ahead = (dx * b.vx + dz * (b.vz || 0)) / (dh * sp || 1);
+  if (b.flyLock || (dh < 620 && ahead > .55)){ b.flyLock = true; const ty = f.y - 90, tt = Math.max(.08, dh / sp);
+    b.vy = (ty - b.y) / tt - (b.kind === 'fire' ? 0 : 450 * tt); const k = Math.min(1, dt * 5); b.vx += (dx / (dh || 1) * sp - b.vx) * k; b.vz = (b.vz || 0) + (dz / (dh || 1) * sp - (b.vz || 0)) * k; }
+  if (f.inv <= 0 && dh < 46 && b.y > f.y - 190 && b.y < f.y + 20){ flyHurt(L, f, (b.dmg || 14) * 1.2, { x:b.vx / sp, z:(b.vz || 0) / sp }); if (b.kind !== 'ball' && !b.pierce){ b.dead = true; b.life = Math.min(b.life, .05); breakProj(L, b); } else { b.vx *= -.4; b.vz = -(b.vz || 0) * .4; b.vy = 200; } }
 }
 
 /* ---------- oyuncu ---------- */
@@ -284,7 +365,7 @@ function updPlayer(L, dt, surf){
     else if (m.ball){ if (!a.done && a.t >= m.a){ a.done = true; const fire = !!m.fire, v = fire ? (m.fast ? 1350 : 900) : 840;
         L.proj.push({ kind:fire ? 'fire' : 'ball', x:p.x + F.x * 30, z:p.z + F.z * 30, y:p.y - (fire ? 60 : 14), vx:F.x * v, vz:F.z * v, vy:fire ? 0 : -150, life:1.4, owner:'p', spin:0, hit:new Set(), dmg:fire ? (m.fast ? 34 : 28) : 14, pierce:fire, down:fire }); fire ? SFX.fire() : SFX.shoot(); vib(15); hitObjsNear(L, p.x + F.x * 40, p.z + F.z * 40, 38, p.y - 20, 12, F); } }
     else if (a.t >= m.a && a.t <= m.b){
-      const reach = m.range;
+      const reach = m.range; if (L.fly) flyMelee(L, p, a);
       for (const e of L.ents){ if (e.dead || a.hit.has(e)) continue;
         const R = relTo(p, e), big = e.T && e.T.big ? 14 : 0;
         if (R.along > -14 && R.along < reach + big && R.side < 46 + big && Math.abs(e.y - p.y) < (a.air ? 110 : 70)){ a.hit.add(e);
@@ -394,7 +475,7 @@ function updEnemy(L, e, dt, surf){
   else if (e.hop > 0){ e.hop -= dt; move2(e, dt); damp2(e, Math.pow(.05, dt)); }
   else if (e.dashing > 0){ e.dashing -= dt; move2(e, dt);
     if (!e.dashHit && pdist(p, e) < 42 && sameLevel(p, e)){ e.dashHit = true; const hb = p.hp; hurtPlayer(L, T.dmg * 1.2, { x:e.x - F.x * 30, z:e.z - F.z * 30 }, { down:true, src:e }); if (T.rush && p.hp >= hb) e.dodgedBy = true; }
-    const wall = e.x <= L.lockL + 24 || e.x >= L.lockR - 24 || (d3 && (e.z <= L.zMin + 26 || e.z >= L.zMax - 26 || solidPush(L, e, surf, 24)));
+    const wall = e.x <= L.lockL + 24 || e.x >= L.lockR - 24 || (d3 && (e.z <= (L.zLo != null ? L.zLo : L.zMin) + 26 || e.z >= L.zMax - 26 || solidPush(L, e, surf, 24)));
     if (T.rush && wall && e.dashing > 0){ e.dashing = 0; e.vx = -F.x * 120; e.vz = -F.z * 120; e.dizzy = 1.8; shake = 10; SFX.wallSlam(); floatText(L, e.x, e.y - 150, 'DUVARA!', '#ffcc66', 26, e.z); }
     if (e.dashing <= 0){ e.vx = 0; e.vz = 0; e.cd = rand(.6, 1.1) / D.aggr; if (T.rush && (!e.dashHit || e.dodgedBy) && e.dizzy <= 0){ e.dizzy = 1.3; floatText(L, e.x, e.y - 150, 'NEFES NEFESE!', '#fff176', 20, e.z); } e.dodgedBy = false; } }
   else if (e.leaping > 0){ e.leaping -= dt; move2(e, dt);
@@ -554,7 +635,8 @@ function Level(def, carry, mpo){
   L.key = key; L.mpo = mpo; L.view = !!(mpo && mpo.view);
   /* 3B mi? (WebGL yoksa eski yan görünüm) */
   L.d3 = !SAVE.f2d && typeof fight3dOn === 'function' && fight3dOn();
-  if (L.d3){ const A = typeof arenaDims === 'function' ? arenaDims(def) : { zMin:-300, zMax:300 }; L.zMin = A.zMin; L.zMax = A.zMax; L.hint = h3txt(L.hint); }
+  if (L.d3){ const A = typeof arenaDims === 'function' ? arenaDims(def) : { zMin:-300, zMax:300 }; L.zMin = A.zMin; L.zMax = A.zMax; L.hint = h3txt(L.hint);
+    if (typeof arenaKind === 'function' && arenaKind(def) === 'street'){ L.zLo = L.zMin - 250; L.curbZ = L.zMin; } }   // sokakta arkadaki kaldırıma çıkılabilir
   else { L.zMin = 0; L.zMax = 0; }
   L.plats = (def.platforms || []).map((pl, i) => Object.assign({ i }, pl, L.d3 ? { z1:L.zMin, z2:L.zMin + PLAT_D } : {}));
   L.team = (def.chars || ['issem']).map(k => makeFighter(k, def.start || 120));
@@ -630,6 +712,7 @@ function Level(def, carry, mpo){
     setBtnReady('super', L.p.sup >= 100); setBtnLabel('grab', L.p.carry || L.p.weapon ? '🎯' : '✋');
     for (const f of L.team) if (f !== L.p && !f.dead && f.hp < f.maxhp) f.hp = Math.min(f.maxhp, f.hp + dt * 1.5);
     for (const e of L.ents){ if (L.duo){ const sp = L.p; L.p = mpTarget(L, e); updEnemy(L, e, dt, surf); L.p = sp; } else updEnemy(L, e, dt, surf); }
+    flyTick(L, dt);
     if (L.d3) entTick(L, dt);
     if (L.d3) for (const pl of (L.duo ? [L.p, L.rp] : [L.p])){ if (!pl || pl.dead || pl.climb || pl.down > 0) continue;      // gövdeler iç içe geçmesin
       for (const e of L.ents){ if (e.dead || e.ent || e.down > 0 || e.grabbedBy || e === pl.carryE || e.dashing > 0 || e.leaping > 0 || !sameLevel(e, pl)) continue;
@@ -641,6 +724,7 @@ function Level(def, carry, mpo){
     // mermiler: top, ateş, fırlatılan eşya ve silahlar
     for (const b of L.proj){
       if (b.kind !== 'fire') b.vy += 900 * dt; b.x += b.vx * dt; b.z = (b.z || 0) + (b.vz || 0) * dt; b.y += b.vy * dt; b.spin += Math.hypot(b.vx, b.vz || 0) * dt / 10; b.life -= dt;
+      if (L.fly) flyProj(L, b, dt);
       if (b.y > GROUND - 10 && b.kind === 'ball'){ b.y = GROUND - 10; b.vy *= -.5; }
       if (b.y > GROUND - 10 && b.kind !== 'ball' && !b.dead){ b.dead = true; b.life = Math.min(b.life, .05); breakProj(L, b); }
       if (L.d3 && (b.z < L.zMin + 10 || b.z > L.zMax - 10)){ if (b.kind === 'ball'){ b.vz = -b.vz * .6; b.z = clamp(b.z, L.zMin + 10, L.zMax - 10); } else if (!b.dead){ b.dead = true; b.life = Math.min(b.life, .05); breakProj(L, b); } }
@@ -706,6 +790,7 @@ function Level(def, carry, mpo){
         if (ETYPES[t].boss){ L.bossE = e; L.bossIntro = 2.2; SFX.boss(); shake = 8; e.x = L.camX + W - 160; e.z = 0; e.inside = true; }
         faceTo(e, p.x, p.z); L.ents.push(e); if (L.d3 && !ETYPES[t].boss) sendIn(L, e, o && o.y ? o.y : null); });
       if (w.hint){ L.hint = L.d3 ? h3txt(w.hint) : w.hint; L.hintT = 4.5; }
+      if (!L.fly && L.flyPend == null && !(L.flySeen >= 1) && flyAllowed(L) && Math.random() < (window.FLY_FORCE ? 1 : .4)) L.flyPend = rand(3.5, 7);   // arada bir: uçan düşman
       SFX.whistle(); }
     else if (def.waves && L.wi >= def.waves.length && def.exit && !L.active && p.x > (def.width || W) - 150){ L.done = 1; L.obj = def.doneMsg || 'Çıkışa ulaştın!'; SFX.goal(); }
     else if (!def.waves && def.exit && !L.active && p.x > (def.width || W) - 150){ L.done = 1; L.obj = def.doneMsg || 'Çıkışa ulaştın!'; SFX.ok(); }

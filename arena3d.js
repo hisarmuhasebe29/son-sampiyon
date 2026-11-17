@@ -192,7 +192,7 @@ function buildArena(L){
         if (!alley && !yard && face > 0 && hash01(i * 5.3) < .75 && !nearE(x + bw / 2, Math.min(4, bw - 1) / 2)){ const names = ['KAFE ŞAHİN', 'BAKKAL', 'BERBER', 'ÇİÇEKÇİ', 'FIRIN', 'KIRTASİYE', 'TERZİ']; const sg = plane(Math.min(4, bw - 1), .8, new T.MeshBasicMaterial({ map:signTex(names[i % names.length], ['#14306b', '#7a1d1d', '#1d5a3a', '#3a2a5a'][i % 4], '#ffe9a8'), toneMapped:false }), x + bw / 2, 3.4, bz + .06); g.add(sg);
           const win = plane(Math.min(4, bw - 1), 2.1, emis(U.night ? '#ffcf7a' : '#5f7a96', U.night ? .9 : .2), x + bw / 2, 1.5, bz + .05); g.add(win); }
         x += bw + .02; i++; } }
-    if (!alley && !yard){ for (let x = 1.5; x < len + 2; x += 8){ if (!nearE(x, .3)) streetLamp(g, x, z0 - 1.2, 1, U); streetLamp(g, x + 4, z1 + 1.2, -1, U); }
+    if (!alley && !yard){ for (let x = 1.5; x < len + 2; x += 8){ if (!nearE(x, .3)) streetLamp(g, x, z0 - 2.95, 1, U); streetLamp(g, x + 4, z1 + 1.2, -1, U); }
       const carCols = ['#9b1c1c', '#1c3f9b', '#e0e0e0', '#2b2b2b', '#c9a227'];
       for (let x = 2, i = 0; x < len + 4; x += 6.5 + hash01(i) * 4, i++){ const c = carMesh(carCols[i % 5], U, x, z1 + 1.9, hash01(i * 2) < .5 ? 0 : Math.PI); g.add(c); U.front.push(dynM(c)); }
       for (let x = 0; x < len; x += 3.7){ if (A.snow && !nearE(x, .6)) g.add(boxM(.6 + hash01(x) * .8, .25, .5, stdM({ color:'#f2f6fc', roughness:.95 }), x, .12, z0 - .15 - hash01(x * 3) * .3, false)); }

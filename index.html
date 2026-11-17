@@ -37,6 +37,8 @@
   .btn i{font-style:normal;font:900 2.3vmin system-ui,sans-serif;letter-spacing:.02em;color:#fff;margin-top:.6vmin;text-shadow:0 1px 2px #000}
   .btn.on{background:rgba(242,194,48,.5);border-color:#f2c230;transform:scale(.94)}
   .btn.ready{border-color:#fff176;box-shadow:0 0 3vmin #f2c230;animation:pulse .6s infinite alternate}
+  .btn.cd{background:conic-gradient(rgba(242,194,48,.62) calc(var(--cd) * 1turn), rgba(10,14,30,.6) 0);border-color:rgba(255,255,255,.2);filter:saturate(.7)}
+  .btn.ready1{box-shadow:0 0 4vmin #f2c230;border-color:#fff176}
   @keyframes pulse{from{background:rgba(242,194,48,.25)}to{background:rgba(242,194,48,.7)}}
   #rotate{position:fixed;inset:0;background:#0b1020;color:#f2c230;display:none;flex-direction:column;
     align-items:center;justify-content:center;font:bold 6vmin system-ui,sans-serif;text-align:center;z-index:9}
@@ -67,11 +69,11 @@
 <script>
   window.__boot = function(){ if (window.__booted) return; window.__booted = true;
     const files = ['core', 'art', 'render3d', 'body3d', 'fight', 'fightx', 'match', 'foot3d', 'stadium3d', 'arena3d', 'cut3d', 'fight3d', 'match3d', 'skills3d', 'creator', 'profile', 'mp', 'story', 'game'];
-    (function load(i){ if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '.js?v=14'; s.onload = () => load(i + 1); document.body.appendChild(s); })(0); };
+    (function load(i){ if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '.js?v=15'; s.onload = () => load(i + 1); document.body.appendChild(s); })(0); };
   setTimeout(window.__boot, 8000);                     /* 3B kütüphanesi hiç yüklenemezse oyun 2B açılır */
 </script>
 <script type="module">
-  import('./three.module.min.js?v=14').then(T => { window.THREE = T; }).catch(() => {}).finally(() => window.__boot());
+  import('./three.module.min.js?v=15').then(T => { window.THREE = T; }).catch(() => {}).finally(() => window.__boot());
 </script>
 <script nomodule>window.__boot();</script>
 </body>

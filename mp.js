@@ -153,7 +153,8 @@ function mpBegin(hostChar, ch, i){
 function mpNodeInfo(n){
   if (n.cut) return { kind:'cut', owner:'host' };
   if (n.lvl){ const ch = LEVELS[n.lvl].chars || ['issem']; if (ch.includes('issem') && ch.includes('ufis')) return { kind:'lvl', owner:'host', duo:true };
-    return { kind:'lvl', owner:ch[0] === MP.hostChar ? 'host' : 'guest', solo:ch[0] }; }
+    const c0 = ch[0] === 'ufisGenc' ? 'ufis' : ch[0];                 // Ufis'in gençliğini Ufis'i seçen oyuncu oynar
+    return { kind:'lvl', owner:c0 === MP.hostChar ? 'host' : 'guest', solo:ch[0] }; }
   return { kind:n.match ? 'match' : 'set', owner:MP.hostChar === 'issem' ? 'host' : 'guest' };
 }
 function mpRunNode(){
@@ -209,12 +210,15 @@ function levelSnap(L){
       e.dizzy > 0 ? 1 : 0, e.down > 0 ? 1 : 0, e.dead ? 1 : 0, r2(e.deadT), e.dummy ? [r2(e.wob), r2(e.fall), e.fallDir || 1] : 0, e.dashing > 0 ? 1 : 0, r0(e.z), r2(e.yaw), L.d3 && !e.dummy ? st3(e) : 0]),
     ob:L.objs.map(o => [o.uid == null ? -1 : o.uid, o.t, r0(o.x), r0(o.y), o.broken ? 1 : 0, o.held ? 1 : 0, o.shakeT > 0 ? 1 : 0, o.w, o.h, r0(o.z), r2(o.rot || 0), o.d || o.w]),
     pk:L.pickups.map(k => [k.kind, r0(k.x), r0(k.y), k.w || 0, r0(k.z)]), pr:L.proj.map(b => [b.kind, r0(b.x), r0(b.y), r2(b.spin), b.w || b.obj || 0, Math.sign(b.vx), r0(b.z), r0(b.vx), r0(b.vz)]),
+    fy:L.fly ? [r0(L.fly.x), r0(L.fly.y), r0(L.fly.z), r2(L.fly.yaw), r0(L.fly.hp), L.fly.maxhp, L.fly.st, r2(L.fly.t), r2(L.fly.aimT), r2(L.fly.tilt), L.fly.flash > 0 ? 1 : 0] : 0, sc:(L.scorch || []).map(s => [r0(s.x), r0(s.z), r2(s.t)]),
     sk:L.shocks.map(s => [r0(s.x), r0(s.y), r0(s.r), r2(s.life), r0(s.z)]), bu:L.bursts.map(b => [r0(b.x), r0(b.y), r2(b.t), b.big ? 1 : 0, r0(b.z)]),
     st:[L.frozen ? 1 : 0, L.lost ? 1 : 0, L.done ? 1 : 0, L.rank || '', r2(L.doneT), r2(L.lostT)], g:L.gate ? [L.gate.kind, r0(L.gate.x), L.gate.st, L.gate.hits, r2(L.gate.open)] : 0, fd:[r2(L.fade), r2(L.fadeIn)], eo:L.ent3 && L.ent3.length ? L.ent3.map(E => r2(E.open || 0) + (E.warn > 0 ? 10 : 0)) : 0,
     hud:[L.obj || '', L.hint || '', r2(L.hintT), L.combo || 0, r2(L.comboT), L.superBanner ? [L.superBanner.name, r2(L.superBanner.t), L.superBanner.kind] : 0, L.bark ? [L.bark.who, L.bark.t] : 0, r2(L.barkT),
       L.surviveT != null ? r2(L.surviveT) : null, L.limitT != null ? r2(L.limitT) : null, r2(L.bossIntro), L.score || 0, L.pauseM ? 1 : 0, r2(L.finT || 0), L.sty ? r0(L.sty.v) : 0] };
 }
 function levelApply(L, s){
+  if (s.fy){ const a = s.fy, f = L.fly || (L.fly = { animT:0 }); f.x = a[0]; f.y = a[1]; f.z = a[2]; f.yaw = a[3]; f.hp = a[4]; f.maxhp = a[5]; f.st = a[6]; f.t = a[7]; f.aimT = a[8]; f.tilt = a[9]; f.flash = a[10] ? .1 : 0; f.animT = (f.animT || 0) + 1 / 30; } else L.fly = null;
+  L.scorch = (s.sc || []).map(a => ({ x:a[0], z:a[1], t:a[2] }));
   L.camX = s.cam; L.time = s.tm; shake = s.sh; FX.flash = s.fl; FX.zoom = s.z[0]; FX.zx = s.z[1]; FX.zy = s.z[2];
   for (const a of s.team){ const f = L.team.find(x => x.kind === a[0]); if (!f) continue;
     f.tx = a[1]; f.ty = a[2]; f.tz = a[16] || 0; f.tyaw = a[17] || 0; if (f.x == null || Math.abs(f.x - a[1]) > 200) { f.x = a[1]; f.y = a[2]; f.z = f.tz; setYaw(f, f.tyaw); } if (a[18]) st3apply(f, a[18]);

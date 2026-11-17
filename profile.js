@@ -19,12 +19,11 @@ function nameOk(s){
 function cleanName(s, def){ s = String(s || '').replace(/[<>]/g, '').trim().slice(0, 14); return s && nameOk(s) ? s : def; }
 
 /* ---------- para ---------- */
-const COIN_3STAR = 100, COIN_3STAR_AGAIN = 20, COIN_CLEAR = 30;
+const COIN_3STAR = 60, COIN_3STAR_AGAIN = 15, COIN_MUL = [1, 2, 3.5];          // para yalnız 3 yıldızla: kolay az · normal orta · zor çok
 function prof(){ if (!SAVE.prof) SAVE.prof = { name:'', avatar:'top', owned:['top', 'issem'], coins:0 }; return SAVE.prof; }
 function awardCoins(ch, st, before){
   const P = prof(); let c = 0;
-  if (!before) c += COIN_CLEAR;
-  if (st >= 3) c += before >= 3 ? COIN_3STAR_AGAIN : COIN_3STAR;
+  if (st >= 3) c = Math.round((before >= 3 ? COIN_3STAR_AGAIN : COIN_3STAR) * (COIN_MUL[SAVE.diff] || 1));
   P.coins += c; persist(); return c;
 }
 
@@ -118,7 +117,7 @@ function ProfileScreen(){
       if (P.avatar === av.id){ c.strokeStyle = '#7dff9a'; c.lineWidth = 3; c.stroke(); }
       drawAvatar(c, av.id, b.x + b.w / 2, b.y + 42, 32, !own);
       txt(c, own ? av.n : '🪙 ' + av.p, b.x + b.w / 2, b.y + 96, 14, own ? '#ffffff' : (P.coins >= av.p ? '#f2c230' : '#ff9a8a'), 'center', 'bold', 0, b.w - 8); });
-    txt(c, 'Her bölümü 3 yıldızla bitir: +' + COIN_3STAR + ' 🪙  ·  bölümü ilk bitiriş: +' + COIN_CLEAR + ' 🪙  (oyun parası)', 640, 532, 12, '#c8d3ff', 'center', 'normal', 0, 620);
+    txt(c, 'Para yalnız 3 yıldızla: Kolay +' + COIN_3STAR * COIN_MUL[0] + ' · Normal +' + COIN_3STAR * COIN_MUL[1] + ' · Zor +' + COIN_3STAR * COIN_MUL[2] + ' 🪙  (1-2 yıldız para vermez)', 640, 532, 12, '#c8d3ff', 'center', 'normal', 0, 620);
     if (S.msgT > 0){ c.globalAlpha = Math.min(1, S.msgT * 2); pill(c, S.msg, 480, 500, 16, 'rgba(10,16,40,.95)', '#ffcc66', { maxW:900 }); c.globalAlpha = 1; }
   };
   return S;

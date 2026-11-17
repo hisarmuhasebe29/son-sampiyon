@@ -85,9 +85,60 @@ function buildWorld(kind){
   if (night){
     buildStadium(root, U, R3.world());
   } else buildTesis(root, U, R3.world());
+  f3SparkBuild(root, U);
   R3.flatten(root); R3.compact(root);
   root.traverse(o => { if (o.isMesh && !o.material.transparent && !o.isInstancedMesh){ o.receiveShadow = true; } });
   return root;
+}
+/* ---------- kale yanındaki kıvılcım makineleri (gol olunca o kalenin iki yanından altın kıvılcım fışkırır) ---------- */
+const SPK_N = 150;
+function f3SparkBuild(root, U){
+  const { T, mat, mesh } = R3.world(); U.spk = [];
+  for (const s of [1, -1]) for (const zs of [1, -1]){
+    const x = s * (GL + 1.1), z = zs * (GW + 2.4);
+    root.add(mesh('box', mat('#1a1c22', { metalness:.5, roughness:.4 }), .5, .42, .5, x, .21, z)); root.add(mesh('box', mat('#2e3138', { metalness:.7, roughness:.3 }), .22, .06, .22, x, .45, z));
+    const pos = new Float32Array(SPK_N * 6), col = new Float32Array(SPK_N * 6), g = new T.BufferGeometry();
+    g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('color', new T.BufferAttribute(col, 3));
+    const ls = new T.LineSegments(g, new T.LineBasicMaterial({ vertexColors:true, transparent:true, blending:T.AdditiveBlending, depthWrite:false, toneMapped:false, fog:false }));
+    ls.userData.keep = 1; ls.userData.dyn = 1; ls.frustumCulled = false; root.add(ls);
+    const glow = new T.Mesh(new T.SphereGeometry(.28, 12, 8), new T.MeshBasicMaterial({ color:'#fff3c8', transparent:true, opacity:0, blending:T.AdditiveBlending, depthWrite:false, toneMapped:false }));
+    glow.position.set(x, .52, z); glow.userData.keep = 1; glow.userData.dyn = 1; root.add(glow);
+    const P = []; for (let i = 0; i < SPK_N; i++) P.push({ x, y:.48, z, vx:0, vy:0, vz:0, life:0, max:1 });
+    U.spk.push({ s, x, z, ls, g, pos, col, P, glow, acc:0 });
+  }
+}
+function f3SparkTick(U, G, dt){
+  if (!U.spk) return; const S = G.spark, on = S && S.t < (S.long ? 4.6 : 3.2);
+  if (S) S.t += dt;
+  for (const F of U.spk){ const live = on && F.s === S.s; F.acc += live ? dt * 120 : 0; let any = false;
+    for (const p of F.P){ if (p.life <= 0 && F.acc >= 1){ F.acc -= 1; p.x = F.x + rand(-.05, .05); p.z = F.z + rand(-.05, .05); p.y = .5; const a = rand(0, 6.28), r = rand(0, 1.15);
+        p.vx = Math.cos(a) * r; p.vz = Math.sin(a) * r; p.vy = rand(7.5, 13.5); p.max = p.life = rand(.7, 1.5); }
+      if (p.life > 0){ p.life -= dt; p.vy -= 6.5 * dt; p.vx *= Math.pow(.6, dt); p.vz *= Math.pow(.6, dt); p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; any = true; } }
+    if (!any && !F.used) continue; F.used = any;
+    const pos = F.pos, col = F.col; F.P.forEach((p, i) => { const j = i * 6, k = p.life > 0 ? p.life / p.max : 0, tl = .045 + (1 - k) * .02;
+      pos[j] = p.x; pos[j + 1] = p.y; pos[j + 2] = p.z; pos[j + 3] = p.x - p.vx * tl; pos[j + 4] = p.y - p.vy * tl; pos[j + 5] = p.z - p.vz * tl;
+      const b = k > 0 ? Math.min(1, k * 1.6) : 0; col[j] = b; col[j + 1] = b * (.62 + k * .38); col[j + 2] = b * k * k * .7; col[j + 3] = b * .9; col[j + 4] = b * .45; col[j + 5] = b * .08; });
+    F.g.attributes.position.needsUpdate = true; F.g.attributes.color.needsUpdate = true;
+    F.glow.material.opacity = live ? .55 + Math.random() * .35 : 0; }
+}
+/* LED tabela: 7 parçalı beyaz LED rakamlar */
+function ledDigit(c, x, y, w, h, d){
+  const S = { 0:'abcdef', 1:'bc', 2:'abged', 3:'abgcd', 4:'fgbc', 5:'afgcd', 6:'afgedc', 7:'abc', 8:'abcdefg', 9:'abcdfg' }[d] || '';
+  const t = w * .2, seg = { a:[x + t, y, w - 2 * t, t], d:[x + t, y + h - t, w - 2 * t, t], g:[x + t, y + h / 2 - t / 2, w - 2 * t, t], f:[x, y + t * .6, t, h / 2 - t * .8], b:[x + w - t, y + t * .6, t, h / 2 - t * .8], e:[x, y + h / 2 + t * .2, t, h / 2 - t * .8], c:[x + w - t, y + h / 2 + t * .2, t, h / 2 - t * .8] };
+  for (const k in seg){ const [sx, sy, sw, sh] = seg[k], on = S.includes(k); c.fillStyle = on ? '#ffffff' : 'rgba(255,255,255,.07)'; c.shadowColor = on ? 'rgba(255,255,255,.9)' : 'transparent'; c.shadowBlur = on ? 10 : 0; rr(c, sx, sy, sw, sh, t / 2); c.fill(); }
+  c.shadowBlur = 0; c.fillStyle = 'rgba(0,0,0,.35)'; for (let yy = y; yy < y + h; yy += 5) c.fillRect(x - 2, yy, w + 4, 1.4);
+}
+function ledBoard(c, B){
+  c.fillStyle = '#1340a8'; c.fillRect(0, 0, 512, 256); c.strokeStyle = '#d8e2f4'; c.lineWidth = 5; c.strokeRect(3, 3, 506, 250);
+  c.fillStyle = '#ffffff'; c.font = '900 30px ' + FONT; c.textAlign = 'center'; c.fillText(B[0], 66, 110); c.fillText(B[1], 446, 110);
+  const box = (x, y, w, h) => { c.fillStyle = '#050608'; c.fillRect(x, y, w, h); c.strokeStyle = '#2a2d33'; c.lineWidth = 2; c.strokeRect(x, y, w, h); };
+  const two = (x, y, n, dw, dh) => { const s = String(n).padStart(2, ' '); for (let i = 0; i < 2; i++){ const ch = s[i]; if (ch !== ' ') ledDigit(c, x + 8 + i * (dw + 10), y + 8, dw, dh, +ch); else ledDigit(c, x + 8 + i * (dw + 10), y + 8, dw, dh, -1); } };
+  box(14, 124, 104, 92); two(14, 124, Math.min(99, B[2]), 38, 76); box(394, 124, 104, 92); two(394, 124, Math.min(99, B[3]), 38, 76);
+  c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.strokeRect(134, 10, 244, 104);
+  box(146, 18, 100, 88); two(146, 18, B[4], 36, 72); box(266, 18, 100, 88); two(266, 18, String(B[5]).padStart(2, '0'), 36, 72);
+  c.fillStyle = '#ffffff'; c.beginPath(); c.arc(256, 48, 5, 0, 7); c.arc(256, 76, 5, 0, 7); c.fill();
+  c.font = '900 24px ' + FONT; c.fillText('DEVRE', 256, 146); box(232, 156, 48, 84); ledDigit(c, 240, 164, 32, 68, B[6]);
+  c.font = 'italic 900 13px ' + FONT; c.fillStyle = '#ffffff'; c.fillText('SON ŞAMPİYON', 340, 214);
 }
 
 /* ---------- kare kurulumu ---------- */
@@ -107,6 +158,8 @@ function f3Begin(G, dt){
   for (const t of U.ads) t.offset.x = (G.t * .035) % 1;
   for (const t of U.crowd) t.offset.y = G.cheer ? Math.abs(Math.sin(G.t * 13)) * .006 : Math.sin(G.t * 2) * .0015;
   stadTick(U, G, dt);
+  f3SparkTick(U, G, dt);
+  if (U.boards && G.board){ const key = G.board.join('|'); if (key !== U.boardKey){ U.boardKey = key; for (const b of U.boards){ ledBoard(b.c, G.board); b.tex.needsUpdate = true; } } }
   for (const n of U.nets){ n.t += dt; const k = n.t < .6 ? Math.sin(n.t / .6 * Math.PI) * (1 - n.t / .6) : 0; n.back.position.x = 1.9 + k * .7; n.back.scale.set(1, 1 + k * .05, 1); }
   if (U.screen && G.screen){ const key = G.screen.join('|'); if (key !== U.screen.key){ U.screen.key = key; const c = U.screen.c; c.fillStyle = '#05070f'; c.fillRect(0, 0, 512, 192);
       c.fillStyle = '#14306b'; c.fillRect(0, 0, 512, 40); c.fillStyle = '#f2c230'; c.font = 'italic 900 26px ' + FONT; c.textAlign = 'center'; c.fillText('UON PMAC · ' + (G.screen[3] || ''), 256, 29);
@@ -211,13 +264,15 @@ function f3Reticle(y, z, r, col){
 /* ---------- şut modeli ---------- */
 function f3Shot(from, aim, power, o = {}){
   const side = o.side || 1, acc = o.acc != null ? o.acc : PST('sut'), dist = Math.hypot(side * GL - from.x, aim.tz - from.z);
-  const err = (1 - acc) * .5 + dist * .011 + Math.max(0, power - .85) * 3.2;
+  let err = (1 - acc) * .5 + dist * .011 + Math.max(0, power - .85) * 3.2;
+  if (o.live){ err += Math.pow(Math.max(0, dist - 16), 1.45) * .016 + (o.press || 0) * .9;        // maçta: uzaktan ve baskı altında isabet düşer
+    if (Math.random() < .12 + Math.max(0, dist - 20) * .012) err *= 1.9; }                          // bazen top ayağın altında kalır (kötü vuruş)
   const over = Math.max(0, power - .85) * 4.5;
   const tz = aim.tz + rand(-1, 1) * err, ty = Math.max(BR, aim.th + over + rand(-1, 1) * err * .55);
-  const speed = 13 + power * 19 + acc * 4, dur = dist / speed;
+  const speed = (13 + power * 19 + acc * 4) * (o.live ? 1 - Math.min(.28, Math.max(0, dist - 22) * .012) : 1), dur = dist / speed;
   const arc = Math.max(0, .1 + aim.th * .42 + (1 - power) * 1.25 - (aim.th < .5 ? .3 : 0)) * (o.arcMul || 1);
   const curl = o.curlAbs != null ? o.curlAbs * (1 - power * .3) : (o.curl || .3) * (playerProfile().foot === 'Sol' ? -1 : 1) * (1 - power * .4);
-  return { x0:from.x, y0:BR, z0:from.z, tx:side * (GL + .05), side, ty, tz, dur, arc, curl, t:0, power, dist, ev:null, kev:1, done:false, err };
+  return { x0:from.x, y0:BR, z0:from.z, tx:side * (GL + .05), side, ty, tz, dur, arc, curl, t:0, power, dist, ev:null, kev:1, done:false, err, live:!!o.live };
 }
 const shotPos = (S, k) => ({ x:lerp(S.x0, S.tx, k), y:Math.max(BR, lerp(S.y0, S.ty, k) + S.arc * 4 * k * (1 - k)), z:lerp(S.z0, S.tz, k) + S.curl * Math.sin(Math.PI * Math.min(1, k)) });
 function f3Resolve(S, K, o = {}){
@@ -229,13 +284,14 @@ function f3Resolve(S, K, o = {}){
   if (Math.abs(tz) > GW || ty > GH){ S.ev = ty > GH ? 'over' : 'out'; S.kev = 1; S.dive = { z:clamp(tz, K.z - 2.5, K.z + 2.5), y:Math.min(1.6, ty), react:.25 }; return; }
   const mul = (o.keeperMul || 1) * D.keeper;
   const corner = clamp((Math.abs(tz) - .8) / 2.8, 0, 1);
-  const read = clamp(.5 * mul * (1 - S.power * .45) * (1 - corner * .55) + (S.dist > 22 ? .08 : 0), .05, .9);
+  const far = S.live ? Math.max(0, S.dist - 18) : 0;                                                // uzaktan şutu kaleci çoğu zaman görür
+  const read = clamp(.5 * mul * (1 - S.power * .45) * (1 - corner * .55) + (S.dist > 22 ? .08 : 0) + far * .045, .05, S.live ? .97 : .9);
   const isRead = Math.random() < read;
   let gz = isRead ? tz + rand(-.3, .3) : pick([-2.6, -1.3, 0, 1.3, 2.6]) + rand(-.2, .2), gy = isRead ? ty : rand(.3, 1.7);
   const react = o.react != null ? o.react : .2 + rand(0, .08);
   const avail = Math.max(0, S.dur - react), reach = 1.0 + Math.min(2.8, avail * 6.2) - (ty > 1.9 && Math.abs(tz - K.z) > 2.2 ? .6 : 0);
   gz = clamp(gz, K.z - reach, K.z + reach);
-  const tol = isRead ? .85 : Math.max(.15, .55 - S.power * .35);
+  const tol = (isRead ? .85 : Math.max(.15, .55 - S.power * .35)) + far * .035;
   const save = Math.abs(gz - tz) < tol && Math.abs(gy - ty) < 1.0 && Math.abs(tz - K.z) <= reach + .1;
   S.ev = save ? (S.power < .62 && Math.abs(tz - K.z) < 1.7 && ty < 1.9 ? 'catch' : 'parry') : 'goal';
   S.kev = save ? Math.max(.5, 1 - .55 / S.dist) : 1;
@@ -360,6 +416,9 @@ function celebPose(G, p, t){
   const P = getPose({ animT:t, pose:t % 1.6 < .8 ? 'trophy' : 'point' }); if (t % 1.6 >= .8){ P.fa = [2.6, 2.7]; } return P;
 }
 
+/* hat-trick: iki kol havada zıplayarak döner; arkadaşlar: alkış / yumruk */
+function hatPose(G, p, t){ p.y = Math.abs(Math.sin(t * 5.2)) * .38; p.yaw += .02; const P = getPose({ animT:t, pose:'cheer' }); P.fa = [2.95 + Math.sin(t * 10) * .12, 3.05]; P.ba = [2.95 + Math.cos(t * 10) * .12, 3.05]; P.lean = -8; P.bob = 0; return P; }
+function clapPose(p){ const t = p.animT, P = getPose({ animT:t, pose:'stand' }), c = Math.sin(t * 9); P.fa = [1.25 + c * .18, 1.6]; P.ba = [1.25 - c * .18, 1.6]; P.bob = 0; return P; }
 /* =========================================================
    DURAN TOP 3B: penaltı · frikik (baraj) · şut antrenmanı
    ========================================================= */

@@ -249,6 +249,14 @@ function buildStadium(root, U, R3w){
     U.screens.push({ c:scr.getContext('2d'), tex:st });
   }
   U.screen = { c:U.screens[0].c, tex:U.screens[0].tex, key:'', all:U.screens };
+  /* dev ekranın yanında LED skor tabelası (mavi pano, beyaz LED rakamlar) */
+  U.boards = [];
+  for (const s of [1, -1]){
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; const bt = new T.CanvasTexture(cv); bt.colorSpace = T.SRGBColorSpace;
+    const z = s > 0 ? -16.2 : 16.2, bm = new T.Mesh(new T.PlaneGeometry(10, 5), new T.MeshBasicMaterial({ map:bt, toneMapped:false })); bm.position.set(s * (AX + 11.9), roofY - 5.6, z); bm.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2; root.add(bm);
+    root.add(mesh('box', mat('#0d0f14'), .4, 5.5, 10.6, s * (AX + 12.2), roofY - 5.6, z)); root.add(mesh('box', steel, .2, 4, .2, s * (AX + 12.2), roofY - 1.6, z + 3)); root.add(mesh('box', steel, .2, 4, .2, s * (AX + 12.2), roofY - 1.6, z - 3));
+    U.boards.push({ c:cv.getContext('2d'), tex:bt });
+  }
   /* yedek kulübeleri + teknik alan + dördüncü hakem masası + tünel */
   const glass = new T.MeshStandardMaterial({ color:'#9fc4ff', transparent:true, opacity:.28, roughness:.05, metalness:.2, side:T.DoubleSide });
   for (const s of [1, -1]){

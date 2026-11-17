@@ -142,6 +142,8 @@ const BODY = (() => {
         H.add(mesh('sph', bm, .012, .0075, .026, .1, -.04, 0)); } }
     if (look.shades){ const lm = mat('#0b0d12', { metalness:.6, roughness:.08 }); for (const z of [.03, -.03]) H.add(mesh('box', lm, .006, .022, .038, .1, .014, z)); H.add(mesh('box', lm, .006, .006, .03, .102, .022, 0)); for (const z of [.074, -.074]){ const ar = mesh('box', lm, .07, .005, .004, .062, .018, z); H.add(ar); } }
     if (look.glasses) for (const z of [.028, -.028]) H.add(mesh('box', mat('#0a0a0a', { metalness:.5, roughness:.1 }), .004, .016, .03, .1, .014, z));
+    if (look.visor){ const vm = new T.MeshBasicMaterial({ color:look.visor, toneMapped:false }); const v = mesh('box', vm, .016, .03, .112, .097, .016, 0); H.add(v); U.visor = v;   // uçan düşman: parlayan kızıl vizör
+      H.add(mesh('box', mat('#1b1f27', { metalness:.8, roughness:.25 }), .03, .05, .13, .085, .016, 0)); }
     R3.compact(H); return H;
   }
 
@@ -468,6 +470,11 @@ const BODY = (() => {
       const holdG = new T.Group(); holdG.position.set(.02, -.07, 0); g.add(holdG); holdGs.push(holdG); }
     for (let s = 0; s < 2; s++){ const ab = bn(iAnk[s]); ab.add(bootMesh(look, s ? -1 : 1, mat)); }
     const chest = bn(iCh);
+    if (look.jet){ const jm = mat('#4a505c', { metalness:.85, roughness:.28 }), fm = new T.MeshBasicMaterial({ color:'#ffb347', transparent:true, opacity:.9, toneMapped:false, depthWrite:false }); const fl = [];
+      chest.add(mesh('box', mat('#262b36', { metalness:.6, roughness:.35 }), .05, .2, .2, -.13, .08, 0));
+      for (const z of [.06, -.06]){ chest.add(mesh('box', jm, .07, .22, .07, -.17, .06, z)); const q = mesh('sph', fm, .03, .09, .03, -.17, -.1, z); chest.add(q); fl.push(q); }
+      for (const z of [.13, -.13]){ const w = mesh('box', jm, .03, .02, .22, -.15, .14, z * 1.4); w.rotation.x = z > 0 ? -.35 : .35; chest.add(w); }
+      chest.userData.flames = fl; }
     if (look.sh){ const st = mat(look.stripe || '#ffffff'); const col = mesh('ring', st, .062, .062, .062, .002, .222, 0); col.rotation.x = Math.PI / 2; col.scale.set(.06, .064, .28); chest.add(col);
       if (look.num){ const key = 'b|' + look.num + '|' + (look.nm || '') + '|' + look.stripe + '|' + look.shirt;
         const bt = decalTex(key, 256, 256, (c, w, h) => { c.clearRect(0, 0, w, h); c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round'; const fg = look.stripe || '#ffffff', ol = shade(look.shirt, .55);
