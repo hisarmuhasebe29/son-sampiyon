@@ -205,7 +205,7 @@ const poseArr = f => { const p = getPose(f); return [r2(p.lean), r2(p.bob), r2(p
 const arrPose = a => ({ lean:a[0], bob:a[1], fl:[a[2], a[3]], bl:[a[4], a[5]], fa:[a[6], a[7]], ba:[a[8], a[9]], lie:!!a[10], rot:a[11], spread:a[12], back:!!a[13] });
 function levelSnap(L){
   return { key:L.key, cam:r0(L.camX), tm:r2(L.time), sh:r0(shake), fl:r2(FX.flash), z:[r2(FX.zoom), r0(FX.zx), r0(FX.zy)], pi:L.team.indexOf(L.p), ri:L.rp ? L.team.indexOf(L.rp) : -1,
-    team:L.team.map(f => [f.kind, r0(f.x), r0(f.y), f.face, r0(f.hp), f.maxhp, r0(f.sup), f.dead ? 1 : 0, poseArr(f), fHold(f, true) || 0, exprOf(f), f.inv > 0 && f.down <= 0 ? 1 : 0, f.hideG ? 1 : 0, f.dizzy > 0 ? 1 : 0, f.down > 0 ? 1 : 0, f.weapon ? [f.weapon.t, f.weapon.uses] : 0, r0(f.z), r2(f.yaw), L.d3 ? st3(f) : 0]),
+    team:L.team.map(f => [f.kind, r0(f.x), r0(f.y), f.face, r0(f.hp), f.maxhp, r0(f.sup), f.dead ? 1 : 0, poseArr(f), fHold(f, true) || 0, exprOf(f), f.inv > 0 && f.down <= 0 ? 1 : 0, f.hideG ? 1 : 0, f.dizzy > 0 ? 1 : 0, f.down > 0 ? 1 : 0, f.weapon ? [f.weapon.t, f.weapon.uses] : 0, r0(f.z), r2(f.yaw), L.d3 ? st3(f) : 0, f.bag || 0]),
     en:L.ents.map(e => [e.uid, e.type, r0(e.x), r0(e.y), e.face, r0(e.hp), e.maxhp, e.dummy ? 0 : poseArr(e), e.dummy ? '' : exprOf(e), e.flash > 0 ? 1 : 0, r2(e.wind), e.move || '', e.weapon ? e.weapon.t : 0,
       e.dizzy > 0 ? 1 : 0, e.down > 0 ? 1 : 0, e.dead ? 1 : 0, r2(e.deadT), e.dummy ? [r2(e.wob), r2(e.fall), e.fallDir || 1] : 0, e.dashing > 0 ? 1 : 0, r0(e.z), r2(e.yaw), L.d3 && !e.dummy ? st3(e) : 0]),
     ob:L.objs.map(o => [o.uid == null ? -1 : o.uid, o.t, r0(o.x), r0(o.y), o.broken ? 1 : 0, o.held ? 1 : 0, o.shakeT > 0 ? 1 : 0, o.w, o.h, r0(o.z), r2(o.rot || 0), o.d || o.w]),
@@ -223,7 +223,7 @@ function levelApply(L, s){
   for (const a of s.team){ const f = L.team.find(x => x.kind === a[0]); if (!f) continue;
     f.tx = a[1]; f.ty = a[2]; f.tz = a[16] || 0; f.tyaw = a[17] || 0; if (f.x == null || Math.abs(f.x - a[1]) > 200) { f.x = a[1]; f.y = a[2]; f.z = f.tz; setYaw(f, f.tyaw); } if (a[18]) st3apply(f, a[18]);
     f.face = a[3]; f.hp = a[4]; f.maxhp = a[5]; f.sup = a[6]; f.dead = !!a[7]; f.__P = arrPose(a[8]); f.__hold = a[9]; f.__ex = a[10]; f.inv = a[11] ? .3 : 0; f.hideG = !!a[12]; f.dizzy = a[13] ? 1 : 0; f.down = a[14] ? 1 : 0; f.getup = 0;
-    f.weapon = a[15] ? { t:a[15][0], uses:a[15][1] } : null; f.carry = null; }
+    f.weapon = a[15] ? { t:a[15][0], uses:a[15][1] } : null; f.carry = null; f.bag = a[19] || 0; }
   L.p = L.team[s.pi] || L.team[0]; L.rp = s.ri >= 0 ? L.team[s.ri] : null; L.duo = s.ri >= 0;
   if (L.duo && MP.char){ const me = L.team.find(f => f.kind === MP.char); if (me && me !== L.p){ L.rp = L.p; L.p = me; } }
   const old = new Map(L.ents.map(e => [e.uid, e])); L.ents = [];

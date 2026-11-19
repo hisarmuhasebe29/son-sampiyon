@@ -272,12 +272,16 @@ function f3Shot(from, aim, power, o = {}){
   const speed = (13 + power * 19 + acc * 4) * (o.live ? 1 - Math.min(.28, Math.max(0, dist - 22) * .012) : 1), dur = dist / speed;
   const arc = Math.max(0, .1 + aim.th * .42 + (1 - power) * 1.25 - (aim.th < .5 ? .3 : 0)) * (o.arcMul || 1);
   const curl = o.curlAbs != null ? o.curlAbs * (1 - power * .3) : (o.curl || .3) * (playerProfile().foot === 'Sol' ? -1 : 1) * (1 - power * .4);
-  return { x0:from.x, y0:BR, z0:from.z, tx:side * (GL + .05), side, ty, tz, dur, arc, curl, t:0, power, dist, ev:null, kev:1, done:false, err, live:!!o.live };
+  const S = { x0:from.x, y0:BR, z0:from.z, tx:side * (GL + .05), side, ty, tz, dur, arc, curl, t:0, power, dist, ev:null, kev:1, done:false, err, live:!!o.live };
+  if (o.live){ const range = 8 + Math.pow(Math.max(0, power), 1.2) * 58;            /* güce göre menzil: az güçlü şut kaleye ulaşmaz */
+    if (dist > range){ S.short = Math.max(.15, range / dist); S.ty = BR; S.arc = Math.min(S.arc, .25 + power * .6); } }
+  return S;
 }
 const shotPos = (S, k) => ({ x:lerp(S.x0, S.tx, k), y:Math.max(BR, lerp(S.y0, S.ty, k) + S.arc * 4 * k * (1 - k)), z:lerp(S.z0, S.tz, k) + S.curl * Math.sin(Math.PI * Math.min(1, k)) });
 function f3Resolve(S, K, o = {}){
   if (o.wall){ const Wl = o.wall; for (let k = 0; k <= 1; k += .01){ const q = shotPos(S, k), along = (q.x - S.x0) * Wl.dx + (q.z - S.z0) * Wl.dz;
       if (along >= Wl.d){ const lat = (q.x - Wl.cx) * Wl.nx + (q.z - Wl.cz) * Wl.nz; if (Math.abs(lat) < 1.2 && q.y < 2.12){ S.ev = 'wall'; S.kev = k; return; } break; } } }
+  if (S.short){ S.ev = 'short'; S.kev = S.short; S.dive = { z:K.z, y:1, react:.5 }; return; }   /* kısa kaldı: kaleciye bile ulaşmadı */
   const ty = S.ty, tz = S.tz, D = DIFF();
   if (Math.abs(Math.abs(tz) - GW) < .13 && ty < GH + .08){ S.ev = 'post'; S.kev = 1; return; }
   if (Math.abs(ty - GH) < .12 && Math.abs(tz) < GW + .05){ S.ev = 'bar'; S.kev = 1; return; }

@@ -231,11 +231,12 @@ function Cut(def){
   const C = { t:0, i:-1, typed:0, lt:0, line:null, dark:0, flash:0, blipT:0, conf:[], seqI:0, cam:{ x:def.camX || 0, tx:def.camX || 0 }, zoom:{ z:def.zoom || 1, tz:def.zoom || 1 },
     st: { screen:def.screen || null, door:!!def.door, doorK:def.door ? 1 : 0, minute:def.minute || '', score:def.score || null, teams:def.teams || null, sepia:!!def.sepia,
           alarm:!!def.alarm, car:def.car || 0, bigscreen:def.bigscreen || null, crowdOn:def.crowdOn !== false, cheer:!!def.cheer, keypad:'idle', speakT:0, offT:null, worldW:def.worldW || W },
-    actors: (def.actors || []).map(a => Object.assign({ animT: Math.random() * 3, vx:0, onGround:true, e0:a.e || 'neutral' }, a)) };
+    actors: (def.actors || []).map(a => Object.assign({ animT: Math.random() * 3, vx:0, onGround:true, e0:a.e || 'neutral' }, a)), parts:[] };
+  C.bl = def.ball ? { x:def.ball[0], y:def.ball[1], h:0, vx:0, vh:0, rot:0, mode:'free', own:null, hidden:false } : null;   /* hareketli top */
   C.use3 = typeof cut3Ok === 'function' && cut3Ok(def);              // 3B mekân (yoksa eski 2D arka plan)
   if (def.bg === 'stad' && !C.use3) for (const a of C.actors){ if (a.s == null) a.s = .8; if (a.y == null) a.y = 485; }
   playMusic(def.music || 'story');
-  if (def.bg === 'stad' || def.bg === 'stadDis' || def.bg === 'tunelCikis') crowdAmb(true, def.bg === 'stadDis' ? .16 : .1); else crowdAmb(false);
+  if (def.bg === 'stad' || def.bg === 'stadDis' || def.bg === 'tunelCikis' || def.bg === 'statCikis') crowdAmb(true, def.bg === 'stadDis' ? .16 : def.bg === 'statCikis' ? .05 : .1); else crowdAmb(false);
   const actor = id => C.actors.find(a => a.id === id);
   const textOf = ln => nmz(ln.item ? (ln.n || '') : (ln.t || ln.n || ln.msg || ''));
   function applyProps(a, p){
@@ -245,6 +246,9 @@ function Cut(def){
       else if (k === 'act'){ a.act = Object.assign({ t:0, dur:.35 }, p.act); if (p.act.sfx && SFX[p.act.sfx]) SFX[p.act.sfx](); }
       else if (k === 'fall'){ a.pose = 'lie'; a.fallV = p.fall * 340; a.act = null; SFX.punchHeavy(); shake = Math.max(shake, 6); }
       else if (k === 'e'){ a.e = p.e; a.e0 = p.e; }
+      else if (k === 'putaway'){ a.act = { pose:'pocket', t:0, dur:.55, then:{ hold:null, pose:p.putaway === true ? null : p.putaway } }; SFX.grab(); }
+      else if (k === 'buzz'){ a.buzzT = p.buzz; vib([60, 50, 60, 50, 60]); }
+      else if (k === 'stop'){ a.tx = null; a.vx = 0; a.jog = null; }
       else a[k] = p[k];
     }
   }
@@ -253,6 +257,7 @@ function Cut(def){
     if (tg === 'st'){ for (const k in p){ if (k === 'screen') setScreen(p.screen); else C.st[k] = p[k]; } if (p.keypad === 'type') SFX.keypad(); if (p.keypad === 'err') SFX.keyErr(); if (p.door === true) SFX.door(); if (p.door === false) SFX.doorClose(); }
     else if (tg === 'sfx'){ (SFX[p] || (() => {}))(); }
     else if (tg === 'cam') C.cam.tx = p;
+    else if (tg === 'ball') ballCmd(p);
     else if (tg === 'zoom') C.zoom.tz = p;
     else if (tg === 'fx') doFx([].concat(p));
     else applyProps(actor(tg), p);
@@ -271,8 +276,52 @@ function Cut(def){
       if (f === 'flash'){ C.flash = 1; SFX.punch(); }
       if (f === 'cheer'){ C.st.cheer = true; SFX.roar(2); }
       if (f === 'speaker'){ C.st.speakT = 3; SFX.speaker(); }
+      if (f === 'smoke') C.st.smoke = 1; if (f === 'nosmoke') C.st.smoke = 0;
+      if (f === 'flares'){ C.st.flares = 1; SFX.roar(2.6); } if (f === 'noflares') C.st.flares = 0;
       if (f === 'confetti'){ for (let i = 0; i < 140; i++) C.conf.push({ x:rand(0, W), y:rand(-300, 0), vy:rand(60, 160), vx:rand(-30, 30), r:rand(0, 6), c:pick(['#f2c230', '#14306b', '#ffffff', '#ff5a5a']) }); }
     }
+  }
+  function ballCmd(p){
+    const B = C.bl || (C.bl = { x:480, y:GROUND + 8, h:0, vx:0, vh:0, rot:0, mode:'free', own:null });
+    if (p.at){ B.x = p.at[0]; if (p.at[1] != null) B.y = p.at[1]; B.h = p.at[2] || 0; B.vx = B.vh = 0; B.mode = 'free'; B.own = null; B.tw = null; }
+    if (p.hidden != null) B.hidden = p.hidden;
+    if (p.own){ B.own = actor(p.own); B.mode = p.mode || 'dribble'; B.tw = null; }
+    else if (p.mode) B.mode = p.mode;
+    if (p.kick){ B.own = null; B.tw = null; B.mode = 'free'; B.vx = p.kick[0]; B.vh = p.kick[1]; B.stopX = p.kick[2] != null ? p.kick[2] : null; SFX.kick ? SFX.kick() : SFX.punch(); }
+    if (p.pass){ const to = actor(p.pass); if (to){ const x1 = to.x + (to.face || 1) * 22; B.tw = { x0:B.x, x1, y0:B.y, y1:(to.y || GROUND) + 8, t:0, dur:Math.max(.35, Math.abs(x1 - B.x) / (p.speed || 520)), hm:p.h != null ? p.h : 18, to }; B.own = null; B.mode = 'tw'; SFX.kick ? SFX.kick() : SFX.punch(); } }
+  }
+  function ballTick(dt){
+    const B = C.bl; if (!B) return;
+    if (B.mode === 'tw' && B.tw){ const T = B.tw; T.t += dt; const k = Math.min(1, T.t / T.dur); B.x = lerp(T.x0, T.x1, k); B.y = lerp(T.y0, T.y1, k); B.h = Math.sin(k * Math.PI) * T.hm; B.rot += dt * 14 * Math.sign(T.x1 - T.x0 || 1);
+      if (k >= 1){ B.tw = null; B.own = T.to; B.mode = 'dribble'; } return; }
+    if (B.own && !B.own.hidden){ const a = B.own, s = a.s || 1;
+      if (B.mode === 'juggle'){ const k = Math.max(0, Math.sin(a.animT * 8.4)); B.x = lerp(B.x, a.x + (a.face || 1) * 16 * s, Math.min(1, dt * 14)); B.y = (a.y || GROUND) + 6; B.h = (40 + (1 - k) * 62) * s; B.rot += dt * 6; return; }
+      if (B.mode === 'hold'){ B.x = a.x + (a.face || 1) * 4; B.h = 0; return; }
+      const tx = a.x + (a.face || 1) * 24 * s; B.x = lerp(B.x, tx, Math.min(1, dt * 12)); B.y = (a.y || GROUND) + 8; B.h = Math.abs(a.vx) > 10 ? Math.abs(Math.sin(a.animT * 9)) * 5 : 0; B.rot += a.vx * dt * .1; return; }
+    if (B.vx || B.vh || B.h > 0){ B.vh -= 900 * dt; B.h += B.vh * dt; if (B.h <= 0){ B.h = 0; if (B.vh < -90){ B.vh = -B.vh * .45; SFX.tap && SFX.tap(); } else B.vh = 0; B.vx *= Math.pow(.25, dt); }
+      B.x += B.vx * dt; B.rot += B.vx * dt * .08; if (Math.abs(B.vx) < 4 && B.h === 0) B.vx = 0;
+      if (B.stopX != null && ((B.vx > 0 && B.x > B.stopX) || (B.vx < 0 && B.x < B.stopX))){ B.x = B.stopX; B.vx = -B.vx * .08; B.netT = .6; B.stopX = null; SFX.netHit ? SFX.netHit() : SFX.thud ? SFX.thud() : 0; } }
+    if (B.netT > 0) B.netT -= dt; C.st.netT = B.netT || 0;
+  }
+  function ballDraw(c, D3){
+    const B = C.bl; if (!B || B.hidden) return;
+    const by = B.y - 10 - B.h;
+    if (D3 && C.use3 && R3.objS){ const m = c.getTransform(), k = scale * dpr, sx = (m.a * B.x + m.c * by + m.e) / k, sy = (m.b * B.x + m.d * by + m.f) / k; try { const o = R3.objS('cutBall', 'ball', sx, sy, 20, 20, -B.rot); const sc = Math.hypot(m.a, m.b) / k; o.scale.setScalar(sc * 1.0); return; } catch(e){} }
+    c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(B.x, B.y + 2, 10 * Math.max(.4, 1 - B.h / 160), 3, 0, 0, 7); c.fill();
+    drawBall(c, B.x, by, B.rot, .8);
+  }
+  function fxTick(dt){
+    const P = C.parts;
+    if (C.st.smoke && P.length < 70 && Math.random() < dt * 22) P.push({ k:'s', x:rand(-60, W + 60), y:rand(250, 360), r:rand(30, 70), vy:rand(-14, -6), vx:rand(-8, 8), a:0, t:0, life:rand(4, 7), col:Math.random() < .3 ? '255,120,140' : '205,208,214' });
+    if (C.st.flares && P.length < 60 && Math.random() < dt * 6) P.push({ k:'f', x:rand(20, W - 20), y:rand(70, 250), t:0, life:rand(2.5, 4.5) });
+    for (const q of P){ q.t += dt; if (q.k === 's'){ q.x += q.vx * dt; q.y += q.vy * dt; q.r += dt * 9; } }
+    C.parts = P.filter(q => q.t < q.life);
+  }
+  function fxDraw(c){
+    for (const q of C.parts){ const k = q.t / q.life, a = Math.min(1, q.t * 1.5) * (1 - k);
+      if (q.k === 's'){ const g = c.createRadialGradient(q.x, q.y, 0, q.x, q.y, q.r); g.addColorStop(0, 'rgba(' + q.col + ',' + (.42 * a) + ')'); g.addColorStop(1, 'rgba(' + q.col + ',0)'); c.fillStyle = g; c.beginPath(); c.arc(q.x, q.y, q.r, 0, 7); c.fill(); }
+      else { const fl = .7 + Math.random() * .3, r = 5 * fl; const g = c.createRadialGradient(q.x, q.y, 0, q.x, q.y, r * 3); g.addColorStop(0, 'rgba(255,240,200,' + a + ')'); g.addColorStop(.25, 'rgba(255,60,40,' + (.8 * a) + ')'); g.addColorStop(1, 'rgba(255,40,30,0)'); c.fillStyle = g; c.beginPath(); c.arc(q.x, q.y, r * 3, 0, 7); c.fill();
+        c.fillStyle = 'rgba(255,110,120,' + (.08 * a) + ')'; c.beginPath(); c.arc(q.x + Math.sin(q.t) * 6, q.y - 20 - q.t * 12, 18 + q.t * 8, 0, 7); c.fill(); } }
   }
   function nextLine(){
     C.i++; if (C.i >= def.lines.length){ hush(); if (!(MP.on && MP.role === 'guest')) next(); return; }
@@ -296,7 +345,7 @@ function Cut(def){
     if (ln.big){ shake = 8; if (ln.sfx === undefined) SFX.punchHeavy(); }
     if (ln.sfx && SFX[ln.sfx]) SFX[ln.sfx]();
     // dublaj
-    const spoken = ln.card ? (ln.card + (ln.sub ? '. ' + ln.sub : '')) : ln.big ? ln.big : ln.msg ? ln.msg : ln.call ? ln.t : textOf(ln);
+    const spoken = ln.dawn ? ln.dawn : ln.card ? (ln.card + (ln.sub ? '. ' + ln.sub : '')) : ln.big ? ln.big : ln.msg ? ln.msg : ln.call ? ln.t : textOf(ln);
     C.spoke = false; if (spoken) C.spoke = say(spoken, ln.big ? 'Spiker' : ln.call ? ln.who : (ln.who || 'narr'));
   }
   nextLine();
@@ -304,6 +353,7 @@ function Cut(def){
   C.update = dt => {
     if (MP.on){ if (MP.role === 'guest'){ if (tap){ netSend({ t:'tap', r:1, skip:inB(SKIP_BTN, tap) && !tap.key ? 1 : 0 }); tap = null; } }
       else { const rt = MP.remoteTaps.shift(); if (rt && !tap) tap = rt.skip ? { x:SKIP_BTN.x + 4, y:SKIP_BTN.y + 4 } : { x:480, y:300, key:true }; } }
+    ballTick(dt); fxTick(dt); for (const a of C.actors){ if (a.buzzT > 0) a.buzzT -= dt; if (a.scan){ a.scT = (a.scT || 0) + dt; if (a.scT > a.scan){ a.scT = 0; a.face = -(a.face || 1); } } }
     C.t += dt; C.lt += dt; if (C.flash > 0) C.flash -= dt * 1.5; if (C.st.speakT > 0) C.st.speakT -= dt; if (C.st.offT != null) C.st.offT += dt;
     C.st.doorK = clamp(C.st.doorK + (C.st.door ? 1 : -1) * dt * 2.4, 0, 1);
     C.cam.x = lerp(C.cam.x, C.cam.tx, Math.min(1, dt * 2.2)); C.zoom.z = lerp(C.zoom.z, C.zoom.tz, Math.min(1, dt * 1.6));
@@ -312,6 +362,7 @@ function Cut(def){
     for (const a of C.actors){ a.animT += dt;
       if (a.act){ a.act.t += dt; if (a.act.t >= a.act.dur){ const th = a.act.then; a.act = null; if (th) applyProps(a, th); } }
       if (a.fallV){ a.x += a.fallV * dt; a.fallV *= Math.pow(.02, dt); if (Math.abs(a.fallV) < 5) a.fallV = 0; }
+      if (a.jog && a.tx == null && !a.hidden){ const [j1, j2, js] = a.jog; a.tx = Math.abs(a.x - j1) < Math.abs(a.x - j2) ? j2 : j1; a.speed = js; }
       if (a.patrol && a.tx == null && !a.hidden){ a.tx = a.x < (a.patrol[0] + a.patrol[1]) / 2 ? a.patrol[1] : a.patrol[0]; a.speed = 60; }
       if (a.tx != null){ const d = a.tx - a.x;
         if (Math.abs(d) > 3){ a.vx = Math.sign(d) * (a.speed || 150); a.face = Math.sign(d); a.x += a.vx * dt; a.run = (a.speed || 150) > 220; if (Math.abs(a.tx - a.x) < 3) a.x = a.tx; }
@@ -340,11 +391,17 @@ function Cut(def){
     for (const a of list){ const ex = a.e || 'neutral';
       if (D3){} else if (a.pose === 'lie' || a.fallV){ c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(a.x - (a.face || 1) * 50, (a.y || GROUND) + 2, 60 * (a.s || 1), 6, 0, 0, 7); c.fill(); }
       else { c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(a.x, (a.y || GROUND) + 3, 24 * (a.s || 1), 5, 0, 0, 7); c.fill(); }
-      drawHuman(c, a.x, a.y || GROUND, LOOK[a.look], getPose(a), a.face, a.s || 1, a.alpha || 1, null, ex, !!a.talking, a.trophy && D3 ? 'trophy' : a.hold || null);
+      if (D3 && a.dz && H3on){ /* arka plandaki oyuncu: gerçek derinlikte, ayakları zeminde */ const m = c.getTransform(), kd = scale * dpr, sx = (m.a * a.x + m.c * (a.y || GROUND) + m.e) / kd, sy = (m.b * a.x + m.d * (a.y || GROUND) + m.f) / kd, sc = Math.hypot(m.a, m.b) / kd, Dp = 2.7 / Math.tan(15 * Math.PI / 180), kk = (Dp - a.dz) / Dp, yw = 2.7 + ((540 - sy) / 100 - 2.7) / kk;
+        R3.zNext = a.dz; R3.char(R3.autoId(LOOK[a.look]), LOOK[a.look], getPose(a), a.face, sx, 540 - yw * 100, (a.s || 1) * sc / kk, ex, !!a.talking, a.hold || null); }
+      else drawHuman(c, a.x, a.y || GROUND, LOOK[a.look], getPose(a), a.face, a.s || 1, a.alpha || 1, null, ex, !!a.talking, a.trophy && D3 ? 'trophy' : a.hold || null);
+      if (a.buzzT > 0){ const s2 = a.s || 1, hx = a.x + (a.face || 1) * 30 * s2, hy = (a.y || GROUND) - 120 * s2, j = Math.sin(C.t * 60) * 2; c.save(); c.translate(hx + j, hy);
+        c.fillStyle = '#111'; rr(c, -9, -16, 18, 32, 4); c.fill(); c.fillStyle = '#7fd4ff'; rr(c, -7, -13, 14, 24, 2); c.fill(); c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 2;
+        for (const sd of [-1, 1]) for (let r2 = 0; r2 < 2; r2++){ c.beginPath(); c.arc(0, 0, 16 + r2 * 7, sd > 0 ? -.6 : Math.PI - .6, sd > 0 ? .6 : Math.PI + .6); c.stroke(); } c.restore(); }
       if (a.pose === 'lie' && a.stars){ const hp2 = headPos(Object.assign({ down:1 }, a), a.s || 1); dizzyStars(c, hp2[0], hp2[1] - 6, gameTime, 3, 16); }
       if (a.trophy && !D3){ const hx = a.x + a.face * 3, hy = (a.y || GROUND) - 172 * (a.s || 1); c.fillStyle = '#f2c230'; c.beginPath(); c.moveTo(hx - 16, hy); c.lineTo(hx + 16, hy); c.lineTo(hx + 7, hy + 26); c.lineTo(hx - 7, hy + 26); c.fill(); c.fillRect(hx - 3, hy + 26, 6, 8); c.fillRect(hx - 10, hy + 32, 20, 5); } }
-    if (def.ball) drawBall(c, def.ball[0], def.ball[1], C.t * 2, .8);
+    ballDraw(c, D3);
     c.restore();
+    if (C.parts.length) fxDraw(c);
     if (S3 && typeof cut3Overlay === 'function') cut3Overlay(c, def, C.st);
     vignette(c, .3);
     if (C.st.sepia && !S3){ c.globalCompositeOperation = 'color'; c.fillStyle = '#9a7040'; c.fillRect(0, 0, W, H); c.globalCompositeOperation = 'source-over'; }
@@ -354,6 +411,7 @@ function Cut(def){
     const ln = C.line; if (!ln) return;
     const done = C.typed >= textOf(ln).length;
     if (!ln.card) button(c, SKIP_BTN, 'ATLA ⏭');
+    if (ln.dawn){ drawDawn(c, C.lt, ln.dawn, ln.sub); tapHint(c, 480, 500, C.lt > 1.2); return; }
     if (ln.card){
       c.fillStyle = 'rgba(0,0,0,.9)'; c.fillRect(0, 0, W, H);
       const a = Math.min(1, C.lt * 2.5); c.globalAlpha = a;
@@ -485,3 +543,22 @@ stats = newStats();
 cur = Splash();                                  // "Başlamak için dokunun" → dokununca ses açılır, ARAÇ patlama sesi duyulur
 requestAnimationFrame(loop);
 window.__sim = sec => { for (let i = 0; i < sec * 60; i++){ if (window.__bot) window.__bot(); gameTime += 1 / 60; if (hitstop > 0) hitstop -= 1 / 60; else cur.update(1 / 60); tap = null; } };
+
+/* "ERTESİ GÜN" geçişi: gece → gün doğumu, ufukta stadyum silüeti, güneş yükselir */
+function drawDawn(c, t, label, sub){
+  const k = Math.min(1, t / 2.6), e = k * k * (3 - 2 * k);
+  const top = mixCol('#070b1e', '#3d7fd0', e), mid = mixCol('#141a3a', '#f5a35a', Math.min(1, e * 1.3)), hor = mixCol('#22284a', '#ffe0a0', e);
+  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, top); g.addColorStop(.62, mid); g.addColorStop(.78, hor); g.addColorStop(1, '#0e1a12'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  for (let i = 0; i < 70; i++){ const a = (1 - e) * (.4 + .6 * ((i * 37) % 10) / 10); if (a <= .02) break; c.fillStyle = 'rgba(255,255,255,' + a + ')'; c.fillRect((i * 137) % W, (i * 71) % 260, 2, 2); }
+  const sy = 430 - e * 230; const sg = c.createRadialGradient(700, sy, 0, 700, sy, 160); sg.addColorStop(0, 'rgba(255,248,220,' + (.95 * e + .05) + ')'); sg.addColorStop(.18, 'rgba(255,214,120,' + (.7 * e) + ')'); sg.addColorStop(1, 'rgba(255,170,80,0)'); c.fillStyle = sg; c.beginPath(); c.arc(700, sy, 160, 0, 7); c.fill();
+  /* stadyum silüeti */
+  const sil = mixCol('#05070f', '#1d2a44', e); c.fillStyle = sil; c.beginPath(); c.moveTo(120, 430); c.quadraticCurveTo(480, 300, 840, 430); c.lineTo(840, 470); c.lineTo(120, 470); c.fill();
+  c.fillRect(110, 420, 740, 60); for (const x of [150, 810]){ c.fillRect(x - 3, 270, 6, 170); c.fillRect(x - 22, 262, 44, 16); }
+  for (let i = 0; i < 14; i++){ c.fillStyle = 'rgba(255,230,160,' + (.35 + .3 * (1 - e)) + ')'; c.fillRect(170 + i * 45, 440, 22, 6); }
+  c.fillStyle = '#0b120c'; c.fillRect(0, 470, W, 70);
+  for (let i = 0; i < 5; i++){ const bx = ((t * 40 + i * 140) % (W + 100)) - 50, byy = 160 + i * 18 + Math.sin(t * 3 + i) * 6; c.strokeStyle = 'rgba(20,20,30,' + (.5 * e) + ')'; c.lineWidth = 2; c.beginPath(); c.moveTo(bx - 7, byy); c.quadraticCurveTo(bx - 3, byy - 5, bx, byy); c.quadraticCurveTo(bx + 3, byy - 5, bx + 7, byy); c.stroke(); }
+  const a = Math.min(1, Math.max(0, (t - .4) * 1.6)); c.globalAlpha = a;
+  txt(c, label, 480, 150, 64, '#ffffff', 'center', 'italic 900', 8, 880); if (sub) txt(c, sub, 480, 196, 26, '#ffe6a8', 'center', 'bold', 4, 880);
+  c.globalAlpha = 1;
+}
+function mixCol(a, b, k){ const p = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16)); const A = p(a), B = p(b); return 'rgb(' + A.map((v, i) => Math.round(v + (B[i] - v) * k)).join(',') + ')'; }

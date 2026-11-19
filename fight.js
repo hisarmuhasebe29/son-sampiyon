@@ -328,7 +328,20 @@ function moveIn(L){
 }
 const ladZ = (L, pl) => pl.z1 != null && pl.z1 > -1e8 ? (pl.z1 + pl.z2) / 2 : 0;
 const ladX = pl => (pl.ladderX || pl.x1 - 26) + 11;
+/* çok oyunculu: elindeki canı / silahı arkadaşına ver; arkadaş yerde yatıyorsa can verince dirilir */
+function duoGive(L){
+  const F = L.p, mate = [L.duoA, L.duoB].find(f => f && f !== F); if (!F || F.dead) return;
+  const near = mate && pdist(F, mate) < (L.d3 ? 120 : 100) && Math.abs(F.y - mate.y) < 60;
+  if ((F.bag || 0) > 0){
+    if (near && mate.dead){ F.bag--; mate.dead = false; mate.deadT = 0; mate.hp = Math.round(mate.maxhp * .45); mate.down = 0; mate.getup = .4; mate.inv = 2; mate.stun = 0; mate.dizzy = 0; mate.vx = 0; mate.vz = 0;
+      SFX.pickupHp(); SFX.ok && SFX.ok(); floatText(L, mate.x, mate.y - 150, 'DİRİLDİ! ❤', '#7dff9a', 30, mate.z); spawnParts(L, mate.x, mate.y - 80, '#7dff9a', 22, 'spark', 260, mate.z); vib([60, 40, 120]); return; }
+    if (near && mate.hp < mate.maxhp){ F.bag--; mate.hp = Math.min(mate.maxhp, mate.hp + 25); SFX.pickupHp(); floatText(L, mate.x, mate.y - 140, '+25 ❤ ARKADAŞINDAN', '#7dff9a', undefined, mate.z); return; }
+    if (F.hp < F.maxhp){ F.bag--; F.hp = Math.min(F.maxhp, F.hp + 20); SFX.pickupHp(); floatText(L, F.x, F.y - 140, '+20 ❤', '#7dff9a', undefined, F.z); return; } }
+  if (near && !mate.dead && F.weapon && !mate.weapon){ mate.weapon = F.weapon; F.weapon = null; SFX.grab(); floatText(L, mate.x, mate.y - 140, 'SİLAH VERİLDİ', '#f2c230', undefined, mate.z); return; }
+  floatText(L, F.x, F.y - 140, (F.bag || 0) ? 'Arkadaşına yaklaş' : 'Elinde verecek bir şey yok', '#ffffff', 16, F.z);
+}
 function updPlayer(L, dt, surf){
+  if (L.duo && took('swap')) duoGive(L);
   const p = L.p, def = L.def, MV = MOVES[p.mk], d3 = L.d3;
   if (keys.block && !p.blkWas) p.blockAt = gameTime; p.blkWas = !!keys.block;
   p.animT += dt; if (p.inv > 0) p.inv -= dt; if (p.cd > 0) p.cd -= dt; if (p.slideCd > 0) p.slideCd -= dt; p.dz = Math.max(0, p.dz - dt * 8);
@@ -642,7 +655,7 @@ function Level(def, carry, mpo){
   L.team = (def.chars || ['issem']).map(k => makeFighter(k, def.start || 120));
   L.team.forEach(f => faceSign(f, def.startFace || 1));
   L.p = L.team[0];
-  if (mpo && mpo.duo && L.team.length > 1){ L.duo = true; L.p = L.team.find(f => f.kind === MP.char) || L.team[0]; L.rp = L.team.find(f => f !== L.p); L.rp.x = L.p.x - 60; if (L.d3){ L.rp.z = 70; L.p.z = -30; } }
+  if (mpo && mpo.duo && L.team.length > 1){ L.duo = true; L.p = L.team.find(f => f.kind === MP.char) || L.team[0]; L.rp = L.team.find(f => f !== L.p); L.duoA = L.p; L.duoB = L.rp; L.rp.x = L.p.x - 60; if (L.d3){ L.rp.z = 70; L.p.z = -30; } }
   if (carry){ FX.zoom = 1; FX.ts = 1; FX.tsT = 0; FX.flash = 0; for (const f of L.team){ const c = carry.team.find(t => t.kind === f.kind); if (c){ f.hp = Math.max(c.hp, f.maxhp * (carry.retry ? .6 : .25)); f.sup = c.sup; f.dead = false; } }
     const q = L.team.find(f => f.kind === carry.pk); if (q && !L.duo) L.p = q; L.entry = { kind:carry.entry, t:0 }; L.fadeIn = 1; if (!carry.retry) L.banT = 3; }
   const onPlat = y => y && y < GROUND - 4;
@@ -672,7 +685,7 @@ function Level(def, carry, mpo){
   if (def.init) def.init(L);
   if (L.d3){ L.ents.forEach((e, i) => { if (e.dummy) e.z = ((i % 3) - 1) * 90; }); L.hint = h3txt(L.hint); L.obj = h3txt(L.obj); }
   anyPress = false;
-  const ctrl = () => showControls(L.view && !L.duo ? null : (L.d3 ? 'fight3' : 'fight'), { swap:L.team.length > 1 && !L.duo, labels:{ kick: L.p.mk === 'issem' ? '⚽' : '🦵' } });
+  const ctrl = () => showControls(L.view && !L.duo ? null : (L.d3 ? 'fight3' : 'fight'), { swap:(L.team.length > 1 && !L.duo) || !!L.duo, labels:Object.assign({ kick: L.p.mk === 'issem' ? '⚽' : '🦵' }, L.duo ? { swap:'❤️<i>VER</i>' } : {}) });
   ctrl(); L.ctrl = ctrl; playMusic('fight');
   if (L.d3 && typeof fight3dSetup === 'function') fight3dSetup(L);
   function doSwap(force){
@@ -743,7 +756,8 @@ function Level(def, carry, mpo){
     for (const k of L.pickups){ k.t += dt; if (k.vy != null){ k.vy += 1400 * dt; k.y += k.vy * dt; k.x += (k.vx || 0) * dt; k.z = (k.z || 0) + (k.vz || 0) * dt; if (L.d3) k.z = clamp(k.z, L.zMin + 20, L.zMax - 20);
         const fl = surf.find(s => k.x >= s.x1 && k.x <= s.x2 && inZ(s, k, 0) && k.y >= s.y && k.y - k.vy * dt <= s.y + 2); if (fl){ k.y = fl.y; k.vy = null; } else if (k.y >= GROUND){ k.y = GROUND; k.vy = null; } }
       const kf = (L.duo ? [L.p, L.rp] : [L.p]).find(F => !F.dead && pdist(F, k) < (L.d3 ? 38 : 32) && Math.abs(F.y - k.y) < 30);
-      if (k.kind === 'hp' && kf){ k.got = true; kf.hp = Math.min(kf.maxhp, kf.hp + 20); SFX.pickupHp(); floatText(L, k.x, k.y - 120, '+20 ❤', '#7dff9a', undefined, k.z); } }
+      if (k.kind === 'hp' && kf && L.duo && (kf.bag || 0) < 3){ k.got = true; kf.bag = (kf.bag || 0) + 1; SFX.pickupHp(); floatText(L, k.x, k.y - 120, '❤ ALINDI · VER ile arkadaşına', '#7dff9a', undefined, k.z); }   /* çok oyunculu: can eline alınır */
+      else if (k.kind === 'hp' && kf && !L.duo){ k.got = true; kf.hp = Math.min(kf.maxhp, kf.hp + 20); SFX.pickupHp(); floatText(L, k.x, k.y - 120, '+20 ❤', '#7dff9a', undefined, k.z); } }
     L.pickups = L.pickups.filter(k => !k.got && (k.kind === 'weapon' || k.t < 14));
     for (const o of L.objs){ if (o.shakeT > 0) o.shakeT -= dt; if (o.brokeT != null) o.brokeT += dt; }
     for (const q of L.parts){ q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z = (q.z || 0) + (q.vz || 0) * dt; q.vy += (q.type === 'dust' ? 100 : 900) * dt; q.r += dt * 8; if (q.type === 'dust' && q.vz) q.vz *= Math.pow(.2, dt); }
@@ -1021,7 +1035,7 @@ function drawLevel(c, L){
   }
   if (L.duo && L.rp && !L.rp.hideG){ const q = L.rp; drawHuman(c, q.x, q.y, q.look, getPose(q), q.face, 1, q.dead ? .55 : 1, null, exprOf(q), false, fHold(q, D3));
     if (q.dizzy > 0 || q.down > 0){ const h2 = headPos(q); dizzyStars(c, h2[0], h2[1] - 18, gameTime, 4, 22); } }
-  if (L.duo) for (const F of [L.p, L.rp]) if (!F.hideG){ const mine = F.kind === MP.char; pill(c, (mine ? '▼ SEN' : '▼ ' + (MP.peer && MP.peer.name || 'Arkadaşın')), F.x, F.y - 178, 11, mine ? 'rgba(242,194,48,.9)' : 'rgba(90,160,255,.9)', mine ? '#14306b' : '#ffffff'); }
+  if (L.duo) for (const F of [L.p, L.rp]) if (!F.hideG){ const mine = F.kind === MP.char; pill(c, (mine ? '▼ SEN' : '▼ ' + (MP.peer && MP.peer.name || 'Arkadaşın')) + (F.bag ? '  ❤×' + F.bag : '') + (F.dead ? '  · CAN VER, DİRİLSİN' : ''), F.x, F.y - 178, 11, mine ? 'rgba(242,194,48,.9)' : 'rgba(90,160,255,.9)', mine ? '#14306b' : '#ffffff'); }
   for (const pl of def.platforms || []) if (pl.ladder !== false){ const lx = (pl.ladderX || pl.x1 - 26) + 11; if (Math.abs(p.x - lx) < 90 && p.y > pl.y + 20 && !p.climb) pill(c, '⬆ TIRMAN', lx, pl.y - 24 + Math.sin(gameTime * 6) * 4, 13, 'rgba(10,16,40,.85)', '#f2c230'); }
   for (const b of L.proj){
     if (b.kind === 'ball' || b.kind === 'fire') drawBall(c, b.x, b.y, b.spin, b.kind === 'fire' ? 1.4 : 1, b.kind === 'fire' ? Math.sign(b.vx) : 0);

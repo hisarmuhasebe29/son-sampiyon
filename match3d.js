@@ -132,7 +132,13 @@ function Match3D(def){
     const aim = { tz:(Math.random() < .5 ? -1 : 1) * rand(1.2, 3.2), th:rand(.3, 1.9) };
     const prs = clamp((2.6 - Math.min(...teams[0].filter(o => o.role !== 'GK').map(o => Math.hypot(o.x - p.x, o.z - p.z)))) / 2.6, 0, 1);
     M.shot = f3Shot({ x:B.x, z:B.z }, aim, rand(.55, .85), { side:-1, acc:.42 + D.aggr * .08, curl:.3, live:true, press:prs }); const K = teams[0][0];
-    f3Resolve(M.shot, K, { keeperMul:1.25 / D.aggr }); keeperDive(K, M.shot.dive || { z:K.z, y:1, react:.3 }, M.shot);
+    f3Resolve(M.shot, K, { keeperMul:1.25 / D.aggr });
+    { const Sh = M.shot; if (Sh.ev === 'goal'){ const extra = clamp(.45 + Math.max(0, Sh.dist - 14) * .02 - ((D.aggr || 1) - 1) * .15, .3, .8);   /* rakibin her şutu gol olmasın */
+        if (Math.random() < extra){ const r = Math.random(), sg = Math.sign(Sh.tz) || 1;
+          if (r < .55){ Sh.ev = Sh.power < .72 ? 'catch' : 'parry'; Sh.kev = Math.max(.5, 1 - .55 / Sh.dist); const q = shotPos(Sh, Sh.kev); Sh.dive = { z:q.z, y:q.y, react:.18 }; }
+          else if (r < .85){ Sh.tz = sg * (GW + .5 + rand(0, 1.2)); Sh.ev = 'out'; Sh.kev = 1; Sh.dive = { z:clamp(Sh.tz, K.z - 2.5, K.z + 2.5), y:1, react:.25 }; }
+          else { Sh.tz = sg * GW; Sh.ty = Math.min(Sh.ty, GH - .3); Sh.ev = 'post'; Sh.kev = 1; Sh.dive = { z:clamp(Sh.tz, K.z - 2.2, K.z + 2.2), y:1, react:.25 }; } } } }
+    keeperDive(K, M.shot.dive || { z:K.z, y:1, react:.3 }, M.shot);
     B.owner = null; B.last = 1; M.state = 'shot'; p.kick = .42; SFX.ballKick(); M.shooter = p; say2('RAKİP ŞUT!');
   }
   function shotEvent(){
@@ -149,6 +155,7 @@ function Match3D(def){
           comm(nm(M.shooter === me ? 'HAT-TRICK! Issem üçüncü golünü attı! Tribünler ayakta!' : 'Hat-trick! Üçüncü golü de attı!'), true); } }
       else { M.score[1]++; SFX.boo(); wtext(M, 'RAKİP GOL ATTI!', -GL + 3, 3.2, B.z * .4, '#ff6b6b', 50); comm(pick(['Rakip gol attı! Tribünler sessiz.', 'Eyvah! Rakip skoru değiştirdi.']), true); crowdLevel(.06); M.cheer = true; M.cheerSide = 1; M.goalIdx = M.rec.length; M.scorerThem = M.shooter; vib(60); if (hat) comm('Rakip forvet hat-trick yaptı!', true); }
       return; }
+    if (ev === 'short'){ M.state = 'play'; M.inNet = 0; B.vx *= .3; B.vz *= .3; B.vy = Math.min(B.vy, 1); wtext(M, 'ŞUT KISA KALDI', B.x, 2.6, B.z, '#ffffff', 34); comm(pick(['Şut çok zayıf, kaleye ulaşmadı.', 'Top yolda kaldı.']), true); return; }
     M.state = 'play'; M.inNet = 0; SFX.ooh(); let msg = 'AUT!';
     if (ev === 'catch' || ev === 'parry') vib(ours ? 25 : 45);
     if (ev === 'catch'){ B.vx = B.vy = B.vz = 0; K.hold = true; give(K); K.holdT = .35; SFX.gloveCatch(); if (ours) SFX.ooh(); else SFX.applause(); msg = 'KALECİ YAKALADI!'; }

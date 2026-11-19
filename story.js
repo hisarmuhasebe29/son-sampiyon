@@ -109,14 +109,24 @@ const CHAPTERS = [
 /* ================= BÖLÜM 1 ================= */
 { title:'Şampiyonun Hayatı', teaser:['2. Bölüm – Gizemli Saldırı', 'Issem, kaybolan takım arkadaşlarının izini sürmeye başlıyor.'], flow:[
   { cut:{ bg:'tesisDis', zoom:1, music:'football', lines:[ CARD('Bölüm 1', 'Şampiyonun Hayatı'), CARD('Sahne 1', 'Büyük Yıldız'), N('Yıl 2014. Anolecrab Antrenman Tesisi.', { zoom:1.35 }) ] } },
-  { cut:{ bg:'saha', actors:[ A('coach', 'coach', 300, 1, { pose:'arms' }), A('issem', 'issem', 560, -1) ], lines:[
-    N('Anolecrab, sezonun en önemli maçlarından birine hazırlanmaktadır. Takımın yıldızı Issem, antrenman sahasında çalışmalarını sürdürür.'),
-    S('Teknik Direktör', 'Önce şut, sonra frikik. Göster bakalım!', { e:'happy' }) ] } },
+  { cut:{ bg:'saha', ball:[214, 478], actors:[ A('coach', 'coach', 110, 1, { pose:'arms' }), A('issem', 'issem', 190, 1),
+      A('m1', 'mate', 860, -1, { dz:-4.5, jog:[140, 880, 170] }), A('m2', 'mate2', 300, 1, { dz:-6, jog:[140, 880, 150] }), A('m3', 'mate', 620, 1, { dz:-8, jog:[140, 880, 180] }) ], lines:[
+    N('Anolecrab, sezonun en önemli maçlarından birine hazırlanmaktadır. Takımın yıldızı Issem, antrenman sahasında çalışmalarını sürdürür.', { seq:[
+      [0, 'ball', { own:'issem', mode:'dribble' }], [0, 'issem', { tx:520, speed:175 }],                         /* dubaların arasından top sürer */
+      [2.5, 'issem', { pose:'juggle' }], [2.5, 'ball', { mode:'juggle' }],                                      /* top sektirir */
+      [5.6, 'issem', { pose:null, act:{ pose:'kickA', dur:.4 } }], [5.68, 'ball', { kick:[780, 240, 975] }],    /* ve kaleye vurur */
+      [6.5, 'coach', { pose:'clap' }], [6.5, 'issem', { pose:'cheer', e:'happy' }] ] }),
+    S('Teknik Direktör', 'Önce şut, sonra frikik. Göster bakalım!', { e:'happy', set:{ coach:{ pose:'point' }, issem:{ pose:null } } }) ] } },
   { set:{ mode:'shot', shots:5, need:3, bg:'saha', title:'Şut antrenmanı', hint:'⬆⬇ ile yönü ayarla, ⚽ basılı tutup gücü doldur, bırak!' } },
   { set:{ mode:'freekick', shots:4, need:2, bg:'saha', title:'Frikik antrenmanı', hint:'Topu barajın ÜSTÜNDEN aşır ama üst direğin altından!' } },
-  { cut:{ bg:'saha', actors:[ A('coach', 'coach', 360, 1, { pose:'arms' }), A('issem', 'issem', 560, -1) ], lines:[
+  { cut:{ bg:'saha', actors:[ A('coach', 'coach', 360, 1, { pose:'arms' }), A('issem', 'issem', 560, -1),
+      A('m1', 'mate', 700, -1, { dz:-3 }), A('m2', 'mate2', 800, -1, { dz:-3.6 }), A('m3', 'mate', 640, -1, { dz:-4.4 }) ], lines:[
     S('Teknik Direktör', 'Issem, yarınki maç bizim için çok önemli. Hazır mısın?'), S('Issem', 'Her zamankinden daha hazırım!', { e:'happy' }),
-    N('Antrenman sona erer. Futbolcular soyunma odasına giderken Issem, telefonuna gelen gizemli bir mesajı fark eder.', { sfx:'msg', set:{ issem:{ takeout:'phone' }, coach:{ tx:-80 } } }),
+    N('Antrenman sona erer. Futbolcular soyunma odasına giderken Issem, telefonuna gelen gizemli bir mesajı fark eder.', { seq:[
+      [0, 'coach', { tx:-80, speed:120 }], [0, 'm1', { tx:1120, speed:115, hideAt:true }], [.25, 'm2', { tx:1120, speed:110, hideAt:true }], [.4, 'm3', { tx:1120, speed:120, hideAt:true }],
+      [.3, 'issem', { tx:780, speed:115 }],                                                                     /* soyunma odasına doğru yürürler */
+      [1.9, 'issem', { stop:true }], [1.95, 'issem', { buzz:1.8 }], [1.95, 'sfx', 'msg'],                     /* cebinde telefon titrer */
+      [2.7, 'issem', { takeout:'phone', face:-1 }] ] }),                                                       /* durur, telefonu çıkarıp bakar */
     { msg:'Yarınki maçta her şey değişecek. Takım arkadaşlarını koruyabilecek misin?' }, N('Issem şaşırır.', { set:{ issem:{ pose:'shock', e:'shock', hold:null } } }) ] } },
   { cut:{ bg:'dojo', actors:[ A('ufis', 'ufis', 520, 1, { pose:'guard' }) ], lines:[ CARD('Sahne 2', 'Gizemli Adam'), N('Şehrin başka bir yerinde, dövüş ustası Ufis bir dövüş salonunda antrenman yapmaktadır.') ] } },
   { lvl:'dojo' },
@@ -124,17 +134,43 @@ const CHAPTERS = [
     N('Bir anda kapı açılır. İçeri siyah giyimli bir adam girer.', { seq:[ [0, 'st', { door:true }], [.6, 'lider', { hidden:false, tx:340, speed:110 }] ] }),
     S('Gizemli Adam', 'Seni bulmam biraz zaman aldı.', { e:'smirk' }), S('Ufis', 'Ne istiyorsun?', { e:'angry', set:{ ufis:{ pose:'guard' } } }), S('Gizemli Adam', 'Yakında öğreneceksin.', { e:'smirk' }),
     N('Adam salondan ayrılır. Ufis, bu olayın sıradan olmadığını anlar.', { set:{ lider:{ tx:140, speed:110, hideAt:true, closeDoor:true }, ufis:{ pose:null } } }) ] } },
-  { cut:{ bg:'stad', minute:"0'", actors:[ ...MATES(), A('issem', 'issem', 480, 1) ], ball:[520, 478], lines:[
-    CARD('Sahne 3', 'Maç Günü'), N('Ertesi gün Uon Pmac Stadı tamamen dolmuştur.', { sfx:'roar' }),
-    N('Issem ve takım arkadaşları sahaya çıkar. Taraftarlar tezahürat yapmaktadır.', { fx:'cheer' }), N('Maç başlar.', { sfx:'whistle', min:"1'" }),
-    N('20. dakika…', { min:"20'" }), N('Stadın ışıkları aniden söner!', { fx:'dark' }),
-    N('Birkaç saniye sonra ışıklar yeniden yanar…', { fx:'light', hide:['m1', 'm2', 'm3', 'm4', 'm5', 'm6'] }),
-    N('Fakat sahada büyük bir karmaşa vardır.', { set:{ issem:{ pose:'shock', e:'shock' } } }), S('Issem', 'Arkadaşlarım nerede?!', { e:'shock' }),
-    { msg:'Onları istiyorsan bizi bul. Bu daha başlangıç.' }, N('Issem soyunma odası tüneline koşar… ama çetenin adamları yolunu keser!') ] } },
+  { cut:{ bg:'stad', minute:"0'", zoom:1.45, cheer:true, actors:[], lines:[
+    CARD('Sahne 3', 'Maç Günü'), { dawn:'ERTESİ GÜN', sub:'Maç günü sabahı' },                                /* gece → gün doğumu geçişi */
+    N('Ertesi gün Uon Pmac Stadı tamamen dolmuştur.', { sfx:'roar', fx:['cheer', 'flares'], seq:[ [0, 'zoom', 1.0], [0, 'cam', -120], [2.2, 'cam', 120], [4.4, 'cam', 0] ] }) ] } },
+  { cut:{ bg:'tunelCikis', zoom:1, music:'football', cheer:true, actors:[ A('issem', 'issem', -60, 1, { s:1.15, y:520 }), A('t1', 'mate', -170, 1, { s:1.15, y:520 }), A('t2', 'mate2', -280, 1, { s:1.15, y:520 }), A('t3', 'mate', -390, 1, { s:1.15, y:520 }), A('t4', 'mate2', -500, 1, { s:1.15, y:520 }) ], lines:[
+    N('Issem ve takım arkadaşları sahaya çıkar. Taraftarlar tezahürat yapmaktadır.', { fx:['cheer', 'confetti'], seq:[
+      [0, 'issem', { tx:500, speed:125 }], [0, 't1', { tx:1150, speed:125, hideAt:true }], [0, 't2', { tx:1150, speed:125, hideAt:true }], [0, 't3', { tx:1150, speed:125, hideAt:true }], [0, 't4', { tx:1150, speed:125, hideAt:true }],
+      [4.4, 'issem', { pose:'wave', face:-1, e:'happy' }], [6.2, 'issem', { pose:null, tx:1150, speed:140, hideAt:true }] ] }) ] } },
+  { cut:{ bg:'stad', minute:"0'", ball:[478, 478], actors:[
+      A('m1', 'mate', 290, 1, { dz:-3 }), A('m2', 'mate2', 220, 1), A('m3', 'mate', 360, 1, { dz:-6.5 }), A('issem', 'issem', 455, 1),
+      A('r1', 'rival', 575, -1), A('r2', 'rival2', 690, -1, { dz:-3.5 }), A('r3', 'rival', 780, -1, { dz:-7 }), A('ref', 'ref', 520, -1, { dz:-5 }) ], lines:[
+    N('Maç başlar.', { min:"1'", seq:[
+      [0, 'ref', { act:{ pose:'whistle', dur:1.0 } }], [.15, 'sfx', 'whistle'],                               /* hakem düdüğü */
+      [1.0, 'ball', { pass:'m2', h:6 }], [1.0, 'issem', { tx:640, speed:250 }], [1.0, 'r1', { tx:470, speed:230 }], [1.0, 'm1', { tx:470, speed:240 }], [1.0, 'r2', { tx:560, speed:220 }],
+      [1.5, 'm2', { tx:470, speed:250 }], [2.3, 'ball', { pass:'issem', h:22 }], [2.5, 'r3', { tx:620, speed:230 }], [2.5, 'ref', { tx:600, speed:200 }],
+      [3.1, 'issem', { tx:820, speed:270 }] ] }),
+    N('20. dakika…', { min:"20'", fx:'cheer', set:{ issem:{ jog:[420, 780, 240] }, r1:{ jog:[380, 760, 230] }, m1:{ jog:[300, 700, 220] }, m2:{ jog:[260, 640, 200] }, r2:{ jog:[460, 820, 210] }, m3:{ jog:[300, 720, 230] }, r3:{ jog:[420, 840, 200] }, ref:{ jog:[380, 720, 180] } },
+      seq:[ [0, 'ball', { own:'issem', mode:'dribble' }], [1.6, 'ball', { pass:'m2', h:16 }], [3.0, 'ball', { pass:'issem', h:20 }] ] }),
+    N('Stadın ışıkları aniden söner!', { fx:'dark', set:{ issem:{ stop:true }, r1:{ stop:true }, r2:{ stop:true }, r3:{ stop:true }, m1:{ stop:true }, m2:{ stop:true }, m3:{ stop:true }, ref:{ stop:true }, ball:{ at:[520, 478] } } }),
+    N('Birkaç saniye sonra ışıklar yeniden yanar…', { fx:'light', hide:['m1', 'm2', 'm3'], set:{ issem:{ x:480, face:1 } } }),
+    N('Fakat sahada büyük bir karmaşa vardır.', { fx:['smoke', 'flares'], set:{ issem:{ pose:'shock', e:'shock', scan:.9 },
+      r1:{ pose:'panic', jog:[300, 820, 290] }, r2:{ pose:'panic', jog:[180, 900, 260] }, r3:{ pose:'panic', jog:[120, 860, 300] }, ref:{ pose:'panic', jog:[200, 760, 250] } },
+      seq:[ [0, 'ball', { kick:[-160, 60] }], [0, 'sfx', 'roar'] ] }),
+    S('Issem', 'Arkadaşlarım nerede?!', { e:'shock', set:{ issem:{ scan:null, pose:'shock' } } }),
+    { msg:'Onları istiyorsan bizi bul. Bu daha başlangıç.' } ] } },
+  { cut:{ bg:'tunelCikis', zoom:1, music:'football', actors:[ A('issem', 'issem', 1040, -1, { s:1.15, y:520 }),
+      A('g1', 'masked', -120, 1, { s:1.15, y:520, hidden:true }), A('g2', 'thug', -220, 1, { s:1.15, y:520, hidden:true }), A('g3', 'masked', -60, 1, { s:1.15, y:520, hidden:true }) ], lines:[
+    N('Issem soyunma odası tüneline koşar… ama çetenin adamları yolunu keser!', { seq:[
+      [0, 'issem', { tx:430, speed:340, e:'angry' }],                                                          /* tünele koşar */
+      [.9, 'g1', { hidden:false, tx:190, speed:360, faceTo:1 }], [1.0, 'g2', { hidden:false, tx:110, speed:330, faceTo:1 }], [1.1, 'g3', { hidden:false, tx:270, speed:380, faceTo:1 }],
+      [1.75, 'issem', { stop:true, pose:'guard', e:'angry' }], [1.75, 'fx', 'shake'],                        /* yolu kesilir, durur */
+      [2.1, 'g1', { pose:'guard' }], [2.1, 'g2', { pose:'arms' }], [2.1, 'g3', { pose:'guard' }] ] }) ] } },
   { lvl:'tunel' },
-  { cut:{ bg:'sehir', actors:[ A('issem', 'issem', -40, 1, { tx:230 }), A('ufis', 'ufis', 1000, -1, { tx:730 }) ], lines:[
-    CARD('Bölüm Sonu'), N('Issem telefonunu cebine koyar ve stadın çıkışına doğru yürür.'), N('Aynı sırada Ufis de gizemli adamın bıraktığı bir adrese ulaşır.'),
-    N('İki farklı insan, aynı düşmanın peşine düşmüştür.') ] } },
+  { cut:{ bg:'statCikis', actors:[ A('issem', 'issem', 170, 1, { hold:'phone', pose:'phone' }), A('ufis', 'ufis', 770, -1, { pose:'arms' }) ], lines:[
+    CARD('Bölüm Sonu'),
+    N('Issem telefonunu cebine koyar ve stadın çıkışına doğru yürür.', { seq:[ [.3, 'issem', { putaway:true }], [1.0, 'issem', { tx:520, speed:105 }] ] }),
+    N('Aynı sırada Ufis de gizemli adamın bıraktığı bir adrese ulaşır.', { set:{ issem:{ x:520, tx:null, pose:'shock', e:'shock' } }, seq:[ [.4, 'ufis', { pose:null, tx:660, speed:85 }], [1.8, 'ufis', { act:{ pose:'bow', dur:.9 } }] ] }),
+    N('İki farklı insan, aynı düşmanın peşine düşmüştür.', { set:{ issem:{ pose:'guard', e:'angry' }, ufis:{ pose:'guard', e:'angry' } } }) ] } },
 ] },
 /* ================= BÖLÜM 2 ================= */
 { title:'Gizemli Saldırı', teaser:['3. Bölüm – Kaçırılan Futbolcular', 'Issem ve Ufis, futbolcuların tutulduğu gizli tesisi bulmaya çalışacak.'], flow:[

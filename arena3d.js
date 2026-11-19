@@ -24,6 +24,7 @@ const ARENA = {
   /* ara sahnelere özel mekânlar */
   sehir:     { d:300, kind:'street', night:1 },
   stadDis:   { d:300, kind:'street', night:1 },
+  statCikis: { d:300, kind:'street', night:1 },
   tunelCikis:{ d:260, kind:'under' },
   kapi:      { d:280, kind:'factory' },
   safe:      { d:300, kind:'home' },

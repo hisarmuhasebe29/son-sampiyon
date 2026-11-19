@@ -23,6 +23,7 @@ const LOOK = {
   kicker:  { skin:'#c48d68', hair:'#2b1a10', hs:'spiky', shirt:'#4a1d6b', stripe:'#b07cff', shorts:'#22102f', socks:'#22102f', shoes:'#111111', bandana:'#b07cff' },
   shieldg: { skin:'#d1a07c', hair:'#222222', hs:'helmet', shirt:'#2f3b52', shorts:'#1c2333', socks:'#1c2333', shoes:'#000000', shield:true },
   brute:   { skin:'#b9845f', hair:'#111111', hs:'bald', bandana:'#b3122e', beard:'#151515', bs:'stubble', shirt:'#3a1414', shorts:'#222222', socks:'#222222', shoes:'#000000', scale:1.28 },
+  ref:     { skin:'#d9a27c', hair:'#1d1d1d', hs:'short', shirt:'#151515', stripe:'#f2c230', shorts:'#151515', socks:'#151515', shoes:'#111111', sh:1 },
   rival:   { skin:'#d8a47f', hair:'#3a2a1a', hs:'short', shirt:'#c0392b', stripe:'#ffffff', shorts:'#ffffff', socks:'#c0392b', shoes:'#111111', sh:1, num:'4' },
   rival2:  { skin:'#8d5a3b', hair:'#111111', hs:'curly', shirt:'#c0392b', stripe:'#ffffff', shorts:'#ffffff', socks:'#c0392b', shoes:'#111111', sh:1, num:'5' },
   civ1:    { skin:'#e0ac85', hair:'#3a2414', hs:'short', shirt:'#2e86de', shorts:'#2a2f3a', socks:'#2a2f3a', shoes:'#111111' },
@@ -173,6 +174,11 @@ function getPose(f){
     case 'carry': P.fa = [2.7, 3.1]; P.ba = [2.6, 3.0]; return P;
     case 'lookUp': P.lean = -3; P.fa = [.12, .08]; P.ba = [-.1, -.1]; return P;
     case 'sad': P.lean = 6; P.fa = [.1, .1]; P.ba = [-.05, -.05]; P.bob = 1; return P;
+    case 'juggle': { const k = Math.max(0, Math.sin(t * 8.4)); P.fl = [.12 + k * 1.15, .05 + k * .25]; P.bl = [-.08, -.15]; P.fa = [.75, 1.0]; P.ba = [.6, .9]; P.lean = 1; P.bob = -k * 2; return P; }
+    case 'clap': { const s = Math.sin(t * 15); P.fa = [1.25 + s * .12, 1.95 + s * .35]; P.ba = [1.15 - s * .12, 1.85 - s * .35]; P.lean = 1; return P; }
+    case 'wave': P.fa = [2.65 + Math.sin(t * 7) * .28, 3.0]; P.ba = [-.1, -.1]; P.lean = -1; return P;
+    case 'whistle': P.fa = [.45, 2.95]; P.ba = [-.1, -.1]; P.lean = 0; return P;
+    case 'panic': { const s = Math.sin(t * 9); P.fa = [2.4 + s * .35, 2.8]; P.ba = [2.3 - s * .35, 2.7]; P.lean = -4; P.bob = -Math.abs(s) * 3; return P; }
   }
   if (f.stun > 0){ P.lean = -9; P.fa = [-.4, .6]; P.ba = [-.7, .2]; P.bob = 0; return P; }
   if (f.wind > 0){
@@ -671,7 +677,7 @@ function drawBg(c, key, st, t){
   else if (key === 'tunel') bgTunel(c, camX, st.worldW || W, false);
   else if (key === 'stadArka') bgTunel(c, camX, st.worldW || W, true);
   else if (key === 'tesisDis') bgTesisDis(c, t);
-  else if (key === 'stadDis') bgStadDis(c, t);
+  else if (key === 'stadDis' || key === 'statCikis') bgStadDis(c, t);
   else if (key === 'tunelCikis') bgTunelCikis(c, t);
   else if (key === 'sokak') bgSokak(c, camX, st, t);
   else if (key === 'arkaSokak') bgArkaSokak(c, camX, st, t);

@@ -3,7 +3,7 @@
    SON ŞAMPİYON — ARAÇ   ·   core.js
    ekran · yardımcılar · kayıt · ses · müzik · dublaj · kontroller
    ========================================================= */
-const VERSION = 'v.15';
+const VERSION = 'v.16';
 const W = 960, H = 540, GROUND = 470;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scale = 1, dpr = 1, paused = false;

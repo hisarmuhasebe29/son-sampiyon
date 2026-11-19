@@ -8,7 +8,7 @@
    WebGL yoksa ya da bir şey ters giderse eski 2D arka plan kullanılır.
    ========================================================= */
 const CUT3 = { depo:'depo', fabrika:'fabrika', fabrikaDis:'fabrikaDis', karargah:'karargah', guvenlik:'guvenlik', salon:'salon', eskiOkul:'eskiOkul', gizli:'gizli', stadArka:'stadArka',
-  tunel:'tunel', sokak:'sokak', arkaSokak:'arkaSokak', dojo:'dojo', eskiDojo:'dojo', stad:'stad', sehir:'sehir', stadDis:'stadDis', tunelCikis:'tunelCikis', kapi:'kapi', safe:'safe',
+  tunel:'tunel', sokak:'sokak', arkaSokak:'arkaSokak', dojo:'dojo', eskiDojo:'dojo', stad:'stad', sehir:'sehir', stadDis:'stadDis', statCikis:'statCikis', tunelCikis:'tunelCikis', kapi:'kapi', safe:'safe',
   leo:'leo', liderOda:'liderOda', soyunma:'soyunma', tesisDis:'tesisDis', saha:'saha' };
 /* sahneye özel eşyalar: [tür, x(px), seçenek] — 2D sahnedeki yerleriyle aynı */
 const CUT_PROPS = {
@@ -26,6 +26,8 @@ const CUT_PROPS = {
   dojo:     [['doorSlide', 140]], eskiDojo:[['doorSlide', 140]],
   sehir:    [['car']],
   stad:     [['stadScreen']],
+  saha:     [['miniGoal', 905], ['cones', 0]],
+  statCikis:[['stadGate', 480]],
 };
 /* 2D çizimden dokuya basılan duvar eşyaları: 2D sahnedeki kapladığı alan, ışıklı mı, her kare mi */
 const FLAT3 = {
@@ -82,6 +84,38 @@ function cutBuildProps(bgKey, L, U, root){
       for (const bx of [0, 2.5]) add(boxM(.08, 3.2, 1.3, bm, x + bx, 1.6, wz + .65)); continue; }
     if (k === 'doorSlide'){ const z = wz + .03; add(boxM(1.5, 2.6, .1, stdM({ color:'#5a3820', roughness:.7 }), x, 1.3, z)); add(plane(1.18, 2.3, emis('#202838', .35), x, 1.18, z + .055));
       const leaf = add(boxM(1.16, 2.3, .05, stdM({ map:aTex('dsh', 256, 256, TX.shoji), roughness:.8 }), x, 1.18, z + .09)); out.push({ slide:leaf, x0:x }); continue; }
+    if (k === 'miniGoal'){ /* antrenman kalesi: ağzı sola bakar, yandan görünür */ const wm = stdM({ color:'#f4f4f4', metalness:.2, roughness:.4 }), nz = .95, gx = x;
+      for (const z of [-nz, nz]) add(cylM(.05, 1.6, wm, gx, .8, z - .6, 10)); add(cylM(.05, 1.9, wm, gx, 1.6, -.6, 10)).rotation.x = Math.PI / 2;
+      for (const z of [-nz, nz]){ const b = add(cylM(.025, 1.05, wm, gx + .5, .02, z - .6, 6)); b.rotation.z = Math.PI / 2; const st = add(cylM(.025, 1.75, wm, gx + .5, .78, z - .6, 6)); st.rotation.z = .56; }
+      const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64; const g2 = cv.getContext('2d'); g2.strokeStyle = 'rgba(255,255,255,.85)'; g2.lineWidth = 2; for (let i = 0; i <= 64; i += 8){ g2.beginPath(); g2.moveTo(i, 0); g2.lineTo(i, 64); g2.moveTo(0, i); g2.lineTo(64, i); g2.stroke(); }
+      const nt = new T.CanvasTexture(cv); nt.wrapS = nt.wrapT = T.RepeatWrapping; nt.repeat.set(6, 5); const nm = new T.MeshBasicMaterial({ map:nt, transparent:true, side:T.DoubleSide, depthWrite:false });
+      const back = add(new T.Mesh(new T.PlaneGeometry(1.9, 1.6), nm)); back.position.set(gx + .95, .8, -.6); back.rotation.y = Math.PI / 2; back.rotation.x = 0; out.push({ net:back, x0:gx + .95 });
+      for (const z of [-nz, nz]){ const sd = add(new T.Mesh(new T.PlaneGeometry(.95, 1.6), nm)); sd.position.set(gx + .47, .8, z - .6); }
+      const top = add(new T.Mesh(new T.PlaneGeometry(.95, 1.9), nm)); top.position.set(gx + .47, 1.6, -.6); top.rotation.x = Math.PI / 2; continue; }
+    if (k === 'cones'){ const cm = stdM({ color:'#ff7a1a', roughness:.5 }), wb = stdM({ color:'#ffffff', roughness:.5 });
+      for (const cx2 of [2.7, 3.4, 4.1, 4.8]){ add(cylM(.0, .3, cm, cx2, .15, .55, 12, .1)); add(cylM(.075, .05, wb, cx2, .17, .55, 12, .085)); add(boxM(.24, .03, .24, cm, cx2, .015, .55)); } continue; }
+    if (k === 'stadGate'){ /* stadyum çıkış cephesi: kapılar, ÇIKIŞ tabelası, turnikeler */
+      const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512; const g = cv.getContext('2d');
+      const gr = g.createLinearGradient(0, 0, 0, 512); gr.addColorStop(0, '#1d2433'); gr.addColorStop(1, '#2b3140'); g.fillStyle = gr; g.fillRect(0, 0, 1024, 512);
+      for (let i = 0; i < 1024; i += 32){ g.fillStyle = i % 64 ? '#262d3d' : '#2f3749'; g.fillRect(i, 70, 30, 260); }               /* dikey kaplama panelleri */
+      g.fillStyle = '#14306b'; g.fillRect(0, 0, 1024, 70); g.fillStyle = '#f2c230'; g.fillRect(0, 66, 1024, 8);
+      g.font = 'italic 900 46px system-ui, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#f2c230'; g.fillText('UON PMAC STADI', 512, 50);
+      for (const [gx, lab] of [[200, 'KAPI 3'], [512, 'KAPI 4'], [824, 'KAPI 5']]){ g.fillStyle = '#ffd890'; g.fillRect(gx - 110, 340, 220, 172); const ig = g.createLinearGradient(0, 340, 0, 512); ig.addColorStop(0, 'rgba(255,190,90,.9)'); ig.addColorStop(1, 'rgba(120,70,30,.95)'); g.fillStyle = ig; g.fillRect(gx - 106, 344, 212, 168);
+        g.fillStyle = 'rgba(30,34,44,.92)'; for (let k2 = 0; k2 < 8; k2++) g.fillRect(gx - 106, 344 + k2 * 7, 212, 4);           /* yarı açık kepenk */
+        g.strokeStyle = '#596274'; g.lineWidth = 6; g.strokeRect(gx - 110, 340, 220, 172); g.fillStyle = '#0d1018'; g.fillRect(gx - 60, 300, 120, 30); g.font = 'bold 20px system-ui, sans-serif'; g.fillStyle = '#ffffff'; g.fillText(lab, gx, 322); }
+      g.fillStyle = '#0a7a3a'; g.fillRect(412, 236, 200, 52); g.strokeStyle = '#d8ffe6'; g.lineWidth = 3; g.strokeRect(414, 238, 196, 48); g.font = 'bold 34px system-ui, sans-serif'; g.fillStyle = '#ffffff'; g.fillText('ÇIKIŞ ➜', 512, 274);
+      for (const [px, txt2, col] of [[60, 'ANOLECRAB', '#f2c230'], [964, 'ARAÇ', '#ffffff']]){ g.fillStyle = '#14306b'; g.fillRect(px - 46, 90, 92, 220); g.save(); g.translate(px, 200); g.rotate(-Math.PI / 2); g.font = 'italic 900 30px system-ui, sans-serif'; g.fillStyle = col; g.fillText(txt2, 0, 10); g.restore(); }
+      const tex = new T.CanvasTexture(cv); tex.colorSpace = T.SRGBColorSpace;
+      const fac = add(new T.Mesh(new T.PlaneGeometry(16, 8), new T.MeshStandardMaterial({ map:tex, roughness:.7, emissiveMap:tex, emissive:new T.Color('#ffffff'), emissiveIntensity:.32 }))); fac.position.set(x, 4, wz + .12);
+      const roof = add(boxM(16.4, .5, 2.2, stdM({ color:'#14306b', roughness:.5 }), x, 8.1, wz + 1.0)); roof.castShadow = true;
+      const sign = add(boxM(2.1, .55, .12, emis('#18c060', 1.6), x, 2.62, wz + .3)); U.lamps.push([x, 2.4, wz + 1.2, '#7dffb0', 3]);
+      for (const gx of [-3.12, 0, 3.12]) U.lamps.push([x + gx, 1.2, wz + 1.0, '#ffc070', 5]);
+      /* turnikeler ve bariyerler */
+      for (const gx of [-3.12, 0, 3.12]) for (const dx of [-.7, 0, .7]){ const tx2 = x + gx + dx, tz = wz + 1.7; add(boxM(.22, .95, .7, steel, tx2, .48, tz)); add(boxM(.5, .04, .04, steel, tx2 + .25, .9, tz + .1)); add(boxM(.1, .06, .1, emis('#40ff80', 1.5), tx2, 1.0, tz - .2)); }
+      for (const gx of [-1.56, 1.56]) for (let i = 0; i < 3; i++) add(boxM(.06, .9, .06, steel, x + gx + (i - 1) * .4, .45, wz + 2.2));
+      for (const gx of [-1.56, 1.56]) add(boxM(.95, .05, .05, steel, x + gx, .9, wz + 2.2));
+      for (const lx of [-6.5, 6.5]){ add(cylM(.07, 4.2, dark, x + lx, 2.1, wz + 2.6, 8)); add(boxM(.6, .2, .3, emis('#fff0c8', 2.2), x + lx, 4.25, wz + 2.6)); U.lamps.push([x + lx, 4, wz + 3, '#ffe2b0', 9]); }
+      continue; }
     if (k === 'car'){ const car = carMesh('#0a0a0c', U, 3, -1.7, 0); car.userData.dyn = 1; root.add(car); out.push({ car }); continue; }
     if (k === 'stadScreen'){ const cv = document.createElement('canvas'); cv.width = 512; cv.height = 212; const tex = new T.CanvasTexture(cv); tex.colorSpace = T.SRGBColorSpace;
       const g = new T.Group(); g.userData.dyn = 1; const scr = new T.Mesh(new T.PlaneGeometry(15, 6.2), new T.MeshBasicMaterial({ map:tex, toneMapped:false })); g.add(scr); g.add(boxM(15.6, 6.8, .4, dark, 0, 0, -.25));
@@ -98,6 +132,7 @@ function cutTickProps(list, st, t, cx){
     if (P.led) P.led.material.emissiveIntensity = Math.sin(t * 4) > 0 ? 2.4 : .2;
     if (P.leds) P.leds.forEach((l, j) => { l.material.emissiveIntensity = Math.sin(t * 6 + P.i * 3 + j * 1.7) > .3 ? 2.2 : .15; });
     if (P.slide) P.slide.position.x = P.x0 + (st.doorK || 0) * 1.0;
+    if (P.net){ const nk = st.netT > 0 ? Math.sin(t * 40) * st.netT * .25 : 0; P.net.position.x = P.x0 + nk; }
     if (P.car){ const on = !!st.car; P.car.visible = on; if (on) P.car.position.x = st.car / 100; }
     if (P.stad){ const on = !!st.bigscreen; P.stad.visible = on; P.stad.position.x = cx;
       if (on){ const c = P.ctx; c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#0a0a0a'; c.fillRect(0, 0, 512, 212); c.setTransform(512 / 308, 0, 0, 212 / 128, 0, 0);
